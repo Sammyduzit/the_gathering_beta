@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
+from app.core.validators import SanitizedString
+
 
 class RoomResponse(BaseModel):
     """
@@ -21,7 +23,7 @@ class RoomCreate(BaseModel):
     Schema for creating a new room.
     Input validation for POST requests.
     """
-    name: str = Field(min_length=1, max_length=100)
-    description: str | None = Field(None, max_length=500)
+    name: SanitizedString = Field(min_length=1, max_length=100)
+    description: SanitizedString | None = Field(None, max_length=500)
     max_users: int | None = Field(None, ge=1, le=1000)
 

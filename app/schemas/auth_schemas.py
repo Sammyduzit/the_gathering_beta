@@ -1,12 +1,15 @@
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from datetime import datetime
 
+from app.core.validators import SanitizedString
+
+
 class UserRegister(BaseModel):
     """
     Schema for user registration.
     """
     email: EmailStr = Field(description="User email address")
-    username: str = Field(min_length=3, max_length=20, description="Username")
+    username: SanitizedString = Field(min_length=3, max_length=20, description="Username")
     password: str = Field(min_length=8, description="Password")
 
 

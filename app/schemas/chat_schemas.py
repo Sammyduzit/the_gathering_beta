@@ -1,12 +1,13 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
+from app.core.validators import SanitizedString
 
 
 class MessageCreate(BaseModel):
     """
     Schema for creating a room message.
     """
-    content: str = Field(min_length=1, max_length=500, description="Message content")
+    content: SanitizedString = Field(min_length=1, max_length=500, description="Message content")
 
 
 class MessageResponse(BaseModel):
