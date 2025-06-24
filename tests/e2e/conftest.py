@@ -1,8 +1,8 @@
 import os
 import pytest
 from datetime import datetime
-
-os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+if not os.getenv("CI"):
+    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
