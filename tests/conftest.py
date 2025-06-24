@@ -1,18 +1,19 @@
 import os
+import pytest
+from datetime import datetime
+
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.main import app
+from main import app
 from app.core.database import get_db, Base
 from app.models.user import User
 from app.models.room import Room
 from app.core.auth_utils import hash_password
-
 
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -24,11 +25,14 @@ engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
+# =====================================
+# E2E TEST FIXTURES (Real DB)
+# =====================================
+
 @pytest.fixture(scope="function")
 def db_session():
-    """
-    Create new database session for each test.
-    """
+    """Create new database session for E2E tests."""
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     try:
@@ -40,7 +44,7 @@ def db_session():
 
 @pytest.fixture(scope="function")
 def client(db_session):
-    """Create test client with database dependency override."""
+    """Create test client for E2E tests."""
     def override_get_db():
         try:
             yield db_session
@@ -53,34 +57,33 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
+# =====================================
+# SHARED TEST DATA
+# =====================================
+
 @pytest.fixture
-def test_user_data():
-    """
-    Test user registration data.
-    """
+def sample_user_data():
+    """Standard user registration data."""
     return {
         "email": "user@example.com",
         "username": "testuser",
         "password": "password123"
     }
 
+
 @pytest.fixture
-def test_admin_data():
-    """
-    Test admin registration data.
-    """
+def sample_admin_data():
+    """Standard admin registration data."""
     return {
         "email": "admin@example.com",
         "username": "testadmin",
-        "password": "adminpass"
+        "password": "adminpass123"
     }
 
 
 @pytest.fixture
-def test_room_data():
-    """
-    Test room creation data.
-    """
+def sample_room_data():
+    """Standard room creation data."""
     return {
         "name": "Test Room",
         "description": "A test room",
@@ -88,14 +91,19 @@ def test_room_data():
     }
 
 
+# =====================================
+# E2E HELPER FIXTURES
+# =====================================
+
 @pytest.fixture
-def created_user(db_session, test_user_data):
-    """Create a user in database."""
+def created_user(db_session, sample_user_data):
+    """Create a user in database for E2E tests."""
     user = User(
-        email=test_user_data["email"],
-        username=test_user_data["username"],
-        password_hash=hash_password(test_user_data["password"]),
-        is_admin=False
+        email=sample_user_data["email"],
+        username=sample_user_data["username"],
+        password_hash=hash_password(sample_user_data["password"]),
+        is_admin=False,
+        last_active=datetime.now()
     )
     db_session.add(user)
     db_session.commit()
@@ -104,13 +112,14 @@ def created_user(db_session, test_user_data):
 
 
 @pytest.fixture
-def created_admin(db_session, test_admin_data):
-    """Create an admin in database."""
+def created_admin(db_session, sample_admin_data):
+    """Create an admin in database for E2E tests."""
     admin = User(
-        email=test_admin_data["email"],
-        username=test_admin_data["username"],
-        password_hash=hash_password(test_admin_data["password"]),
-        is_admin=True
+        email=sample_admin_data["email"],
+        username=sample_admin_data["username"],
+        password_hash=hash_password(sample_admin_data["password"]),
+        is_admin=True,
+        last_active=datetime.now()
     )
     db_session.add(admin)
     db_session.commit()
@@ -119,14 +128,13 @@ def created_admin(db_session, test_admin_data):
 
 
 @pytest.fixture
-def created_room(db_session, test_room_data):
-    """Create a room in database."""
+def created_room(db_session, sample_room_data):
+    """Create a room in database for E2E tests."""
     room = Room(
-        name=test_room_data["name"],
-        description=test_room_data["description"],
-        max_users=test_room_data["max_users"],
+        name=sample_room_data["name"],
+        description=sample_room_data["description"],
+        max_users=sample_room_data["max_users"],
     )
-
     db_session.add(room)
     db_session.commit()
     db_session.refresh(room)
@@ -134,24 +142,22 @@ def created_room(db_session, test_room_data):
 
 
 @pytest.fixture
-def authenticated_user(client, test_user_data, created_user):
-    """Return headers with JWT token for authenticated requests."""
-    login_response = client.post("/api/v1/auth/login",
-                                 json={
-                                     "email": test_user_data["email"],
-                                     "password": test_user_data["password"]
-                                 })
+def authenticated_user_headers(client, sample_user_data, created_user):
+    """Return headers with JWT token for authenticated user requests."""
+    login_response = client.post("/api/v1/auth/login", json={
+        "email": sample_user_data["email"],
+        "password": sample_user_data["password"]
+    })
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def authenticated_admin(client, test_admin_data, created_admin):
-    """Return headers with JWT token for authenticated requests."""
-    login_response = client.post("/api/v1/auth/login",
-                                 json={
-                                     "email": test_admin_data["email"],
-                                     "password": test_admin_data["password"]
-                                 })
+def authenticated_admin_headers(client, sample_admin_data, created_admin):
+    """Return headers with JWT token for authenticated admin requests."""
+    login_response = client.post("/api/v1/auth/login", json={
+        "email": sample_admin_data["email"],
+        "password": sample_admin_data["password"]
+    })
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
