@@ -38,17 +38,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: "✅ Test FastAPI Import"
+    - name: "🧪 Run Unit Tests"
       run: |
-        python -c "from main import app; print('✅ FastAPI app import successful')"
+        pytest tests/unit/ -v --tb=short
 
-    - name: "🏥 Basic Health Check"
+    - name: "🔄 Run E2E Tests"
       run: |
-        python -c "
-        from main import app
-        from fastapi.testclient import TestClient
-        client = TestClient(app)
-        response = client.get('/health')
-        assert response.status_code == 200
-        print('✅ Health endpoint working')
-        "
+        pytest tests/e2e/ -v --tb=short
+
+    - name: "📊 Generate Coverage Report"
+      run: |
+        pytest --cov=app --cov-report=term-missing --cov-report=xml
+        echo "✅ Test coverage completed"
