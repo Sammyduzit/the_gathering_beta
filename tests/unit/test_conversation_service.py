@@ -2,7 +2,6 @@ import pytest
 from unittest.mock import Mock
 from fastapi import HTTPException
 
-from app.services.conversation_service import ConversationService
 from app.models.user import User, UserStatus
 from app.models.conversation import Conversation, ConversationType
 from app.models.message import Message, MessageType
@@ -10,51 +9,6 @@ from app.models.message import Message, MessageType
 
 class TestConversationService:
     """Unit tests for ConversationService."""
-
-    @pytest.fixture
-    def mock_repositories(self):
-        """Mock all repository dependencies."""
-        return {
-            'conversation_repo': Mock(),
-            'message_repo': Mock(),
-            'user_repo': Mock()
-        }
-
-    @pytest.fixture
-    def conversation_service(self, mock_repositories):
-        """ConversationService with mocked dependencies."""
-        return ConversationService(
-            conversation_repo=mock_repositories['conversation_repo'],
-            message_repo=mock_repositories['message_repo'],
-            user_repo=mock_repositories['user_repo']
-        )
-
-    @pytest.fixture
-    def sample_user(self):
-        """Sample User."""
-        return User(
-            id=1,
-            username="testuser",
-            email="test@example.com",
-            current_room_id=1,
-            status=UserStatus.AVAILABLE,
-            is_active=True
-        )
-
-    @pytest.fixture
-    def sample_conversation(self):
-        """Sample Conversation."""
-        return Conversation(
-            id=1,
-            room_id=1,
-            conversation_type=ConversationType.PRIVATE,
-            max_participants=2,
-            is_active=True
-        )
-
-    # =====================================
-    # CREATE CONVERSATION TESTS
-    # =====================================
 
     def test_create_private_conversation_success(self, conversation_service, mock_repositories, sample_user):
         """Test: Successfully create private conversation."""

@@ -3,7 +3,6 @@ import pytest
 from unittest.mock import Mock
 from fastapi import HTTPException
 
-from app.services.room_service import RoomService
 from app.models.user import User, UserStatus
 from app.models.room import Room
 from app.models.conversation import Conversation, ConversationType
@@ -11,54 +10,6 @@ from app.models.conversation import Conversation, ConversationType
 
 class TestRoomService:
     """Unit Tests for RoomService"""
-
-    @pytest.fixture
-    def mock_repositories(self):
-        """Mock all repository dependencies."""
-        return {
-            'room_repo': Mock(),
-            'user_repo': Mock(),
-            'message_repo': Mock(),
-            'conversation_repo': Mock()
-        }
-
-    @pytest.fixture
-    def room_service(self, mock_repositories):
-        """RoomService with mocked dependencies."""
-        return RoomService(
-            room_repo=mock_repositories['room_repo'],
-            user_repo=mock_repositories['user_repo'],
-            message_repo=mock_repositories['message_repo'],
-            conversation_repo=mock_repositories['conversation_repo']
-        )
-
-    @pytest.fixture
-    def sample_room(self):
-        """Sample Room for tests."""
-        return Room(
-            id=1,
-            name="Test Room",
-            description="A test room",
-            max_users=5,
-            is_active=True
-        )
-
-    @pytest.fixture
-    def sample_user(self):
-        """Sample User for tests."""
-        return User(
-            id=1,
-            username="testuser",
-            email="test@example.com",
-            current_room_id=None,
-            status=UserStatus.AVAILABLE,
-            is_active=True,
-            last_active=datetime.now()
-        )
-
-    # =====================================
-    # CREATE ROOM TESTS
-    # =====================================
 
     def test_create_room_success(self, room_service, mock_repositories):
         """Test: Successfully create a new room."""
@@ -83,7 +34,7 @@ class TestRoomService:
         assert "already exists" in str(exc_info.value.detail)
 
     # =====================================
-    # DELETE ROOM TESTS (NEW CLEANUP LOGIC)
+    # DELETE ROOM TESTS
     # =====================================
 
     def test_delete_room_success_with_cleanup(self, room_service, mock_repositories, sample_room):
@@ -163,7 +114,7 @@ class TestRoomService:
         """Test: Error when room is at full capacity."""
         sample_room.max_users = 2
         mock_repositories['room_repo'].get_by_id.return_value = sample_room
-        mock_repositories['room_repo'].get_user_count.return_value = 2  # Room full
+        mock_repositories['room_repo'].get_user_count.return_value = 2
 
         with pytest.raises(HTTPException) as exc_info:
             room_service.join_room(sample_user, 1)
@@ -198,7 +149,7 @@ class TestRoomService:
 
     def test_leave_room_not_in_room(self, room_service, mock_repositories, sample_room, sample_user):
         """Test: Error when user is not in the room."""
-        sample_user.current_room_id = 2  # Different room
+        sample_user.current_room_id = 2
         mock_repositories['room_repo'].get_by_id.return_value = sample_room
 
         with pytest.raises(HTTPException) as exc_info:
