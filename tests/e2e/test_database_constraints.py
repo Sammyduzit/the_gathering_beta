@@ -16,6 +16,7 @@ from app.models.message import Message, MessageType
 from app.core.auth_utils import hash_password
 
 
+@pytest.mark.e2e
 class TestDatabaseConstraints:
     """Test database schema constraints and data integrity."""
 

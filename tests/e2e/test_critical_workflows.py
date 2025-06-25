@@ -4,7 +4,7 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 import pytest
 
-pytest.mark.e2e
+@pytest.mark.e2e
 class TestCriticalUserJourneys:
     """Critical user workflows that must always work."""
 

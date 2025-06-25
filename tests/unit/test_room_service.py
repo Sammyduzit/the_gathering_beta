@@ -8,6 +8,7 @@ from app.models.room import Room
 from app.models.conversation import Conversation, ConversationType
 
 
+@pytest.mark.unit
 class TestRoomService:
     """Unit Tests for RoomService"""
 

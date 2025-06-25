@@ -6,7 +6,7 @@ from app.models.user import User, UserStatus
 from app.models.conversation import Conversation, ConversationType
 from app.models.message import Message, MessageType
 
-
+@pytest.mark.unit
 class TestConversationService:
     """Unit tests for ConversationService."""
 
