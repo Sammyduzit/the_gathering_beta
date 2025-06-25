@@ -5,7 +5,7 @@ if not os.getenv("CI"):
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -14,15 +14,49 @@ from app.core.database import get_db, Base
 from app.models.user import User
 from app.models.room import Room
 from app.core.auth_utils import hash_password
-
-
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
+from app.repositories.repository_dependencies import (
+    get_user_repository,
+    get_room_repository,
+    get_conversation_repository,
+    get_message_repository
 )
+from app.repositories.user_repository import UserRepository
+from app.repositories.room_repository import RoomRepository
+from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.message_repository import MessageRepository
+
+from app.services.service_dependencies import get_room_service, get_conversation_service
+from app.services.room_service import RoomService
+from app.services.conversation_service import ConversationService
+
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+print(f"Test Database URL: {DATABASE_URL}")
+
+if "sqlite" in DATABASE_URL:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+    print("Using SQLite engine configuration")
+else:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=3600
+    )
+    print("Using PostgreSQL engine configuration")
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Activate Foreign Key Constraints for SQLite connections."""
+    if "sqlite" in DATABASE_URL:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+        print("SQLite Foreign Key Constraints aktiviert")
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -47,7 +81,41 @@ def client(db_session):
         finally:
             pass
 
+    def override_user_repository():
+        return UserRepository(db_session)
+
+    def override_room_repository():
+        return RoomRepository(db_session)
+
+    def override_conversation_repository():
+        return ConversationRepository(db_session)
+
+    def override_message_repository():
+        return MessageRepository(db_session)
+
+    def override_room_service():
+        return RoomService(
+            room_repo=RoomRepository(db_session),
+            user_repo=UserRepository(db_session),
+            message_repo=MessageRepository(db_session),
+            conversation_repo=ConversationRepository(db_session)
+        )
+
+    def override_conversation_service():
+        return ConversationService(
+            conversation_repo=ConversationRepository(db_session),
+            message_repo=MessageRepository(db_session),
+            user_repo=UserRepository(db_session)
+        )
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_user_repository] = override_user_repository
+    app.dependency_overrides[get_room_repository] = override_room_repository
+    app.dependency_overrides[get_conversation_repository] = override_conversation_repository
+    app.dependency_overrides[get_message_repository] = override_message_repository
+    app.dependency_overrides[get_room_service] = override_room_service
+    app.dependency_overrides[get_conversation_service] = override_conversation_service
+
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
