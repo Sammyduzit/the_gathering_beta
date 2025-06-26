@@ -38,6 +38,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: "🦀 Ruff Linting Check"
+      run: |
+        ruff check app/ tests/ main.py
+
+    - name: "🦀 Ruff Formatting Check"
+      run: |
+        ruff format --check app/ tests/ main.py
+
     - name: "🧪 Run Unit Tests"
       run: |
         pytest tests/unit/ -v --tb=short
