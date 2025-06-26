@@ -1,5 +1,3 @@
-from http.cookiejar import escape_path
-
 from markupsafe import escape
 from typing import Annotated
 from pydantic import AfterValidator

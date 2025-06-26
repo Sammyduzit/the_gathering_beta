@@ -224,12 +224,6 @@ class ConversationRepository(IConversationRepository):
         result = self.db.execute(query)
         return list(result.scalars().all())
 
-    def update(self, conversation: Conversation) -> Conversation:
-        """Update existing conversation."""
-        self.db.commit()
-        self.db.refresh(conversation)
-        return conversation
-
     def get_all(self, limit: int = 100, offset: int = 0) -> List[Conversation]:
         """Get all conversations with pagination."""
         query = select(Conversation).limit(limit).offset(offset)

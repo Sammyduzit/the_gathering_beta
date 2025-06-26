@@ -258,7 +258,7 @@ class RoomService:
         if current_user.current_room_id != room_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User must join the room before viewing messages",
+                detail="User must join the room before viewing messages",
             )
 
         return self.message_repo.get_room_messages(

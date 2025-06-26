@@ -1,11 +1,10 @@
 from datetime import datetime
 import pytest
-from unittest.mock import Mock
 from fastapi import HTTPException
 
 from app.models.user import User, UserStatus
 from app.models.room import Room
-from app.models.conversation import Conversation, ConversationType
+from app.models.conversation import Conversation
 
 
 @pytest.mark.unit
@@ -197,7 +196,7 @@ class TestRoomService:
         mock_repositories["room_repo"].name_exists.return_value = False
         mock_repositories["room_repo"].update.return_value = sample_room
 
-        result = room_service.update_room(1, "Updated Room", "New description", 10)
+        room_service.update_room(1, "Updated Room", "New description", 10)
 
         assert sample_room.name == "Updated Room"
         assert sample_room.description == "New description"

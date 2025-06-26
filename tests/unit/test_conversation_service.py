@@ -1,8 +1,7 @@
 import pytest
-from unittest.mock import Mock
 from fastapi import HTTPException
 
-from app.models.user import User, UserStatus
+from app.models.user import User
 from app.models.conversation import Conversation, ConversationType
 from app.models.message import Message, MessageType
 
