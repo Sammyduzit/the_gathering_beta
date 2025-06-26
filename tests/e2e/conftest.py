@@ -1,6 +1,7 @@
 import os
 import pytest
 from datetime import datetime
+
 if not os.getenv("CI"):
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
@@ -18,7 +19,7 @@ from app.repositories.repository_dependencies import (
     get_user_repository,
     get_room_repository,
     get_conversation_repository,
-    get_message_repository
+    get_message_repository,
 )
 from app.repositories.user_repository import UserRepository
 from app.repositories.room_repository import RoomRepository
@@ -35,18 +36,13 @@ print(f"Test Database URL: {DATABASE_URL}")
 
 if "sqlite" in DATABASE_URL:
     engine = create_engine(
-        DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     print("Using SQLite engine configuration")
 else:
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_recycle=3600
-    )
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
     print("Using PostgreSQL engine configuration")
+
 
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -56,6 +52,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
         print("SQLite Foreign Key Constraints aktiviert")
+
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -75,6 +72,7 @@ def db_session():
 @pytest.fixture(scope="function")
 def client(db_session):
     """Create test client for E2E tests."""
+
     def override_get_db():
         try:
             yield db_session
@@ -98,20 +96,22 @@ def client(db_session):
             room_repo=RoomRepository(db_session),
             user_repo=UserRepository(db_session),
             message_repo=MessageRepository(db_session),
-            conversation_repo=ConversationRepository(db_session)
+            conversation_repo=ConversationRepository(db_session),
         )
 
     def override_conversation_service():
         return ConversationService(
             conversation_repo=ConversationRepository(db_session),
             message_repo=MessageRepository(db_session),
-            user_repo=UserRepository(db_session)
+            user_repo=UserRepository(db_session),
         )
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_user_repository] = override_user_repository
     app.dependency_overrides[get_room_repository] = override_room_repository
-    app.dependency_overrides[get_conversation_repository] = override_conversation_repository
+    app.dependency_overrides[get_conversation_repository] = (
+        override_conversation_repository
+    )
     app.dependency_overrides[get_message_repository] = override_message_repository
     app.dependency_overrides[get_room_service] = override_room_service
     app.dependency_overrides[get_conversation_service] = override_conversation_service
@@ -129,7 +129,7 @@ def created_user(db_session, sample_user_data):
         username=sample_user_data["username"],
         password_hash=hash_password(sample_user_data["password"]),
         is_admin=False,
-        last_active=datetime.now()
+        last_active=datetime.now(),
     )
     db_session.add(user)
     db_session.commit()
@@ -145,7 +145,7 @@ def created_admin(db_session, sample_admin_data):
         username=sample_admin_data["username"],
         password_hash=hash_password(sample_admin_data["password"]),
         is_admin=True,
-        last_active=datetime.now()
+        last_active=datetime.now(),
     )
     db_session.add(admin)
     db_session.commit()
@@ -170,10 +170,13 @@ def created_room(db_session, sample_room_data):
 @pytest.fixture
 def authenticated_user_headers(client, sample_user_data, created_user):
     """Return headers with JWT token for authenticated user requests."""
-    login_response = client.post("/api/v1/auth/login", json={
-        "email": sample_user_data["email"],
-        "password": sample_user_data["password"]
-    })
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": sample_user_data["email"],
+            "password": sample_user_data["password"],
+        },
+    )
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
@@ -181,9 +184,12 @@ def authenticated_user_headers(client, sample_user_data, created_user):
 @pytest.fixture
 def authenticated_admin_headers(client, sample_admin_data, created_admin):
     """Return headers with JWT token for authenticated admin requests."""
-    login_response = client.post("/api/v1/auth/login", json={
-        "email": sample_admin_data["email"],
-        "password": sample_admin_data["password"]
-    })
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": sample_admin_data["email"],
+            "password": sample_admin_data["password"],
+        },
+    )
     token = login_response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

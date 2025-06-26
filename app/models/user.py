@@ -8,6 +8,7 @@ from app.core.database import Base
 
 class UserStatus(enum.Enum):
     """User presence status"""
+
     AVAILABLE = "available"
     BUSY = "busy"
     AWAY = "away"
@@ -15,6 +16,7 @@ class UserStatus(enum.Enum):
 
 class User(Base):
     """User model"""
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -29,10 +31,14 @@ class User(Base):
     last_active = Column(DateTime(timezone=True), server_default=func.now())
     is_admin = Column(Boolean, nullable=False, default=False)
 
-    current_room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
+    current_room_id = Column(
+        Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
+    )
     current_room = relationship("Room", back_populates="users")
-    conversation_participations = relationship("ConversationParticipant", back_populates="user")
-    sent_messages= relationship("Message", back_populates="sender", lazy="dynamic")
+    conversation_participations = relationship(
+        "ConversationParticipant", back_populates="user"
+    )
+    sent_messages = relationship("Message", back_populates="sender", lazy="dynamic")
 
     def __repr__(self):
         return f"<User (id={self.id}, username='{self.username}')>"

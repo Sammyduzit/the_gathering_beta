@@ -11,18 +11,22 @@ from app.repositories.user_repository import IUserRepository
 class ConversationService:
     """Service for conversation business logic using Repository Pattern."""
 
-    def __init__(self,conversation_repo: IConversationRepository,
-                 message_repo: IMessageRepository,
-                 user_repo: IUserRepository
-                 ):
+    def __init__(
+        self,
+        conversation_repo: IConversationRepository,
+        message_repo: IMessageRepository,
+        user_repo: IUserRepository,
+    ):
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
         self.user_repo = user_repo
 
-    def create_conversation(self,current_user: User,
-                            participant_usernames: list[str],
-                            conversation_type: str
-                            ) -> Conversation:
+    def create_conversation(
+        self,
+        current_user: User,
+        participant_usernames: list[str],
+        conversation_type: str,
+    ) -> Conversation:
         """
         Create private or group conversation with validation.
         :param current_user: User creating the conversation
@@ -33,40 +37,43 @@ class ConversationService:
         if not current_user.current_room_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="User must be in a room to create conversations"
+                detail="User must be in a room to create conversations",
             )
 
         if conversation_type == "private" and len(participant_usernames) != 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Private conversations require exactly 1 other participant"
+                detail="Private conversations require exactly 1 other participant",
             )
 
         if conversation_type == "group" and len(participant_usernames) < 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Group conversations require at least 1 other participant"
+                detail="Group conversations require at least 1 other participant",
             )
 
         participant_users = self._validate_participants(
-            participant_usernames,
-            current_user.current_room_id
+            participant_usernames, current_user.current_room_id
         )
 
-        all_participant_ids = [current_user.id] + [user.id for user in participant_users]
+        all_participant_ids = [current_user.id] + [
+            user.id for user in participant_users
+        ]
 
         if conversation_type == "private":
             return self.conversation_repo.create_private_conversation(
                 room_id=current_user.current_room_id,
-                participant_ids=all_participant_ids
+                participant_ids=all_participant_ids,
             )
         else:
             return self.conversation_repo.create_group_conversation(
                 room_id=current_user.current_room_id,
-                participant_ids=all_participant_ids
+                participant_ids=all_participant_ids,
             )
 
-    def send_message(self, current_user: User, conversation_id: int, content: str) -> Message:
+    def send_message(
+        self, current_user: User, conversation_id: int, content: str
+    ) -> Message:
         """
         Send message to conversation with validation.
         :param current_user: User sending the message
@@ -77,30 +84,29 @@ class ConversationService:
         conversation = self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
             )
 
         if not self.conversation_repo.is_participant(conversation_id, current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="User is not a participant in this conversation"
+                detail="User is not a participant in this conversation",
             )
 
         message = self.message_repo.create_conversation_message(
-            sender_id=current_user.id,
-            conversation_id=conversation_id,
-            content=content
+            sender_id=current_user.id, conversation_id=conversation_id, content=content
         )
 
         message.sender_username = current_user.username
         return message
 
-    def get_messages(self, current_user: User,
-                     conversation_id: int,
-                        page: int = 1,
-                        page_size: int = 50
-                     ) -> tuple[list[Message], int]:
+    def get_messages(
+        self,
+        current_user: User,
+        conversation_id: int,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[Message], int]:
         """
         Get conversation messages with validation and pagination.
         :param current_user: User requesting messages
@@ -112,9 +118,7 @@ class ConversationService:
         self._validate_conversation_access(current_user.id, conversation_id)
 
         return self.message_repo.get_conversation_messages(
-            conversation_id=conversation_id,
-            page=page,
-            page_size=page_size
+            conversation_id=conversation_id, page=page, page_size=page_size
         )
 
     def get_user_conversations(self, user_id: int) -> list[dict]:
@@ -130,14 +134,16 @@ class ConversationService:
             participants = self.conversation_repo.get_participants(conv.id)
             participant_names = [p.username for p in participants if p.id != user_id]
 
-            conversation_list.append({
-                "id": conv.id,
-                "type": conv.conversation_type.value,
-                "room_id": conv.room_id,
-                "participants": participant_names,
-                "participant_count": len(participants),
-                "created_at": conv.created_at
-            })
+            conversation_list.append(
+                {
+                    "id": conv.id,
+                    "type": conv.conversation_type.value,
+                    "room_id": conv.room_id,
+                    "participants": participant_names,
+                    "participant_count": len(participants),
+                    "created_at": conv.created_at,
+                }
+            )
 
         return conversation_list
 
@@ -157,7 +163,7 @@ class ConversationService:
                 "id": user.id,
                 "username": user.username,
                 "status": user.status.value,
-                "avatar_url": user.avatar_url
+                "avatar_url": user.avatar_url,
             }
             for user in participants
         ]
@@ -175,23 +181,25 @@ class ConversationService:
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"User '{username}' not found"
+                    detail=f"User '{username}' not found",
                 )
             if not user.is_active:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"User '{username}' is not active"
+                    detail=f"User '{username}' is not active",
                 )
             if user.current_room_id != room_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"User '{username}' is not in the same room"
+                    detail=f"User '{username}' is not in the same room",
                 )
             participant_users.append(user)
 
         return participant_users
 
-    def _validate_conversation_access(self, user_id: int, conversation_id: int) -> Conversation:
+    def _validate_conversation_access(
+        self, user_id: int, conversation_id: int
+    ) -> Conversation:
         """
         Validate conversation exists and user has access.
         :param user_id: User ID
@@ -201,14 +209,13 @@ class ConversationService:
         conversation = self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Conversation not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
             )
 
         if not self.conversation_repo.is_participant(conversation_id, user_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="User is not a participant in this conversation"
+                detail="User is not a participant in this conversation",
             )
 
         return conversation

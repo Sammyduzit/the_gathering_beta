@@ -4,9 +4,11 @@ import uvicorn
 
 from app.core.config import settings
 from app.core.database import create_tables
+from app.api.v1.endpoints.conversation_router import router as conversation_router
 from app.api.v1.endpoints.room_router import router as rooms_router
 from app.api.v1.endpoints.auth_router import router as auth_router
 from testing_setup import setup_complete_test_environment
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,11 +27,12 @@ app = FastAPI(
     title=settings.app_name,
     description="Virtual meeting space with 3 type chat system",
     docs_url="/docs",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 app.include_router(rooms_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(conversation_router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -41,8 +44,8 @@ def root():
         "docs": "/docs",
         "endpoints": {
             "rooms": "/api/v1/rooms",
-            "room_health": "/api/v1/rooms/health/check"
-        }
+            "room_health": "/api/v1/rooms/health/check",
+        },
     }
 
 
@@ -60,9 +63,4 @@ if __name__ == "__main__":
     print("API Documentation: http://localhost:8000/docs")
     print("Room Endpoint: http://localhost:8000/api/v1/rooms")
 
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

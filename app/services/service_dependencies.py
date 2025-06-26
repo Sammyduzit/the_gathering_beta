@@ -10,14 +10,15 @@ from app.repositories.repository_dependencies import (
     get_conversation_repository,
     get_message_repository,
     get_user_repository,
-    get_room_repository
+    get_room_repository,
 )
 
 
-def get_conversation_service(conversation_repo: IConversationRepository = Depends(get_conversation_repository),
-                             message_repo: IMessageRepository = Depends(get_message_repository),
-                             user_repo: IUserRepository = Depends(get_user_repository)
-                             ) -> ConversationService:
+def get_conversation_service(
+    conversation_repo: IConversationRepository = Depends(get_conversation_repository),
+    message_repo: IMessageRepository = Depends(get_message_repository),
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> ConversationService:
     """
     Create ConversationService instance with repository dependencies.
     :param conversation_repo: Conversation repository instance
@@ -28,15 +29,16 @@ def get_conversation_service(conversation_repo: IConversationRepository = Depend
     return ConversationService(
         conversation_repo=conversation_repo,
         message_repo=message_repo,
-        user_repo=user_repo
+        user_repo=user_repo,
     )
 
 
-def get_room_service(room_repo: IRoomRepository = Depends(get_room_repository),
-                     user_repo: IUserRepository = Depends(get_user_repository),
-                     message_repo: IMessageRepository = Depends(get_message_repository),
-                     conversation_repo: IConversationRepository = Depends(get_conversation_repository)
-                     ) -> RoomService:
+def get_room_service(
+    room_repo: IRoomRepository = Depends(get_room_repository),
+    user_repo: IUserRepository = Depends(get_user_repository),
+    message_repo: IMessageRepository = Depends(get_message_repository),
+    conversation_repo: IConversationRepository = Depends(get_conversation_repository),
+) -> RoomService:
     """
     Create RoomService instance with repository dependencies.
     :param room_repo: Room repository instance
@@ -49,5 +51,5 @@ def get_room_service(room_repo: IRoomRepository = Depends(get_room_repository),
         room_repo=room_repo,
         user_repo=user_repo,
         message_repo=message_repo,
-        conversation_repo=conversation_repo
+        conversation_repo=conversation_repo,
     )

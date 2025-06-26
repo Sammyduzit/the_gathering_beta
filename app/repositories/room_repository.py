@@ -72,12 +72,7 @@ class RoomRepository(IRoomRepository):
 
     def name_exists(self, name: str, exclude_room_id: Optional[int] = None) -> bool:
         """Check if room name already exists."""
-        query = select(Room).where(
-            and_(
-                Room.name == name,
-                Room.is_active.is_(True)
-            )
-        )
+        query = select(Room).where(and_(Room.name == name, Room.is_active.is_(True)))
 
         if exclude_room_id:
             query = query.where(Room.id != exclude_room_id)
@@ -88,18 +83,19 @@ class RoomRepository(IRoomRepository):
 
     def get_user_count(self, room_id: int) -> int:
         """Get count of users currently in room."""
-        user_count_query = select(func.count(User.id)).where(User.current_room_id == room_id)
+        user_count_query = select(func.count(User.id)).where(
+            User.current_room_id == room_id
+        )
         result = self.db.execute(user_count_query)
         return result.scalar() or 0
 
     def get_users_in_room(self, room_id: int) -> List[User]:
         """Get all users currently in a specific room."""
-        query = select(User).where(
-            and_(
-                User.current_room_id == room_id,
-                User.is_active.is_(True)
-            )
-        ).order_by(User.username)
+        query = (
+            select(User)
+            .where(and_(User.current_room_id == room_id, User.is_active.is_(True)))
+            .order_by(User.username)
+        )
 
         result = self.db.execute(query)
         return list(result.scalars().all())

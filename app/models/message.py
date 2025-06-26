@@ -2,14 +2,26 @@
 Message model for 3-type chat system routing.
 Handles room-wide, private, and group chat messages with XOR constraint.
 """
-from sqlalchemy import Column, Integer, Enum, Text, DateTime, ForeignKey, Index, CheckConstraint
+
+from sqlalchemy import (
+    Column,
+    Integer,
+    Enum,
+    Text,
+    DateTime,
+    ForeignKey,
+    Index,
+    CheckConstraint,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 from app.core.database import Base
 
+
 class MessageType(enum.Enum):
     """Message type classification for system vs user messages."""
+
     TEXT = "text"
     SYSTEM = "system"
 
@@ -29,16 +41,23 @@ class Message(Base):
     - conversation_id set, room_id NULL → Private/group chat
     - Both set or both NULL → Constraint violation
     """
+
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True)
-    sender_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+    sender_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=False
+    )
     content = Column(Text, nullable=False)
     message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
     sent_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
-    room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"))
+    room_id = Column(
+        Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
+    )
+    conversation_id = Column(
+        Integer, ForeignKey("conversations.id", ondelete="CASCADE")
+    )
 
     sender = relationship("User", back_populates="sent_messages")
     room = relationship("Room", back_populates="room_messages")
@@ -47,7 +66,7 @@ class Message(Base):
     __table_args__ = (
         CheckConstraint(
             "(room_id is NULL) != (conversation_id IS NULL)",
-            name="message_xor_room_conversation"
+            name="message_xor_room_conversation",
         ),
         Index("idx_conversation_messages", "conversation_id", "sent_at"),
         Index("idx_room_messages", "room_id", "sent_at"),
@@ -59,7 +78,11 @@ class Message(Base):
         String representation of message.
         :return: Formatted message info
         """
-        target = f"room={self.room_id}" if self.room_id else f"conversation={self.conversation_id}"
+        target = (
+            f"room={self.room_id}"
+            if self.room_id
+            else f"conversation={self.conversation_id}"
+        )
         return f"<Message(id={self.id}, {target}, sender={self.sender_id})>"
 
     @property

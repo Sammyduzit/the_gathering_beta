@@ -23,7 +23,9 @@ class TestDatabaseConstraints:
     def test_message_xor_constraint(self, db_session, created_user, created_room):
         """Test XOR constraint: message must have either room_id OR conversation_id, not both."""
 
-        conversation = Conversation(room_id=created_room.id, conversation_type=ConversationType.PRIVATE)
+        conversation = Conversation(
+            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
+        )
 
         db_session.add(conversation)
         db_session.commit()
@@ -33,7 +35,7 @@ class TestDatabaseConstraints:
             sender_id=created_user.id,
             content="Room message",
             room_id=created_room.id,
-            conversation_id=None
+            conversation_id=None,
         )
         db_session.add(room_message)
         db_session.commit()
@@ -42,7 +44,7 @@ class TestDatabaseConstraints:
             sender_id=created_user.id,
             content="Conversation message",
             room_id=None,
-            conversation_id=conversation.id
+            conversation_id=conversation.id,
         )
         db_session.add(conv_message)
         db_session.commit()
@@ -53,7 +55,7 @@ class TestDatabaseConstraints:
                 sender_id=created_user.id,
                 content="Invalid message",
                 room_id=created_room.id,
-                conversation_id=conversation.id
+                conversation_id=conversation.id,
             )
             db_session.add(invalid_message)
             db_session.commit()
@@ -65,7 +67,7 @@ class TestDatabaseConstraints:
                 sender_id=created_user.id,
                 content="Orphan message",
                 room_id=None,
-                conversation_id=None
+                conversation_id=None,
             )
             db_session.add(orphan_message)
             db_session.commit()
@@ -79,7 +81,7 @@ class TestDatabaseConstraints:
                 email=created_user.email,
                 username="different_user",
                 password_hash=hash_password("password"),
-                last_active=datetime.now()
+                last_active=datetime.now(),
             )
             db_session.add(user2)
             db_session.commit()
@@ -91,7 +93,7 @@ class TestDatabaseConstraints:
                 email="different@example.com",
                 username=created_user.username,
                 password_hash=hash_password("password"),
-                last_active=datetime.now()
+                last_active=datetime.now(),
             )
             db_session.add(user3)
             db_session.commit()
@@ -118,23 +120,24 @@ class TestDatabaseConstraints:
         # Invalid message sender
         with pytest.raises(IntegrityError):
             invalid_message = Message(
-                sender_id=9999,
-                content="Invalid sender",
-                room_id=created_room.id
+                sender_id=9999, content="Invalid sender", room_id=created_room.id
             )
             db_session.add(invalid_message)
             db_session.commit()
 
-    def test_conversation_participant_constraints(self, db_session, created_user, created_room):
+    def test_conversation_participant_constraints(
+        self, db_session, created_user, created_room
+    ):
         """Test conversation participant unique constraints."""
-        conversation = Conversation(room_id=created_room.id, conversation_type=ConversationType.PRIVATE)
+        conversation = Conversation(
+            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
+        )
 
         db_session.add(conversation)
         db_session.commit()
 
         participant1 = ConversationParticipant(
-            conversation_id=conversation.id,
-            user_id=created_user.id
+            conversation_id=conversation.id, user_id=created_user.id
         )
         db_session.add(participant1)
         db_session.commit()
@@ -142,8 +145,7 @@ class TestDatabaseConstraints:
         # Duplicate participant should fail
         with pytest.raises(IntegrityError):
             participant2 = ConversationParticipant(
-                conversation_id=conversation.id,
-                user_id=created_user.id
+                conversation_id=conversation.id, user_id=created_user.id
             )
             db_session.add(participant2)
             db_session.commit()
@@ -151,8 +153,7 @@ class TestDatabaseConstraints:
     def test_enum_validation(self, db_session, created_user, created_room):
         """Test enum field validation."""
         valid_conversation = Conversation(
-            room_id=created_room.id,
-            conversation_type=ConversationType.PRIVATE
+            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
         )
         db_session.add(valid_conversation)
         db_session.commit()
@@ -165,7 +166,7 @@ class TestDatabaseConstraints:
             sender_id=created_user.id,
             content="Test message",
             message_type=MessageType.TEXT,
-            room_id=created_room.id
+            room_id=created_room.id,
         )
         db_session.add(message)
         db_session.commit()
@@ -178,7 +179,7 @@ class TestDatabaseConstraints:
                 email=None,
                 username="testuser",
                 password_hash=hash_password("password"),
-                last_active=datetime.now()
+                last_active=datetime.now(),
             )
             db_session.add(invalid_user)
             db_session.commit()
@@ -186,10 +187,7 @@ class TestDatabaseConstraints:
         db_session.rollback()
 
         with pytest.raises(IntegrityError):
-            invalid_room = Room(
-                name=None,
-                description="Test room"
-            )
+            invalid_room = Room(name=None, description="Test room")
             db_session.add(invalid_room)
             db_session.commit()
 
@@ -197,27 +195,26 @@ class TestDatabaseConstraints:
 
         with pytest.raises(IntegrityError):
             invalid_message = Message(
-                sender_id=created_user.id,
-                content=None,
-                room_id=created_room.id
+                sender_id=created_user.id, content=None, room_id=created_room.id
             )
             db_session.add(invalid_message)
             db_session.commit()
 
     def test_cascading_deletes(self, db_session, created_user, created_room):
         """Test that deleting conversation removes related data correctly."""
-        conversation = Conversation(room_id=created_room.id, conversation_type=ConversationType.PRIVATE)
+        conversation = Conversation(
+            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
+        )
         db_session.add(conversation)
         db_session.commit()
 
         participant = ConversationParticipant(
-            conversation_id=conversation.id,
-            user_id=created_user.id
+            conversation_id=conversation.id, user_id=created_user.id
         )
         message = Message(
             sender_id=created_user.id,
             content="Test message",
-            conversation_id=conversation.id
+            conversation_id=conversation.id,
         )
 
         db_session.add_all([participant, message])
@@ -226,12 +223,14 @@ class TestDatabaseConstraints:
         conversation_id = conversation.id
 
         # Verify data exists before deletion
-        participants_before = db_session.query(ConversationParticipant).filter_by(
-            conversation_id=conversation_id
-        ).count()
-        messages_before = db_session.query(Message).filter_by(
-            conversation_id=conversation_id
-        ).count()
+        participants_before = (
+            db_session.query(ConversationParticipant)
+            .filter_by(conversation_id=conversation_id)
+            .count()
+        )
+        messages_before = (
+            db_session.query(Message).filter_by(conversation_id=conversation_id).count()
+        )
 
         assert participants_before == 1
         assert messages_before == 1
@@ -240,24 +239,24 @@ class TestDatabaseConstraints:
         db_session.query(ConversationParticipant).filter_by(
             conversation_id=conversation_id
         ).delete()
-        db_session.query(Message).filter_by(
-            conversation_id=conversation_id
-        ).delete()
+        db_session.query(Message).filter_by(conversation_id=conversation_id).delete()
 
         # Delete conversation
         db_session.delete(conversation)
         db_session.commit()
 
         # Verify all related data is gone
-        remaining_participants = db_session.query(ConversationParticipant).filter_by(
-            conversation_id=conversation_id
-        ).count()
-        remaining_messages = db_session.query(Message).filter_by(
-            conversation_id=conversation_id
-        ).count()
-        remaining_conversations = db_session.query(Conversation).filter_by(
-            id=conversation_id
-        ).count()
+        remaining_participants = (
+            db_session.query(ConversationParticipant)
+            .filter_by(conversation_id=conversation_id)
+            .count()
+        )
+        remaining_messages = (
+            db_session.query(Message).filter_by(conversation_id=conversation_id).count()
+        )
+        remaining_conversations = (
+            db_session.query(Conversation).filter_by(id=conversation_id).count()
+        )
 
         assert remaining_participants == 0
         assert remaining_messages == 0
@@ -266,21 +265,23 @@ class TestDatabaseConstraints:
     def test_database_indexes_exist(self, db_session):
         """Verify that important database indexes exist for performance."""
 
-        result = db_session.execute(text("""
+        result = db_session.execute(
+            text("""
             SELECT name FROM sqlite_master 
             WHERE type='index' AND name NOT LIKE 'sqlite_%'
-        """))
+        """)
+        )
 
         index_names = [row[0] for row in result.fetchall()]
 
         expected_indexes = [
-            'ix_users_email',
-            'ix_users_username',
-            'idx_conversation_user_unique',
-            'idx_user_participation_history',
-            'idx_conversation_messages',
-            'idx_room_messages',
-            'idx_user_messages'
+            "ix_users_email",
+            "ix_users_username",
+            "idx_conversation_user_unique",
+            "idx_user_participation_history",
+            "idx_conversation_messages",
+            "idx_room_messages",
+            "idx_user_messages",
         ]
 
         for expected_index in expected_indexes:
@@ -288,4 +289,6 @@ class TestDatabaseConstraints:
 
 
 if __name__ == "__main__":
-    print("Database Constraints and Schema Validation Tests, tests/e2e/test_database_constraints.py")
+    print(
+        "Database Constraints and Schema Validation Tests, tests/e2e/test_database_constraints.py"
+    )

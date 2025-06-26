@@ -7,24 +7,34 @@ import enum
 
 class ConversationType(enum.Enum):
     """Conversation types"""
+
     PRIVATE = "private"
     GROUP = "group"
 
 
 class Conversation(Base):
     """Conversation Model"""
+
     __tablename__ = "conversations"
 
     id = Column(Integer, primary_key=True)
-    room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=False)
-    conversation_type = Column(Enum(ConversationType), nullable=False, default=ConversationType.PRIVATE)
-    max_participants = Column(Integer, nullable=True)           # 2 for private, NULL for group chat
+    room_id = Column(
+        Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=False
+    )
+    conversation_type = Column(
+        Enum(ConversationType), nullable=False, default=ConversationType.PRIVATE
+    )
+    max_participants = Column(
+        Integer, nullable=True
+    )  # 2 for private, NULL for group chat
 
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
 
     room = relationship("Room", back_populates="conversations")
-    participants = relationship("ConversationParticipant", back_populates="conversation")
+    participants = relationship(
+        "ConversationParticipant", back_populates="conversation"
+    )
     messages = relationship("Message", back_populates="conversation", lazy="dynamic")
 
     def __repr__(self):

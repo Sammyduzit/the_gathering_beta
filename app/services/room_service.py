@@ -10,26 +10,28 @@ from app.repositories.message_repository import IMessageRepository
 from app.schemas.room_user_schemas import RoomUserResponse
 
 
-
 class RoomService:
     """Service for room business logic using Repository Pattern."""
 
-    def __init__(self,
-                 room_repo: IRoomRepository,
-                 user_repo: IUserRepository,
-                 message_repo: IMessageRepository,
-                 conversation_repo: IConversationRepository
-                 ):
+    def __init__(
+        self,
+        room_repo: IRoomRepository,
+        user_repo: IUserRepository,
+        message_repo: IMessageRepository,
+        conversation_repo: IConversationRepository,
+    ):
         self.room_repo = room_repo
         self.user_repo = user_repo
         self.message_repo = message_repo
-        self.conversation_repo= conversation_repo
+        self.conversation_repo = conversation_repo
 
     def get_all_rooms(self) -> list[Room]:
         """Get all active rooms."""
         return self.room_repo.get_active_rooms()
 
-    def create_room(self, name: str, description: str | None, max_users: int | None) -> Room:
+    def create_room(
+        self, name: str, description: str | None, max_users: int | None
+    ) -> Room:
         """
         Create new room with validation.
         :param name: Room name
@@ -40,18 +42,16 @@ class RoomService:
         if self.room_repo.name_exists(name):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room name '{name}' already exists"
+                detail=f"Room name '{name}' already exists",
             )
 
-        new_room = Room(
-            name=name,
-            description=description,
-            max_users=max_users
-        )
+        new_room = Room(name=name, description=description, max_users=max_users)
 
         return self.room_repo.create(new_room)
 
-    def update_room(self, room_id: int, name: str, description: str | None, max_users: int | None) -> Room:
+    def update_room(
+        self, room_id: int, name: str, description: str | None, max_users: int | None
+    ) -> Room:
         """
         Update room with validation.
         :param room_id: Room ID to update
@@ -65,7 +65,7 @@ class RoomService:
         if name != room.name and self.room_repo.name_exists(name, room_id):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room name '{name}' already exists"
+                detail=f"Room name '{name}' already exists",
             )
 
         room.name = name
@@ -98,13 +98,13 @@ class RoomService:
 
         self.room_repo.soft_delete(room_id)
         room.is_active = False
-        
+
         return {
             "message": f"Room '{room.name}' has been closed",
             "room_id": room_id,
             "users_kicked": len(kicked_users),
             "conversations_archived": deactivated_conversations,
-            "note": "Chat history remains accessible"
+            "note": "Chat history remains accessible",
         }
 
     def get_room_by_id(self, room_id: int) -> Room:
@@ -118,7 +118,7 @@ class RoomService:
 
         return {
             "active_rooms": room_count,
-            "message": f"Found {room_count} active rooms"
+            "message": f"Found {room_count} active rooms",
         }
 
     def join_room(self, current_user: User, room_id: int) -> dict:
@@ -134,7 +134,7 @@ class RoomService:
         if room.max_users and current_user_count >= room.max_users:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room '{room.name}' is full (max {room.max_users} users)"
+                detail=f"Room '{room.name}' is full (max {room.max_users} users)",
             )
 
         current_user.current_room_id = room_id
@@ -147,7 +147,7 @@ class RoomService:
             "message": f"Successfully joined room '{room.name}'",
             "room_id": room_id,
             "room_name": room.name,
-            "user_count": final_user_count
+            "user_count": final_user_count,
         }
 
     def leave_room(self, current_user: User, room_id: int) -> dict:
@@ -162,7 +162,7 @@ class RoomService:
         if current_user.current_room_id != room_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"User is not in room '{room.name}'"
+                detail=f"User is not in room '{room.name}'",
             )
 
         current_user.current_room_id = None
@@ -172,7 +172,7 @@ class RoomService:
         return {
             "message": f"Left room '{room.name}'",
             "room_id": room_id,
-            "room_name": room.name
+            "room_name": room.name,
         }
 
     def get_room_users(self, room_id: int) -> dict:
@@ -189,7 +189,7 @@ class RoomService:
                 id=user.id,
                 username=user.username,
                 status=user.status.value,
-                last_active=user.last_active
+                last_active=user.last_active,
             )
             for user in users
         ]
@@ -198,7 +198,7 @@ class RoomService:
             "room_id": room_id,
             "room_name": room.name,
             "total_users": len(room_users),
-            "users": room_users
+            "users": room_users,
         }
 
     def update_user_status(self, current_user: User, new_status: UserStatus) -> dict:
@@ -214,10 +214,12 @@ class RoomService:
         return {
             "message": f"Status updated to '{new_status.value}'",
             "new_status": new_status.value,
-            "user": current_user.username
+            "user": current_user.username,
         }
 
-    def send_room_message(self, current_user: User, room_id: int, content: str) -> Message:
+    def send_room_message(
+        self, current_user: User, room_id: int, content: str
+    ) -> Message:
         """
         Send message to room with validation.
         :param current_user: User sending message
@@ -230,24 +232,18 @@ class RoomService:
         if current_user.current_room_id != room_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User must be in room '{room.name}' to send messages"
+                detail=f"User must be in room '{room.name}' to send messages",
             )
 
         message = self.message_repo.create_room_message(
-            sender_id=current_user.id,
-            room_id=room_id,
-            content=content
+            sender_id=current_user.id, room_id=room_id, content=content
         )
 
         message.sender_username = current_user.username
         return message
 
     def get_room_messages(
-        self,
-        current_user: User,
-        room_id: int,
-        page: int = 1,
-        page_size: int = 50
+        self, current_user: User, room_id: int, page: int = 1, page_size: int = 50
     ) -> tuple[list[Message], int]:
         """
         Get room messages with validation and pagination.
@@ -262,13 +258,11 @@ class RoomService:
         if current_user.current_room_id != room_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User must join the room before viewing messages"
+                detail=f"User must join the room before viewing messages",
             )
 
         return self.message_repo.get_room_messages(
-            room_id=room_id,
-            page=page,
-            page_size=page_size
+            room_id=room_id, page=page, page_size=page_size
         )
 
     def _get_room_or_404(self, room_id: int) -> Room:
@@ -277,6 +271,6 @@ class RoomService:
         if not room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Room with id {room_id} not found"
+                detail=f"Room with id {room_id} not found",
             )
         return room

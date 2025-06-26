@@ -84,10 +84,7 @@ class UserRepository(IUserRepository):
     def get_users_in_room(self, room_id: int) -> List[User]:
         """Get all users currently in a specific room."""
         query = select(User).where(
-            and_(
-                User.current_room_id == room_id,
-                User.is_active.is_(True)
-            )
+            and_(User.current_room_id == room_id, User.is_active.is_(True))
         )
         result = self.db.execute(query)
         return list(result.scalars().all())

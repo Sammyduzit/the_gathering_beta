@@ -13,10 +13,10 @@ from app.models.conversation import Conversation, ConversationType
 def mock_repositories():
     """Mock all repository dependencies."""
     return {
-        'conversation_repo': Mock(),
-        'message_repo': Mock(),
-        'user_repo': Mock(),
-        'room_repo': Mock()
+        "conversation_repo": Mock(),
+        "message_repo": Mock(),
+        "user_repo": Mock(),
+        "room_repo": Mock(),
     }
 
 
@@ -24,9 +24,9 @@ def mock_repositories():
 def conversation_service(mock_repositories):
     """ConversationService with mocked dependencies."""
     return ConversationService(
-        conversation_repo=mock_repositories['conversation_repo'],
-        message_repo=mock_repositories['message_repo'],
-        user_repo=mock_repositories['user_repo']
+        conversation_repo=mock_repositories["conversation_repo"],
+        message_repo=mock_repositories["message_repo"],
+        user_repo=mock_repositories["user_repo"],
     )
 
 
@@ -34,10 +34,10 @@ def conversation_service(mock_repositories):
 def room_service(mock_repositories):
     """RoomService with mocked dependencies."""
     return RoomService(
-        room_repo=mock_repositories['room_repo'],
-        user_repo=mock_repositories['user_repo'],
-        message_repo=mock_repositories['message_repo'],
-        conversation_repo=mock_repositories['conversation_repo']
+        room_repo=mock_repositories["room_repo"],
+        user_repo=mock_repositories["user_repo"],
+        message_repo=mock_repositories["message_repo"],
+        conversation_repo=mock_repositories["conversation_repo"],
     )
 
 
@@ -51,7 +51,7 @@ def sample_user():
         current_room_id=1,
         status=UserStatus.AVAILABLE,
         is_active=True,
-        last_active=datetime.now()
+        last_active=datetime.now(),
     )
 
 
@@ -59,11 +59,7 @@ def sample_user():
 def sample_room():
     """Sample Room for unit tests."""
     return Room(
-        id=1,
-        name="Test Room",
-        description="A test room",
-        max_users=5,
-        is_active=True
+        id=1, name="Test Room", description="A test room", max_users=5, is_active=True
     )
 
 
@@ -75,5 +71,5 @@ def sample_conversation():
         room_id=1,
         conversation_type=ConversationType.PRIVATE,
         max_participants=2,
-        is_active=True
+        is_active=True,
     )

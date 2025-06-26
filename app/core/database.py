@@ -6,24 +6,17 @@ from app.core.config import settings
 
 
 engine = create_engine(
-    settings.database_url,
-    pool_pre_ping= True,
-    pool_recycle=3600,
-    echo=settings.debug
+    settings.database_url, pool_pre_ping=True, pool_recycle=3600, echo=settings.debug
 )
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
 
 def get_db():
     """Database session dependency"""
-    db =SessionLocal()
+    db = SessionLocal()
     try:
         yield db
     finally:

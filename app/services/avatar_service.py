@@ -10,10 +10,7 @@ def get_available_avatar_styles() -> list[str]:
     :return: List of available styles.
     """
     try:
-        response = requests.get(
-            "https://api.dicebear.com/7.x/styles",
-            timeout=5
-        )
+        response = requests.get("https://api.dicebear.com/7.x/styles", timeout=5)
 
         if response.status_code == 200:
             styles_data = response.json()
@@ -43,6 +40,7 @@ def get_available_avatar_styles() -> list[str]:
         "shapes",
     ]
 
+
 def get_random_avatar_style() -> str:
     """
     Get a random avatar style from available styles.
@@ -59,10 +57,12 @@ def is_valid_avatar_style(style: str) -> bool:
     :return: True if available, else False
     """
     available_styles = get_available_avatar_styles()
-    return style.lower() in [available_style.lower() for available_style in available_styles]
+    return style.lower() in [
+        available_style.lower() for available_style in available_styles
+    ]
 
 
-def generate_avatar_url(username:str, style: str = "bottts") -> str:
+def generate_avatar_url(username: str, style: str = "bottts") -> str:
     """
     Generate DiceBear avatar URL based on username.
     :param username: Username used for avatar

@@ -4,6 +4,7 @@ from markupsafe import escape
 from typing import Annotated
 from pydantic import AfterValidator
 
+
 def sanitize_html_content(content: str | None) -> str | None:
     """
     Sanitize HTML content by

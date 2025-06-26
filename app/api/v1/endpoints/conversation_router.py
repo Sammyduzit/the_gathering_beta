@@ -6,17 +6,15 @@ from app.schemas.chat_schemas import ConversationCreate, MessageResponse, Messag
 from app.services.conversation_service import ConversationService
 from app.services.service_dependencies import get_conversation_service
 
-router = APIRouter(
-    prefix="/conversations",
-    tags=["conversations"]
-)
+router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_conversation(conversation_data: ConversationCreate = Body(...),
-                              current_user: User = Depends(get_current_active_user),
-                              conversation_service: ConversationService = Depends(get_conversation_service)
-                              ) -> dict:
+async def create_conversation(
+    conversation_data: ConversationCreate = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> dict:
     """
     Create private or group conversation.
     :param conversation_data: Conversation creation data
@@ -28,21 +26,22 @@ async def create_conversation(conversation_data: ConversationCreate = Body(...),
     new_conversation = conversation_service.create_conversation(
         current_user=current_user,
         participant_usernames=conversation_data.participant_usernames,
-        conversation_type=conversation_data.conversation_type
+        conversation_type=conversation_data.conversation_type,
     )
     return {
-         "message": f"{conversation_data.conversation_type.title()} conversation created successfully",
+        "message": f"{conversation_data.conversation_type.title()} conversation created successfully",
         "conversation_id": new_conversation.id,
-        "participants": len(conversation_data.participant_usernames) + 1
+        "participants": len(conversation_data.participant_usernames) + 1,
     }
 
 
 @router.post("/{conversation_id}/messages", response_model=MessageResponse)
-async def send_conversation_message(conversation_id: int,
-                                    message_data: MessageCreate = Body(...),
-                                    current_user: User = Depends(get_current_active_user),
-                                    conversation_service: ConversationService = Depends(get_conversation_service)
-                                    ) -> MessageResponse:
+async def send_conversation_message(
+    conversation_id: int,
+    message_data: MessageCreate = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> MessageResponse:
     """
     Send message to conversation.
     :param conversation_id: Target conversation ID
@@ -54,17 +53,18 @@ async def send_conversation_message(conversation_id: int,
     return conversation_service.send_message(
         current_user=current_user,
         conversation_id=conversation_id,
-        content=message_data.content
+        content=message_data.content,
     )
 
 
 @router.get("/{conversation_id}/messages", response_model=list[MessageResponse])
-async def get_conversation_messages(conversation_id: int,
-                                    page: int = 1,
-                                    page_size: int = 50,
-                                    current_user: User = Depends(get_current_active_user),
-                                    conversation_service: ConversationService = Depends(get_conversation_service)
-                                    ) -> list[MessageResponse]:
+async def get_conversation_messages(
+    conversation_id: int,
+    page: int = 1,
+    page_size: int = 50,
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> list[MessageResponse]:
     """
     Get conversation message history.
     :param conversation_id: Conversation ID to get messages from
@@ -78,15 +78,17 @@ async def get_conversation_messages(conversation_id: int,
         current_user=current_user,
         conversation_id=conversation_id,
         page=page,
-        page_size=page_size
+        page_size=page_size,
     )
 
     return messages
 
+
 @router.get("/", response_model=list[dict])
-async def get_user_conversations(current_user: User = Depends(get_current_active_user),
-                                 conversation_service: ConversationService = Depends(get_conversation_service)
-                                 ) -> list[dict]:
+async def get_user_conversations(
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> list[dict]:
     """
     Get all active conversations for current user.
     :param current_user: Current authenticated user
@@ -97,10 +99,11 @@ async def get_user_conversations(current_user: User = Depends(get_current_active
 
 
 @router.get("/{conversation_id}/participants", response_model=list[dict])
-async def get_conversation_participants(conversation_id: int,
-                                        current_user: User = Depends(get_current_active_user),
-                                        conversation_service: ConversationService = Depends(get_conversation_service)
-                                        ) -> list[dict]:
+async def get_conversation_participants(
+    conversation_id: int,
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> list[dict]:
     """
     Get participants of a conversation.
     :param conversation_id: ID of the conversation
@@ -109,6 +112,5 @@ async def get_conversation_participants(conversation_id: int,
     :return: List of participant user dictionaries for the given conversation
     """
     return conversation_service.get_participants(
-        current_user=current_user,
-        conversation_id=conversation_id
+        current_user=current_user, conversation_id=conversation_id
     )

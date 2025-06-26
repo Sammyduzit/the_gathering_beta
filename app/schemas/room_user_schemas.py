@@ -8,6 +8,7 @@ class RoomUserResponse(BaseModel):
     """
     User information within room context.
     """
+
     id: int
     username: str
     avatar_url: str | None = None
@@ -21,6 +22,7 @@ class RoomJoinResponse(BaseModel):
     """
     Response when user joins room.
     """
+
     message: str = Field(description="Success message")
     room_id: int = Field(description="ID of joined room")
     room_name: str = Field(description="Name of joined room")
@@ -31,6 +33,7 @@ class RoomLeaveResponse(BaseModel):
     """
     Response when user leaves room.
     """
+
     message: str = Field(description="Success message")
     room_id: int = Field(description="ID of left room")
     room_name: str = Field(description="Name of left room")
@@ -40,6 +43,7 @@ class RoomUsersListResponse(BaseModel):
     """
     List of users currently in a room.
     """
+
     room_id: int
     room_name: str
     total_users: int
@@ -50,4 +54,5 @@ class UserStatusUpdate(BaseModel):
     """
     Schema for updating user status.
     """
+
     status: UserStatus = Field(description="New user status")

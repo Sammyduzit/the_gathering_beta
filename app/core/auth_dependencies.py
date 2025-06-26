@@ -9,7 +9,10 @@ from app.repositories.repository_dependencies import get_user_repository
 
 security = HTTPBearer(auto_error=False)
 
-async def get_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+
+async def get_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
     """
     Extract JWT token from Authorization header.
     :param credentials: HTTP authorization credentials
@@ -19,13 +22,15 @@ async def get_token(credentials: HTTPAuthorizationCredentials = Depends(security
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"},
         )
     return credentials.credentials
 
 
-async def get_current_user(token: str = Depends(get_token),
-                           user_repo: IUserRepository = Depends(get_user_repository)) -> User:
+async def get_current_user(
+    token: str = Depends(get_token),
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> User:
     """
     Get current authenticated user from JWT token.
     :param token: JWT token string
@@ -40,13 +45,15 @@ async def get_current_user(token: str = Depends(get_token),
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"User '{username}' not found",
-            headers={"WWW-Authenticate": "Bearer"}
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     return user
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
     """
     Get current active user.
     :param current_user: Current user from token
@@ -55,7 +62,9 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     return current_user
 
 
-async def get_current_admin_user(current_user: User = Depends(get_current_active_user)) -> User:
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
     """
     Get current user and verify admin status.
     :param current_user: Current authenticated user
@@ -64,8 +73,6 @@ async def get_current_admin_user(current_user: User = Depends(get_current_active
 
     if not current_user.is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
         )
     return current_user
-

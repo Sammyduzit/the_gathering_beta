@@ -7,6 +7,7 @@ from app.core.database import Base
 
 class Room(Base):
     """Room model"""
+
     __tablename__ = "rooms"
 
     id = Column(Integer, primary_key=True)

@@ -5,8 +5,10 @@ from app.core.database import get_db
 from app.repositories.user_repository import UserRepository, IUserRepository
 from app.repositories.room_repository import RoomRepository, IRoomRepository
 from app.repositories.message_repository import MessageRepository, IMessageRepository
-from app.repositories.conversation_repository import ConversationRepository, IConversationRepository
-
+from app.repositories.conversation_repository import (
+    ConversationRepository,
+    IConversationRepository,
+)
 
 
 def get_user_repository(db: Session = Depends(get_db)) -> IUserRepository:
@@ -36,7 +38,9 @@ def get_message_repository(db: Session = Depends(get_db)) -> IMessageRepository:
     return MessageRepository(db)
 
 
-def get_conversation_repository(db: Session = Depends(get_db)) -> IConversationRepository:
+def get_conversation_repository(
+    db: Session = Depends(get_db),
+) -> IConversationRepository:
     """
     Create ConversationRepository instance with database session.
     :param db: Database session from get_db dependency
