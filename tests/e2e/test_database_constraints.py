@@ -265,12 +265,21 @@ class TestDatabaseConstraints:
     def test_database_indexes_exist(self, db_session):
         """Verify that important database indexes exist for performance."""
 
-        result = db_session.execute(
-            text("""
-            SELECT name FROM sqlite_master 
-            WHERE type='index' AND name NOT LIKE 'sqlite_%'
-        """)
-        )
+        database_url = str(db_session.bind.url)
+
+        if "sqlite" in database_url:
+            sql = """
+                    SELECT name FROM sqlite_master 
+                    WHERE type='index' AND name NOT LIKE 'sqlite_%'
+                """
+        else:
+            sql = """
+                    SELECT indexname FROM pg_indexes 
+                    WHERE schemaname = 'public' 
+                    AND indexname NOT LIKE 'pg_%'
+                """
+
+        result = db_session.execute(text(sql))
 
         index_names = [row[0] for row in result.fetchall()]
 
