@@ -17,7 +17,7 @@ def mock_repositories():
         "message_repo": Mock(),
         "user_repo": Mock(),
         "room_repo": Mock(),
-        "translation_service":Mock(),
+        "translation_service": Mock(),
     }
 
 
