@@ -29,6 +29,7 @@ from app.repositories.message_repository import MessageRepository
 from app.services.service_dependencies import get_room_service, get_conversation_service
 from app.services.room_service import RoomService
 from app.services.conversation_service import ConversationService
+from app.services.translation_service import TranslationService
 
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///:memory:")
@@ -97,6 +98,7 @@ def client(db_session):
             user_repo=UserRepository(db_session),
             message_repo=MessageRepository(db_session),
             conversation_repo=ConversationRepository(db_session),
+            translation_service=TranslationService(MessageRepository(db_session)),
         )
 
     def override_conversation_service():
@@ -104,6 +106,7 @@ def client(db_session):
             conversation_repo=ConversationRepository(db_session),
             message_repo=MessageRepository(db_session),
             user_repo=UserRepository(db_session),
+            translation_service=TranslationService(MessageRepository(db_session)),
         )
 
     app.dependency_overrides[get_db] = override_get_db

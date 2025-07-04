@@ -17,6 +17,7 @@ def mock_repositories():
         "message_repo": Mock(),
         "user_repo": Mock(),
         "room_repo": Mock(),
+        "translation_service":Mock(),
     }
 
 
@@ -27,6 +28,7 @@ def conversation_service(mock_repositories):
         conversation_repo=mock_repositories["conversation_repo"],
         message_repo=mock_repositories["message_repo"],
         user_repo=mock_repositories["user_repo"],
+        translation_service=mock_repositories["translation_service"],
     )
 
 
@@ -38,6 +40,7 @@ def room_service(mock_repositories):
         user_repo=mock_repositories["user_repo"],
         message_repo=mock_repositories["message_repo"],
         conversation_repo=mock_repositories["conversation_repo"],
+        translation_service=mock_repositories["translation_service"],
     )
 
 
