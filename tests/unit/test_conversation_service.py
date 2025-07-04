@@ -110,7 +110,9 @@ class TestConversationService:
         mock_repositories[
             "message_repo"
         ].create_conversation_message.return_value = expected_message
-        mock_repositories["conversation_repo"].get_participants.return_value = [sample_user]
+        mock_repositories["conversation_repo"].get_participants.return_value = [
+            sample_user
+        ]
 
         result = conversation_service.send_message(
             current_user=sample_user, conversation_id=1, content="Hello!"
