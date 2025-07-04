@@ -100,7 +100,11 @@ class MessageRepository(IMessageRepository):
         return new_message
 
     def get_room_messages(
-        self, room_id: int, page: int = 1, page_size: int = 50, user_language: str | None = None
+        self,
+        room_id: int,
+        page: int = 1,
+        page_size: int = 50,
+        user_language: str | None = None,
     ) -> tuple[list[Message], int]:
         """Get room messages with pagination."""
         count_query = select(func.count(Message.id)).where(
@@ -132,7 +136,11 @@ class MessageRepository(IMessageRepository):
         return messages, total_count
 
     def get_conversation_messages(
-        self, conversation_id: int, page: int = 1, page_size: int = 50, user_language: str | None = None
+        self,
+        conversation_id: int,
+        page: int = 1,
+        page_size: int = 50,
+        user_language: str | None = None,
     ) -> tuple[list[Message], int]:
         """Get conversation messages with pagination."""
         count_query = select(func.count(Message.id)).where(
@@ -210,7 +218,7 @@ class MessageRepository(IMessageRepository):
         return list(result.scalars().all())
 
     def _apply_translations_to_messages(
-            self, messages: list[Message], user_language: str | None = None
+        self, messages: list[Message], user_language: str | None = None
     ) -> list[Message]:
         """Apply translations to messages based on User's preferred language"""
         if not user_language:

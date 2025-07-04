@@ -35,7 +35,10 @@ class TranslationService:
         return self._deepl_client
 
     def translate_message_content(
-            self, content: str, source_language: str | None = None, target_languages: list[str] | None = None
+        self,
+        content: str,
+        source_language: str | None = None,
+        target_languages: list[str] | None = None,
     ) -> dict[str, str]:
         """
         Translate message content to multiple target languages.
@@ -62,9 +65,7 @@ class TranslationService:
                 print(f"Translating to {target_lang}")
 
                 result = self.deepl_client.translate_text(
-                    content,
-                    source_lang=source_language,
-                    target_lang=target_lang
+                    content, source_lang=source_language, target_lang=target_lang
                 )
 
                 if not result.text or not result.text.strip():
@@ -81,13 +82,13 @@ class TranslationService:
                 print(f"Unexpected error translating to {target_lang}: {e}")
                 continue
 
-        print(f"Translation summary: {len(translations)}/{len(target_languages)} successful")
+        print(
+            f"Translation summary: {len(translations)}/{len(target_languages)} successful"
+        )
         return translations
 
     def create_message_translations(
-            self,
-            message_id: int,
-            translations: dict[str, str]
+        self, message_id: int, translations: dict[str, str]
     ) -> list[MessageTranslation]:
         """
         Store translations in database.
@@ -105,7 +106,7 @@ class TranslationService:
                 translation = MessageTranslation(
                     message_id=message_id,
                     target_language=target_language,
-                    content=translated_content
+                    content=translated_content,
                 )
 
                 created_translations.append(translation)
@@ -117,11 +118,11 @@ class TranslationService:
         return created_translations
 
     def translate_and_store_message(
-            self,
-            message_id: int,
-            content: str,
-            source_language: str | None = None,
-            target_languages: list[str] | None = None
+        self,
+        message_id: int,
+        content: str,
+        source_language: str | None = None,
+        target_languages: list[str] | None = None,
     ) -> int:
         """
         Complete translation workflow: translate content and store in database.
@@ -135,7 +136,7 @@ class TranslationService:
             translations = self.translate_message_content(
                 content=content,
                 source_language=source_language,
-                target_languages=target_languages
+                target_languages=target_languages,
             )
 
             if not translations:
@@ -143,11 +144,12 @@ class TranslationService:
                 return 0
 
             translation_objects = self.create_message_translations(
-                message_id=message_id,
-                translations=translations
+                message_id=message_id, translations=translations
             )
 
-            print(f"Created {len(translation_objects)} translations for message {message_id}")
+            print(
+                f"Created {len(translation_objects)} translations for message {message_id}"
+            )
             return len(translation_objects)
 
         except Exception as e:
@@ -155,9 +157,7 @@ class TranslationService:
             return 0
 
     def get_message_translation(
-            self,
-            message_id: int,
-            target_language: str
+        self, message_id: int, target_language: str
     ) -> str | None:
         """
         Retrieve specific translation from database.

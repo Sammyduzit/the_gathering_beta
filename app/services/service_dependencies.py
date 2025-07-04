@@ -16,7 +16,7 @@ from app.repositories.repository_dependencies import (
 
 
 def get_translation_service(
-        message_repo: IMessageRepository = Depends(get_message_repository)
+    message_repo: IMessageRepository = Depends(get_message_repository),
 ) -> TranslationService:
     """
     Create TranslationService instance with repository dependencies
@@ -24,6 +24,7 @@ def get_translation_service(
     :return: TranslationService instance
     """
     return TranslationService(message_repo=message_repo)
+
 
 def get_conversation_service(
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),

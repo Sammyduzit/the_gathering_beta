@@ -10,7 +10,7 @@ SUPPORTED_LANGUAGES = {
     "pt": "Portuguese",
     "ru": "Russian",
     "ja": "Japanese",
-    "zh": "Chinese"
+    "zh": "Chinese",
 }
 
 CORE_TRANSLATION_LANGUAGES = ["EN", "DE", "FR", "ES", "IT"]

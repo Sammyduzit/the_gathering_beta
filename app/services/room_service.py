@@ -20,7 +20,7 @@ class RoomService:
         user_repo: IUserRepository,
         message_repo: IMessageRepository,
         conversation_repo: IConversationRepository,
-        translation_service: TranslationService
+        translation_service: TranslationService,
     ):
         self.room_repo = room_repo
         self.user_repo = user_repo
@@ -243,11 +243,15 @@ class RoomService:
         )
 
         room_users = self.room_repo.get_users_in_room(room_id)
-        target_languages = list(set([
-            user.preferred_language.upper()
-            for user in room_users
-            if user.preferred_language
-        ]))
+        target_languages = list(
+            set(
+                [
+                    user.preferred_language.upper()
+                    for user in room_users
+                    if user.preferred_language
+                ]
+            )
+        )
 
         if target_languages:
             self.translation_service.translate_and_store_message(
@@ -279,7 +283,10 @@ class RoomService:
             )
 
         return self.message_repo.get_room_messages(
-            room_id=room_id, page=page, page_size=page_size, user_language=current_user.preferred_language
+            room_id=room_id,
+            page=page,
+            page_size=page_size,
+            user_language=current_user.preferred_language,
         )
 
     def _get_room_or_404(self, room_id: int) -> Room:

@@ -16,6 +16,7 @@ from app.core.database import Base
 
 class MessageType(enum.Enum):
     """Message type classification for system vs user messages."""
+
     TEXT = "text"
     SYSTEM = "system"
 
@@ -58,9 +59,7 @@ class Message(Base):
     conversation = relationship("Conversation", back_populates="messages")
 
     translations = relationship(
-        "MessageTranslation",
-        back_populates="message",
-        lazy="dynamic"
+        "MessageTranslation", back_populates="message", lazy="dynamic"
     )
 
     __table_args__ = (
@@ -118,5 +117,7 @@ class Message(Base):
         :param target_language: Target language (EN, DE, FR, etc.)
         :return: Translated content or None if not found
         """
-        translation = self.translations.filter_by(target_language=target_language).first()
+        translation = self.translations.filter_by(
+            target_language=target_language
+        ).first()
         return translation.content if translation else None

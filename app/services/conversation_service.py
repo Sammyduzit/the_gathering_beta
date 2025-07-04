@@ -101,11 +101,15 @@ class ConversationService:
         )
 
         participants = self.conversation_repo.get_participants(conversation_id)
-        target_languages = list(set([
-            user.preferred_language.upper()
-            for user in participants
-            if user.preferred_language
-        ]))
+        target_languages = list(
+            set(
+                [
+                    user.preferred_language.upper()
+                    for user in participants
+                    if user.preferred_language
+                ]
+            )
+        )
 
         if target_languages:
             self.translation_service.translate_and_store_message(
@@ -138,7 +142,7 @@ class ConversationService:
             conversation_id=conversation_id,
             page=page,
             page_size=page_size,
-            user_language=current_user.preferred_language
+            user_language=current_user.preferred_language,
         )
 
     def get_user_conversations(self, user_id: int) -> list[dict]:
