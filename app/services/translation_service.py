@@ -1,7 +1,6 @@
 import deepl
 
 from app.core.config import settings
-from app.core.constants import CORE_TRANSLATION_LANGUAGES
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_repository import IMessageRepository
 
