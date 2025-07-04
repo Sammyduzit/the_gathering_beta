@@ -6,6 +6,7 @@ from app.models.user import User
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.user_repository import IUserRepository
+from app.services.translation_service import TranslationService
 
 
 class ConversationService:
@@ -16,10 +17,12 @@ class ConversationService:
         conversation_repo: IConversationRepository,
         message_repo: IMessageRepository,
         user_repo: IUserRepository,
+        translation_service: TranslationService,
     ):
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
         self.user_repo = user_repo
+        self.translation_service = translation_service
 
     def create_conversation(
         self,
@@ -96,6 +99,20 @@ class ConversationService:
         message = self.message_repo.create_conversation_message(
             sender_id=current_user.id, conversation_id=conversation_id, content=content
         )
+
+        participants = self.conversation_repo.get_participants(conversation_id)
+        target_languages = list(set([
+            user.preferred_language.upper()
+            for user in participants
+            if user.preferred_language
+        ]))
+
+        if target_languages:
+            self.translation_service.translate_and_store_message(
+                message_id=message.id,
+                content=content,
+                target_languages=target_languages,
+            )
 
         message.sender_username = current_user.username
         return message

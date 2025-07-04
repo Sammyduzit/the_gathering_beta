@@ -8,6 +8,7 @@ from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
 from app.repositories.message_repository import IMessageRepository
 from app.schemas.room_user_schemas import RoomUserResponse
+from app.services.translation_service import TranslationService
 
 
 class RoomService:
@@ -19,11 +20,13 @@ class RoomService:
         user_repo: IUserRepository,
         message_repo: IMessageRepository,
         conversation_repo: IConversationRepository,
+        translation_service: TranslationService
     ):
         self.room_repo = room_repo
         self.user_repo = user_repo
         self.message_repo = message_repo
         self.conversation_repo = conversation_repo
+        self.translation_service = translation_service
 
     def get_all_rooms(self) -> list[Room]:
         """Get all active rooms."""
@@ -238,6 +241,20 @@ class RoomService:
         message = self.message_repo.create_room_message(
             sender_id=current_user.id, room_id=room_id, content=content
         )
+
+        room_users = self.room_repo.get_users_in_room(room_id)
+        target_languages = list(set([
+            user.preferred_language.upper()
+            for user in room_users
+            if user.preferred_language
+        ]))
+
+        if target_languages:
+            self.translation_service.translate_and_store_message(
+                message_id=message.id,
+                content=content,
+                target_languages=target_languages,
+            )
 
         message.sender_username = current_user.username
         return message
