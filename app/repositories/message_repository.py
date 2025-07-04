@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, func, desc
 
@@ -28,24 +27,24 @@ class IMessageRepository(BaseRepository[Message]):
     @abstractmethod
     def get_room_messages(
         self, room_id: int, page: int = 1, page_size: int = 50
-    ) -> Tuple[List[Message], int]:
+    ) -> tuple[list[Message], int]:
         """Get room messages with pagination."""
         pass
 
     @abstractmethod
     def get_conversation_messages(
         self, conversation_id: int, page: int = 1, page_size: int = 50
-    ) -> Tuple[List[Message], int]:
+    ) -> tuple[list[Message], int]:
         """Get conversation messages with pagination."""
         pass
 
     @abstractmethod
-    def get_user_messages(self, user_id: int, limit: int = 50) -> List[Message]:
+    def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
         """Get messages sent by a specific user."""
         pass
 
     @abstractmethod
-    def get_latest_room_messages(self, room_id: int, limit: int = 10) -> List[Message]:
+    def get_latest_room_messages(self, room_id: int, limit: int = 10) -> list[Message]:
         """Get latest messages from a room."""
         pass
 
@@ -60,7 +59,7 @@ class MessageRepository(IMessageRepository):
         """
         super().__init__(db)
 
-    def get_by_id(self, id: int) -> Optional[Message]:
+    def get_by_id(self, id: int) -> Message | None:
         """Get message by ID."""
         query = select(Message).where(Message.id == id)
         result = self.db.execute(query)
@@ -101,8 +100,8 @@ class MessageRepository(IMessageRepository):
         return new_message
 
     def get_room_messages(
-        self, room_id: int, page: int = 1, page_size: int = 50
-    ) -> Tuple[List[Message], int]:
+        self, room_id: int, page: int = 1, page_size: int = 50, user_language: str | None = None
+    ) -> tuple[list[Message], int]:
         """Get room messages with pagination."""
         count_query = select(func.count(Message.id)).where(
             and_(Message.room_id == room_id, Message.conversation_id.is_(None))
@@ -129,11 +128,12 @@ class MessageRepository(IMessageRepository):
             message_object.sender_username = username
             messages.append(message_object)
 
+        messages = self._apply_translations_to_messages(messages, user_language)
         return messages, total_count
 
     def get_conversation_messages(
-        self, conversation_id: int, page: int = 1, page_size: int = 50
-    ) -> Tuple[List[Message], int]:
+        self, conversation_id: int, page: int = 1, page_size: int = 50, user_language: str | None = None
+    ) -> tuple[list[Message], int]:
         """Get conversation messages with pagination."""
         count_query = select(func.count(Message.id)).where(
             and_(Message.conversation_id == conversation_id, Message.room_id.is_(None))
@@ -165,9 +165,10 @@ class MessageRepository(IMessageRepository):
             message_object.sender_username = username
             messages.append(message_object)
 
+        messages = self._apply_translations_to_messages(messages, user_language)
         return messages, total_count
 
-    def get_user_messages(self, user_id: int, limit: int = 50) -> List[Message]:
+    def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
         """Get messages sent by a specific user."""
         query = (
             select(Message)
@@ -179,7 +180,7 @@ class MessageRepository(IMessageRepository):
         result = self.db.execute(query)
         return list(result.scalars().all())
 
-    def get_latest_room_messages(self, room_id: int, limit: int = 10) -> List[Message]:
+    def get_latest_room_messages(self, room_id: int, limit: int = 10) -> list[Message]:
         """Get latest messages from a room."""
         query = (
             select(Message, User.username)
@@ -200,13 +201,27 @@ class MessageRepository(IMessageRepository):
 
         return messages
 
-    def get_all(self, limit: int = 100, offset: int = 0) -> List[Message]:
+    def get_all(self, limit: int = 100, offset: int = 0) -> list[Message]:
         """Get all messages with pagination."""
         query = (
             select(Message).limit(limit).offset(offset).order_by(desc(Message.sent_at))
         )
         result = self.db.execute(query)
         return list(result.scalars().all())
+
+    def _apply_translations_to_messages(
+            self, messages: list[Message], user_language: str | None = None
+    ) -> list[Message]:
+        """Apply translations to messages based on User's preferred language"""
+        if not user_language:
+            return messages
+
+        for message in messages:
+            translated_content = message.get_translation(user_language.upper())
+            if translated_content:
+                message.content = translated_content
+
+        return messages
 
     def create(self, message: Message) -> Message:
         """Create new message."""
