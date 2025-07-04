@@ -2,6 +2,18 @@ from markupsafe import escape
 from typing import Annotated
 from pydantic import AfterValidator
 
+from app.core.constants import SUPPORTED_LANGUAGES
+
+
+def validate_language_code(language_code: str) -> bool:
+    """Validate if language code is supported by DeepL API"""
+    return language_code.lower() in SUPPORTED_LANGUAGES
+
+
+def get_language_name(language_code: str) -> str:
+    """Get full language name"""
+    return SUPPORTED_LANGUAGES.get(language_code.lower(), "Unknown")
+
 
 def sanitize_html_content(content: str | None) -> str | None:
     """
