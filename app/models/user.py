@@ -25,6 +25,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
 
     avatar_url = Column(String(500), nullable=True)
+    preferred_language = Column(String(5), nullable=True, default="en")
     status = Column(Enum(UserStatus), nullable=False, default=UserStatus.AVAILABLE)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

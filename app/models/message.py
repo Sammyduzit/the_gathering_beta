@@ -1,8 +1,3 @@
-"""
-Message model for 3-type chat system routing.
-Handles room-wide, private, and group chat messages with XOR constraint.
-"""
-
 from sqlalchemy import (
     Column,
     Integer,
@@ -21,7 +16,6 @@ from app.core.database import Base
 
 class MessageType(enum.Enum):
     """Message type classification for system vs user messages."""
-
     TEXT = "text"
     SYSTEM = "system"
 
@@ -62,6 +56,12 @@ class Message(Base):
     sender = relationship("User", back_populates="sent_messages")
     room = relationship("Room", back_populates="room_messages")
     conversation = relationship("Conversation", back_populates="messages")
+
+    translations = relationship(
+        "MessageTranslation",
+        back_populates="message",
+        lazy="dynamic"
+    )
 
     __table_args__ = (
         CheckConstraint(
@@ -111,3 +111,12 @@ class Message(Base):
             return {"type": "room", "id": self.room_id}
         else:
             return {"type": "conversation", "id": self.conversation_id}
+
+    def get_translation(self, target_language: str) -> str | None:
+        """
+        Get translated content for specific language
+        :param target_language: Target language (EN, DE, FR, etc.)
+        :return: Translated content or None if not found
+        """
+        translation = self.translations.filter_by(target_language=target_language).first()
+        return translation.content if translation else None
