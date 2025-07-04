@@ -135,7 +135,10 @@ class ConversationService:
         self._validate_conversation_access(current_user.id, conversation_id)
 
         return self.message_repo.get_conversation_messages(
-            conversation_id=conversation_id, page=page, page_size=page_size
+            conversation_id=conversation_id,
+            page=page,
+            page_size=page_size,
+            user_language=current_user.preferred_language
         )
 
     def get_user_conversations(self, user_id: int) -> list[dict]:

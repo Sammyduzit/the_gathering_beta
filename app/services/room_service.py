@@ -279,7 +279,7 @@ class RoomService:
             )
 
         return self.message_repo.get_room_messages(
-            room_id=room_id, page=page, page_size=page_size
+            room_id=room_id, page=page, page_size=page_size, user_language=current_user.preferred_language
         )
 
     def _get_room_or_404(self, room_id: int) -> Room:
