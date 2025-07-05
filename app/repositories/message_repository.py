@@ -48,6 +48,11 @@ class IMessageRepository(BaseRepository[Message]):
         """Get latest messages from a room."""
         pass
 
+    @abstractmethod
+    def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
+        """Delete old room messages, keeping only the most recent ones"""
+        pass
+
 
 class MessageRepository(IMessageRepository):
     """SQLAlchemy implementation of Message repository."""
@@ -230,6 +235,51 @@ class MessageRepository(IMessageRepository):
                 message.content = translated_content
 
         return messages
+
+    def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
+        """Delete old room messages, keeping only the most recent ones"""
+        try:
+            threshold_query = (
+                select(Message.sent_at)
+                .where(
+                    and_(Message.room_id == room_id, Message.conversation_id.is_(None))
+                )
+                .order_by(Message.sent_at.desc())
+                .offset(keep_count - 1)
+                .limit(1)
+            )
+
+            threshold_result = self.db.execute(threshold_query).scalar_one_or_none()
+
+            if not threshold_result:
+                return 0
+
+            old_messages_query = select(Message.id).where(
+                and_(
+                    Message.room_id == room_id,
+                    Message.conversation_id.is_(None),
+                    Message.sent_at < threshold_result,
+                )
+            )
+
+            old_messages = self.db.execute(old_messages_query)
+
+            deleted_count = 0
+            for message in old_messages:
+                self.db.delete(message)
+                deleted_count += 1
+
+            self.db.commit()
+
+            if deleted_count > 0:
+                print(f"Cleaned up {deleted_count} old messages from room {room_id}")
+
+            return deleted_count
+
+        except Exception as e:
+            print(f"Error cleaning up room messages: {e}")
+            self.db.rollback()
+            return 0
 
     def create(self, message: Message) -> Message:
         """Create new message."""

@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 
+from app.core.constants import MAX_ROOM_MESSAGES
 from app.models.message import Message
 from app.models.room import Room
 from app.models.user import User, UserStatus
@@ -259,6 +260,12 @@ class RoomService:
                 content=content,
                 target_languages=target_languages,
             )
+
+        try:
+            if message.id % 10 == 0:
+                self.message_repo.cleanup_old_room_messages(room_id, MAX_ROOM_MESSAGES)
+        except Exception as e:
+            print(f"Cleanup failed, but message sent successfully: {e}")
 
         message.sender_username = current_user.username
         return message
