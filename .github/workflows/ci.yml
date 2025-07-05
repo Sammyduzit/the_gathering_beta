@@ -64,6 +64,13 @@ jobs:
       run: |
         pytest --cov=app --cov-report=term-missing --cov-report=xml
         echo "✅ Test coverage completed"
+
+    - name: "📊 SonarCloud Scan"
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   docker:
       runs-on: ubuntu-latest
       needs: test
