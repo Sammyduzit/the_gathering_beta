@@ -47,6 +47,7 @@ async def create_room(
         name=room_data.name,
         description=room_data.description,
         max_users=room_data.max_users,
+        is_translation_enabled=room_data.is_translation_enabled,
     )
 
 
@@ -70,6 +71,7 @@ async def update_room(
         name=room_data.name,
         description=room_data.description,
         max_users=room_data.max_users,
+        is_translation_enabled=room_data.is_translation_enabled,
     )
 
 
