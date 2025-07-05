@@ -7,7 +7,8 @@ from app.core.auth_utils import hash_password, verify_password
 from app.core.jwt_utils import create_access_token
 from app.core.auth_dependencies import get_current_active_user
 from app.core.config import settings
-from app.schemas.auth_schemas import Token
+from app.core.validators import validate_language_code
+from app.schemas.auth_schemas import Token, UserUpdate
 from app.services.avatar_service import generate_avatar_url
 
 from app.repositories.user_repository import IUserRepository
@@ -102,3 +103,28 @@ async def get_current_user_info(current_user: User = Depends(get_current_active_
     :return: User information
     """
     return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_user_preferences(
+        user_update: UserUpdate,
+        current_user: User = Depends(get_current_active_user),
+        user_repo: IUserRepository = Depends(get_user_repository)
+):
+    """
+    Update current user preferences.
+    :param user_update: User update data
+    :param current_user: Current authenticated user
+    :param user_repo: User Repository instance
+    :return: Updated user object
+    """
+    if user_update.preferred_language:
+        if not validate_language_code(user_update.preferred_language):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported language code: {user_update.preferred_language}"
+            )
+        current_user.preferred_language = user_update.preferred_language.lower()
+
+    updated_user = user_repo.update(current_user)
+    return updated_user
