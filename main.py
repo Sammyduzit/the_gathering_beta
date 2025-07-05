@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+import os
 import uvicorn
 
 from app.core.config import settings
-from app.core.database import create_tables
+from app.core.database import create_tables, drop_tables
 from app.api.v1.endpoints.conversation_router import router as conversation_router
 from app.api.v1.endpoints.room_router import router as rooms_router
 from app.api.v1.endpoints.auth_router import router as auth_router
@@ -16,6 +17,12 @@ async def lifespan(app: FastAPI):
     Lifespan event handler for startup and shutdown.
     """
     print("Starting...")
+
+    if os.getenv("RESET_DB") == "true":
+        print("RESET_DB=true - Resetting database...")
+        drop_tables()
+        print("Database reset complete")
+
     create_tables()
     setup_complete_test_environment()
     print("Database tables created")
