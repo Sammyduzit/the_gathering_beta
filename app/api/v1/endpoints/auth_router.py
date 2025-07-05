@@ -107,9 +107,9 @@ async def get_current_user_info(current_user: User = Depends(get_current_active_
 
 @router.patch("/me", response_model=UserResponse)
 async def update_user_preferences(
-        user_update: UserUpdate,
-        current_user: User = Depends(get_current_active_user),
-        user_repo: IUserRepository = Depends(get_user_repository)
+    user_update: UserUpdate,
+    current_user: User = Depends(get_current_active_user),
+    user_repo: IUserRepository = Depends(get_user_repository),
 ):
     """
     Update current user preferences.
@@ -121,8 +121,7 @@ async def update_user_preferences(
     if user_update.username:
         if user_repo.username_exists(user_update.username):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already taken"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
             )
         current_user.username = user_update.username
 
@@ -130,7 +129,7 @@ async def update_user_preferences(
         if not validate_language_code(user_update.preferred_language):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported language code: {user_update.preferred_language}"
+                detail=f"Unsupported language code: {user_update.preferred_language}",
             )
         current_user.preferred_language = user_update.preferred_language.lower()
 

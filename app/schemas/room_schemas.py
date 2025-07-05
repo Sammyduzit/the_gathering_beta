@@ -29,5 +29,6 @@ class RoomCreate(BaseModel):
     name: SanitizedString = Field(min_length=1, max_length=100)
     description: SanitizedString | None = Field(None, max_length=500)
     max_users: int | None = Field(None, ge=1, le=1000)
-    is_translation_enabled: bool = Field(False, description="Enable automatic translation in this room")
-
+    is_translation_enabled: bool = Field(
+        False, description="Enable automatic translation in this room"
+    )

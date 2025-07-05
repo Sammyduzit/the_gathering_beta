@@ -34,7 +34,11 @@ class RoomService:
         return self.room_repo.get_active_rooms()
 
     def create_room(
-        self, name: str, description: str | None, max_users: int | None, is_translation_enabled: bool = False
+        self,
+        name: str,
+        description: str | None,
+        max_users: int | None,
+        is_translation_enabled: bool = False,
     ) -> Room:
         """
         Create new room with validation.
@@ -49,12 +53,22 @@ class RoomService:
                 detail=f"Room name '{name}' already exists",
             )
 
-        new_room = Room(name=name, description=description, max_users=max_users, is_translation_enabled=is_translation_enabled)
+        new_room = Room(
+            name=name,
+            description=description,
+            max_users=max_users,
+            is_translation_enabled=is_translation_enabled,
+        )
 
         return self.room_repo.create(new_room)
 
     def update_room(
-        self, room_id: int, name: str, description: str | None, max_users: int | None, is_translation_enabled: bool = False
+        self,
+        room_id: int,
+        name: str,
+        description: str | None,
+        max_users: int | None,
+        is_translation_enabled: bool = False,
     ) -> Room:
         """
         Update room with validation.
