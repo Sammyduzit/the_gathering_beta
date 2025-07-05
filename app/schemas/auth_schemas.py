@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from datetime import datetime
 
-from app.core.validators import SanitizedString
+from app.core.validators import SanitizedString, SanitizedUsername
 
 
 class UserRegister(BaseModel):
@@ -58,4 +58,10 @@ class UserUpdate(BaseModel):
     Schema for Updating User information.
     """
     preferred_language: str | None = Field(None, description="Preferred language code (EN, DE, FR, etc.", min_length=2, max_length=5)
+    username: SanitizedUsername | None = Field(
+        None,
+        min_length=3,
+        max_length=20,
+        description="New username"
+    )
 

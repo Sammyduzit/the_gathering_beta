@@ -118,6 +118,14 @@ async def update_user_preferences(
     :param user_repo: User Repository instance
     :return: Updated user object
     """
+    if user_update.username:
+        if user_repo.username_exists(user_update.username):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already taken"
+            )
+        current_user.username = user_update.username
+
     if user_update.preferred_language:
         if not validate_language_code(user_update.preferred_language):
             raise HTTPException(
