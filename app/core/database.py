@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
@@ -30,5 +31,12 @@ def create_tables():
 
 
 def drop_tables():
-    Base.metadata.drop_all(bind=engine)
+    """Drop all database tables"""
+    try:
+        Base.metadata.drop_all(bind=engine, checkfirst=True)
+    except (IntegrityError, OperationalError) as e:
+        print(f"FK constraint issue, using reflect method: {e}")
+        Base.metadata.reflect(bind=engine)
+        Base.metadata.drop_all(bind=engine)
+
     print("All tables dropped")
