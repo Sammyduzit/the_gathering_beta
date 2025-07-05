@@ -44,9 +44,18 @@ class UserResponse(BaseModel):
     email: EmailStr
     username: str
     avatar_url: str | None = None
+    preferred_language: str | None = None
     is_active: bool
     is_admin: bool
     created_at: datetime
     current_room_id: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdate(BaseModel):
+    """
+    Schema for Updating User information.
+    """
+    preferred_language: str | None = Field(None, description="Preferred language code (EN, DE, FR, etc.", min_length=2, max_length=5)
+
