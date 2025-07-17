@@ -5,7 +5,9 @@ from app.services.room_service import RoomService
 from app.services.translation_service import TranslationService
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
-from app.repositories.message_translation_repository import IMessageTranslationRepository
+from app.repositories.message_translation_repository import (
+    IMessageTranslationRepository,
+)
 from app.repositories.user_repository import IUserRepository
 from app.repositories.room_repository import IRoomRepository
 from app.repositories.repository_dependencies import (
@@ -18,8 +20,10 @@ from app.repositories.repository_dependencies import (
 
 
 def get_translation_service(
-        message_repo: IMessageRepository = Depends(get_message_repository),
-        translation_repo: IMessageTranslationRepository = Depends(get_message_translation_repository),
+    message_repo: IMessageRepository = Depends(get_message_repository),
+    translation_repo: IMessageTranslationRepository = Depends(
+        get_message_translation_repository
+    ),
 ) -> TranslationService:
     """
     Create TranslationService instance with repository dependencies.

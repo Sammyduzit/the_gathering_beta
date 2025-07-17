@@ -258,7 +258,7 @@ class RoomService:
             sender_id=current_user.id, room_id=room_id, content=content
         )
 
-        #Translation logic
+        # Translation logic
         if room.is_translation_enabled:
             room_users = self.room_repo.get_users_in_room(room_id)
 
@@ -275,7 +275,11 @@ class RoomService:
             )
 
             if target_languages:
-                source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
+                source_lang = (
+                    current_user.preferred_language.upper()
+                    if current_user.preferred_language
+                    else None
+                )
 
                 self.translation_service.translate_and_store_message(
                     message_id=message.id,
@@ -284,7 +288,7 @@ class RoomService:
                     target_languages=target_languages,
                 )
 
-        #Old message cleanup
+        # Old message cleanup
         try:
             if message.id % 10 == 0:
                 self.message_repo.cleanup_old_room_messages(room_id, MAX_ROOM_MESSAGES)

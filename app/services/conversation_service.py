@@ -116,7 +116,11 @@ class ConversationService:
             )
 
             if target_languages:
-                source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
+                source_lang = (
+                    current_user.preferred_language.upper()
+                    if current_user.preferred_language
+                    else None
+                )
 
                 self.translation_service.translate_and_store_message(
                     message_id=message.id,

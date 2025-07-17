@@ -3,13 +3,19 @@ import deepl
 from app.core.config import settings
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_repository import IMessageRepository
-from app.repositories.message_translation_repository import IMessageTranslationRepository
+from app.repositories.message_translation_repository import (
+    IMessageTranslationRepository,
+)
 
 
 class TranslationService:
     """Service for DeepL translation API integration"""
 
-    def __init__(self, message_repo: IMessageRepository, translation_repo: IMessageTranslationRepository):
+    def __init__(
+        self,
+        message_repo: IMessageRepository,
+        translation_repo: IMessageTranslationRepository,
+    ):
         self.message_repo = message_repo
         self.translation_repo = translation_repo
         self._deepl_client: deepl.DeepLClient | None = None
@@ -119,7 +125,9 @@ class TranslationService:
                 continue
 
         if translation_objects:
-            created_translations = self.translation_repo.bulk_create_translations(translation_objects)
+            created_translations = self.translation_repo.bulk_create_translations(
+                translation_objects
+            )
 
             if created_translations:
                 print(f"✅ Saved {len(created_translations)} translations to database")
@@ -184,7 +192,6 @@ class TranslationService:
 
         return translation.content if translation else None
 
-
     def get_all_message_translations(self, message_id: int) -> dict[str, str]:
         """
         Get all translations for a message.
@@ -197,7 +204,6 @@ class TranslationService:
             translation.target_language: translation.content
             for translation in translations
         }
-
 
     def delete_message_translations(self, message_id: int) -> int:
         """
