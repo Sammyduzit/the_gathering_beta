@@ -14,9 +14,9 @@ def create_test_users():
             test_users = [
                 {"email": "testadmin@thegathering.com", "username": "Testadmin", "password": "adminpass", "is_admin": True},
                 {"email": "alice@test.com", "username": "Alice", "password": "alice123", "is_admin": False},
-                {"email": "bob@test.com", "username": "Bob", "password": "bob123", "is_admin": False},
+                {"email": "bob@test.com", "username": "Bob", "password": "bob12345", "is_admin": False},
                 {"email": "carol@test.com", "username": "Carol", "password": "carol123", "is_admin": False},
-                {"email": "dave@test.com", "username": "Dave", "password": "dave123", "is_admin": False}
+                {"email": "dave@test.com", "username": "Dave", "password": "dave1234", "is_admin": False}
             ]
             created_users = []
             for user_data in test_users:
@@ -51,10 +51,11 @@ def create_test_rooms():
     with SessionLocal() as db:
         try:
             test_rooms = [
-                {"name": "Lobby", "description": "Main lobby - everyone welcome", "max_users": 50},
-                {"name": "Gaming", "description": "Gaming discussion and planning", "max_users": 20},
-                {"name": "Work", "description": "Work-related discussions", "max_users": 15},
-                {"name": "Coffee Chat", "description": "Casual conversations", "max_users": 10}
+                {"name": "Lobby", "description": "Main lobby - everyone welcome", "max_users": 50, "is_translation_enabled": False},
+                {"name": "Gaming", "description": "Gaming discussion and planning", "max_users": 20, "is_translation_enabled": False},
+                {"name": "Work", "description": "Work-related discussions", "max_users": 15, "is_translation_enabled": False},
+                {"name": "Coffee Chat", "description": "Casual conversations", "max_users": 10, "is_translation_enabled": False},
+                {"name": "TranslationTest", "description": "Testing Translation Service", "max_users": 10, "is_translation_enabled": True}
             ]
 
             created_rooms = []
@@ -67,7 +68,8 @@ def create_test_rooms():
                     new_room = Room(
                         name=room_data["name"],
                         description=room_data["description"],
-                        max_users=room_data["max_users"]
+                        max_users=room_data["max_users"],
+                        is_translation_enabled=room_data["is_translation_enabled"]
                     )
                     db.add(new_room)
                     created_rooms.append(room_data)
