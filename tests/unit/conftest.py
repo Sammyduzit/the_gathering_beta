@@ -4,6 +4,7 @@ from datetime import datetime
 
 from app.services.conversation_service import ConversationService
 from app.services.room_service import RoomService
+from app.services.translation_service import TranslationService
 from app.models.user import User, UserStatus
 from app.models.room import Room
 from app.models.conversation import Conversation, ConversationType
@@ -17,30 +18,39 @@ def mock_repositories():
         "message_repo": Mock(),
         "user_repo": Mock(),
         "room_repo": Mock(),
-        "translation_service": Mock(),
+        "translation_repo": Mock(),
     }
 
 
 @pytest.fixture
-def conversation_service(mock_repositories):
+def translation_service(mock_repositories):
+    """TranslationService with mocked repositories - clean pattern."""
+    return TranslationService(
+        message_repo=mock_repositories["message_repo"],
+        translation_repo=mock_repositories["translation_repo"],  # Repository pattern
+    )
+
+
+@pytest.fixture
+def conversation_service(mock_repositories, translation_service):
     """ConversationService with mocked dependencies."""
     return ConversationService(
         conversation_repo=mock_repositories["conversation_repo"],
         message_repo=mock_repositories["message_repo"],
         user_repo=mock_repositories["user_repo"],
-        translation_service=mock_repositories["translation_service"],
+        translation_service=translation_service,
     )
 
 
 @pytest.fixture
-def room_service(mock_repositories):
+def room_service(mock_repositories, translation_service):
     """RoomService with mocked dependencies."""
     return RoomService(
         room_repo=mock_repositories["room_repo"],
         user_repo=mock_repositories["user_repo"],
         message_repo=mock_repositories["message_repo"],
         conversation_repo=mock_repositories["conversation_repo"],
-        translation_service=mock_repositories["translation_service"],
+        translation_service=translation_service,
     )
 
 
@@ -55,6 +65,7 @@ def sample_user():
         status=UserStatus.AVAILABLE,
         is_active=True,
         last_active=datetime.now(),
+        preferred_language="en",
     )
 
 
@@ -62,7 +73,12 @@ def sample_user():
 def sample_room():
     """Sample Room for unit tests."""
     return Room(
-        id=1, name="Test Room", description="A test room", max_users=5, is_active=True
+        id=1,
+        name="Test Room",
+        description="A test room",
+        max_users=5,
+        is_active=True,
+        is_translation_enabled=True,
     )
 
 

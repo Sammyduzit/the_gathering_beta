@@ -20,13 +20,19 @@ from app.repositories.repository_dependencies import (
     get_room_repository,
     get_conversation_repository,
     get_message_repository,
+    get_message_translation_repository,
 )
 from app.repositories.user_repository import UserRepository
 from app.repositories.room_repository import RoomRepository
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
+from app.repositories.message_translation_repository import MessageTranslationRepository
 
-from app.services.service_dependencies import get_room_service, get_conversation_service
+from app.services.service_dependencies import (
+    get_room_service,
+    get_conversation_service,
+    get_translation_service,
+)
 from app.services.room_service import RoomService
 from app.services.conversation_service import ConversationService
 from app.services.translation_service import TranslationService
@@ -92,13 +98,25 @@ def client(db_session):
     def override_message_repository():
         return MessageRepository(db_session)
 
+    def override_message_translation_repository():
+        return MessageTranslationRepository(db_session)
+
+    def override_translation_service():
+        return TranslationService(
+            message_repo=MessageRepository(db_session),
+            translation_repo=MessageTranslationRepository(db_session),
+        )
+
     def override_room_service():
         return RoomService(
             room_repo=RoomRepository(db_session),
             user_repo=UserRepository(db_session),
             message_repo=MessageRepository(db_session),
             conversation_repo=ConversationRepository(db_session),
-            translation_service=TranslationService(MessageRepository(db_session)),
+            translation_service=TranslationService(
+                message_repo=MessageRepository(db_session),
+                translation_repo=MessageTranslationRepository(db_session),
+            ),
         )
 
     def override_conversation_service():
@@ -106,7 +124,10 @@ def client(db_session):
             conversation_repo=ConversationRepository(db_session),
             message_repo=MessageRepository(db_session),
             user_repo=UserRepository(db_session),
-            translation_service=TranslationService(MessageRepository(db_session)),
+            translation_service=TranslationService(
+                message_repo=MessageRepository(db_session),
+                translation_repo=MessageTranslationRepository(db_session),
+            ),
         )
 
     app.dependency_overrides[get_db] = override_get_db
@@ -116,6 +137,10 @@ def client(db_session):
         override_conversation_repository
     )
     app.dependency_overrides[get_message_repository] = override_message_repository
+    app.dependency_overrides[get_message_translation_repository] = (
+        override_message_translation_repository
+    )
+    app.dependency_overrides[get_translation_service] = override_translation_service
     app.dependency_overrides[get_room_service] = override_room_service
     app.dependency_overrides[get_conversation_service] = override_conversation_service
 
