@@ -62,12 +62,13 @@ async def health_check():
 
 
 @app.get("/test")
-def test_endpoint():
+def endpoint_test():
     return {"status": "FastAPI works!", "project": "The Gathering"}
 
 
 if __name__ == "__main__":
     print("API Documentation: http://localhost:8000/docs")
     print("Room Endpoint: http://localhost:8000/api/v1/rooms")
+    print("Admin: admin@test.com / admin123456 \nUser:  user@test.com / user123456")
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

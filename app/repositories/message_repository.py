@@ -33,7 +33,7 @@ class IMessageRepository(BaseRepository[Message]):
 
     @abstractmethod
     def get_conversation_messages(
-        self, conversation_id: int, page: int = 1, page_size: int = 50
+        self, conversation_id: int, page: int = 1, page_size: int = 50, user_language: str | None = None,
     ) -> tuple[list[Message], int]:
         """Get conversation messages with pagination."""
         pass

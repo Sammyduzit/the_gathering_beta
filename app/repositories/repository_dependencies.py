@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.repositories.user_repository import UserRepository, IUserRepository
 from app.repositories.room_repository import RoomRepository, IRoomRepository
 from app.repositories.message_repository import MessageRepository, IMessageRepository
+from app.repositories.message_translation_repository import MessageTranslationRepository, IMessageTranslationRepository
 from app.repositories.conversation_repository import (
     ConversationRepository,
     IConversationRepository,
@@ -47,3 +48,14 @@ def get_conversation_repository(
     :return: ConversationRepository instance
     """
     return ConversationRepository(db)
+
+
+def get_message_translation_repository(
+    db: Session = Depends(get_db),
+) -> IMessageTranslationRepository:
+    """
+    Create MessageTranslationRepository instance with database session.
+    :param db: Database session from get_db dependency
+    :return: MessageTranslationRepository instance
+    """
+    return MessageTranslationRepository(db)

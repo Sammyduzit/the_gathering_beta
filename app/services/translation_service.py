@@ -3,13 +3,15 @@ import deepl
 from app.core.config import settings
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_repository import IMessageRepository
+from app.repositories.message_translation_repository import IMessageTranslationRepository
 
 
 class TranslationService:
     """Service for DeepL translation API integration"""
 
-    def __init__(self, message_repo: IMessageRepository):
+    def __init__(self, message_repo: IMessageRepository, translation_repo: IMessageTranslationRepository):
         self.message_repo = message_repo
+        self.translation_repo = translation_repo
         self._deepl_client: deepl.DeepLClient | None = None
 
     @property
@@ -63,9 +65,10 @@ class TranslationService:
         for target_lang in target_languages:
             try:
                 print(f"Translating to {target_lang}")
+                deepl_target = "EN-US" if target_lang.upper() == "EN" else target_lang
 
                 result = self.deepl_client.translate_text(
-                    content, source_lang=source_language, target_lang=target_lang
+                    content, source_lang=source_language, target_lang=deepl_target
                 )
 
                 if not result.text or not result.text.strip():
@@ -99,7 +102,7 @@ class TranslationService:
         if not translations:
             return []
 
-        created_translations = []
+        translation_objects = []
 
         for target_language, translated_content in translations.items():
             try:
@@ -109,13 +112,23 @@ class TranslationService:
                     content=translated_content,
                 )
 
-                created_translations.append(translation)
+                translation_objects.append(translation)
 
             except Exception as e:
                 print(f"Failed to create translation for {target_language}: {e}")
                 continue
 
-        return created_translations
+        if translation_objects:
+            created_translations = self.translation_repo.bulk_create_translations(translation_objects)
+
+            if created_translations:
+                print(f"✅ Saved {len(created_translations)} translations to database")
+            else:
+                print("❌ Failed to save translations to database")
+
+            return created_translations
+
+        return []
 
     def translate_and_store_message(
         self,
@@ -160,9 +173,36 @@ class TranslationService:
         self, message_id: int, target_language: str
     ) -> str | None:
         """
-        Retrieve specific translation from database.
+        Retrieve specific translation via repository.
         :param message_id: ID of the original message
         :param target_language: Target language code
         :return: Translated content or None if not found
         """
-        pass
+        translation = self.translation_repo.get_by_message_and_language(
+            message_id=message_id, target_language=target_language.upper()
+        )
+
+        return translation.content if translation else None
+
+
+    def get_all_message_translations(self, message_id: int) -> dict[str, str]:
+        """
+        Get all translations for a message.
+        :param message_id: ID of the original message
+        :return: Dictionary mapping language codes to translated content
+        """
+        translations = self.translation_repo.get_by_message_id(message_id)
+
+        return {
+            translation.target_language: translation.content
+            for translation in translations
+        }
+
+
+    def delete_message_translations(self, message_id: int) -> int:
+        """
+        Delete all translations for a message.
+        :param message_id: ID of the message
+        :return: Number of translations deleted
+        """
+        return self.translation_repo.delete_by_message_id(message_id)

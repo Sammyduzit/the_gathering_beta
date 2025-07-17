@@ -100,23 +100,30 @@ class ConversationService:
             sender_id=current_user.id, conversation_id=conversation_id, content=content
         )
 
-        participants = self.conversation_repo.get_participants(conversation_id)
-        target_languages = list(
-            set(
-                [
-                    user.preferred_language.upper()
-                    for user in participants
-                    if user.preferred_language
-                ]
+        room = conversation.room
+        if room and room.is_translation_enabled:
+            participants = self.conversation_repo.get_participants(conversation_id)
+            target_languages = list(
+                set(
+                    [
+                        user.preferred_language.upper()
+                        for user in participants
+                        if user.preferred_language
+                        and user.preferred_language != current_user.preferred_language
+                        and user.id != current_user.id
+                    ]
+                )
             )
-        )
 
-        if target_languages:
-            self.translation_service.translate_and_store_message(
-                message_id=message.id,
-                content=content,
-                target_languages=target_languages,
-            )
+            if target_languages:
+                source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
+
+                self.translation_service.translate_and_store_message(
+                    message_id=message.id,
+                    content=content,
+                    source_language=source_lang,
+                    target_languages=target_languages,
+                )
 
         message.sender_username = current_user.username
         return message
