@@ -1,0 +1,88 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Development Commands
+
+### Testing
+- `pytest tests/unit/ -v` - Run unit tests (fast, mocked dependencies)
+- `pytest tests/e2e/ -v` - Run end-to-end integration tests (slower)
+- `pytest --cov=app --cov-report=term-missing` - Run tests with coverage report
+- `pytest -m unit` - Run only unit tests
+- `pytest -m e2e` - Run only e2e tests
+
+### Code Quality
+- `ruff check app/ tests/ main.py` - Run linting checks
+- `ruff format app/ tests/ main.py` - Format code
+- `ruff format --check app/ tests/ main.py` - Check formatting without changes
+
+### Database Operations
+- `python reset_db.py` - Reset database and recreate tables
+- Set `RESET_DB=true` environment variable to reset database on startup
+
+### Running the Application
+- `python main.py` - Start the FastAPI server on localhost:8000
+- API docs available at `/docs`
+- Health check at `/health`
+
+## Architecture Overview
+
+This is a FastAPI-based chat application called "The Gathering" with a three-tier messaging system supporting:
+1. **Public room conversations** - Visible to all room members
+2. **Private direct messages** - Between two users
+3. **Group conversations** - Small circles within rooms
+
+### Core Architecture Patterns
+
+**Repository Pattern**: Clean separation between data access and business logic
+- `app/repositories/` - Data access layer with interfaces
+- `app/services/` - Business logic layer
+- `app/api/` - API endpoints with dependency injection
+
+**Database Design**:
+- PostgreSQL with SQLAlchemy 2.0 ORM
+- XOR constraints ensure message routing to exactly one conversation type
+- Composite indexes optimize chat performance
+- Translation support with DeepL API integration
+
+### Key Components
+
+**Models** (`app/models/`):
+- `User` - Authentication with JWT, bcrypt password hashing
+- `Room` - Chat spaces with admin permissions
+- `Conversation` - Three types: PUBLIC_ROOM, PRIVATE_CHAT, GROUP_CHAT
+- `Message` - Content with translation support
+- `MessageTranslation` - Multi-language message storage
+
+**Services** (`app/services/`):
+- `RoomService` - Room management and public messaging
+- `ConversationService` - Private and group chat logic
+- `TranslationService` - DeepL API integration for message translation
+- `AvatarService` - User avatar management
+
+**Authentication**:
+- JWT tokens with configurable expiration
+- Dependency injection for auth requirements
+- Role-based access (admin can create rooms)
+
+## Configuration
+
+Environment variables (`.env` file):
+- `DATABASE_URL` - PostgreSQL connection string
+- `SECRET_KEY` - JWT signing key
+- `DEEPL_API_KEY` - Translation service API key
+- `RESET_DB` - Set to "true" to reset database on startup
+
+## Test Structure
+
+- `tests/unit/` - Unit tests with mocked dependencies (marked with `@pytest.mark.unit`)
+- `tests/e2e/` - Integration tests with real database (marked with `@pytest.mark.e2e`)
+- `conftest.py` - Shared test fixtures and database setup
+- Test environment automatically creates sample users (admin, alice, carol)
+
+## Database Schema Notes
+
+- Three conversation types use XOR constraint ensuring messages route to exactly one type
+- Composite indexes on (room_id, created_at) and (conversation_id, created_at) for performance
+- Translation table links to original messages with language codes
+- User status tracking (ONLINE, OFFLINE, AWAY)

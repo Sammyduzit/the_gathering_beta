@@ -1,0 +1,122 @@
+{
+  "project_overview": {
+    "name": "The Gathering",
+    "description": "FastAPI-based chat application with AI entity integration using Langchain",
+    "project_type": "Private/Personal Project - Not Production MVP",
+    "current_status": "Stable base implementation - preparing for AI integration"
+  },
+
+  "technical_decisions": {
+    "architecture": {
+      "pattern": "Repository Pattern with Service Layer",
+      "database": "PostgreSQL with SQLAlchemy 2.0",
+      "api_framework": "FastAPI with async/await",
+      "authentication": "JWT with bcrypt",
+      "testing": "pytest with unit/e2e separation"
+    },
+
+    "ai_integration_strategy": {
+      "framework": "Langchain (mandatory requirement)",
+      "ai_entities": "Single AI entity to start with",
+      "memory_approach": "PostgreSQL JSON-based (no pgvector initially)",
+      "latency_optimization": "Streaming responses + background tasks",
+      "langgraph": "Not implemented initially - future consideration"
+    },
+
+    "performance_optimization": {
+      "async_migration": "Full async/await throughout codebase",
+      "streaming_responses": "Server-Sent Events for AI responses",
+      "caching_strategy": "Simple similarity-based response caching",
+      "background_processing": "FastAPI BackgroundTasks or Redis/Celery"
+    }
+  },
+
+  "current_architecture_analysis": {
+    "strengths": [
+      "Excellent repository pattern implementation",
+      "XOR constraint design for message routing",
+      "Comprehensive database indexing",
+      "Clean dependency injection",
+      "Strong typing with Pydantic v2"
+    ],
+
+    "critical_issues_identified": [
+      "Security gaps in JWT error handling",
+      "Performance bottlenecks with sync translation service",
+      "Missing rate limiting",
+      "Async/await inconsistency",
+      "HTTPExceptions in service layer (architectural violation)"
+    ],
+
+    "foundation_fixes_needed": [
+      "Complete async migration",
+      "JWT security hardening",
+      "Translation service async conversion",
+      "Background task implementation",
+      "Service layer HTTP error cleanup"
+    ]
+  },
+
+  "ai_memory_system_design": {
+    "storage_method": "PostgreSQL JSON columns",
+    "retrieval_strategy": "Keyword-based similarity matching",
+    "memory_structure": {
+      "ai_entities": "Entity configuration and personality",
+      "ai_memories": "Conversation summaries with JSON content",
+      "memory_content_format": {
+        "summary": "Conversation summary text",
+        "key_facts": "Extracted important facts array",
+        "user_preferences": "User preference mappings"
+      }
+    },
+    "upgrade_path": "JSON → embeddings → pgvector (if needed later)"
+  },
+
+  "implementation_roadmap": {
+    "phase_1_foundation": {
+      "duration": "2-3 weeks",
+      "goals": [
+        "Async migration throughout codebase",
+        "Background task system implementation",
+        "Security fixes for JWT and auth",
+        "Translation service async conversion"
+      ]
+    },
+
+    "phase_2_ai_basic": {
+      "duration": "2-3 weeks",
+      "goals": [
+        "AI entity database models",
+        "Basic Langchain integration",
+        "Simple memory system implementation",
+        "Single AI entity responding to messages"
+      ]
+    },
+
+    "phase_3_optimization": {
+      "duration": "2-3 weeks",
+      "goals": [
+        "Streaming response implementation",
+        "Memory retrieval optimization",
+        "Response caching system",
+        "Performance monitoring and tuning"
+      ]
+    }
+  },
+
+  "constraints_and_requirements": {
+    "budget": "Cost irrelevant - personal project",
+    "users": "Single user (developer) initially",
+    "performance": "Latency more important than scale",
+    "complexity": "Prefer simple solutions over complex ones",
+    "langchain": "Mandatory requirement for AI integration",
+    "production_ready": "Not required - focus on functionality and learning"
+  },
+
+  "rejected_approaches": {
+    "pgvector": "Too complex for initial implementation",
+    "langgraph": "Deferred to future versions",
+    "mvp_constraints": "Not applicable - personal project flexibility",
+    "complex_memory_systems": "JSON-based approach preferred for simplicity"
+  }
+}

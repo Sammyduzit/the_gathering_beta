@@ -207,6 +207,7 @@ class RoomService:
             RoomUserResponse(
                 id=user.id,
                 username=user.username,
+                avatar_url=user.avatar_url,
                 status=user.status.value,
                 last_active=user.last_active,
             )

@@ -51,7 +51,7 @@ class Message(Base):
         Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
     )
     conversation_id = Column(
-        Integer, ForeignKey("conversations.id", ondelete="CASCADE")
+        Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True
     )
 
     sender = relationship("User", back_populates="sent_messages")
