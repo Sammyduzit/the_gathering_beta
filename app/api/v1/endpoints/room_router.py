@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, status, Body
+from fastapi import APIRouter, Depends, status, Body, BackgroundTasks
 from app.core.auth_dependencies import get_current_active_user, get_current_admin_user
+from app.core.background_tasks import async_bg_task_manager
 from app.models.user import User
 from app.schemas.chat_schemas import MessageResponse, MessageCreate
 from app.schemas.room_schemas import RoomResponse, RoomCreate
@@ -10,7 +11,8 @@ from app.schemas.room_user_schemas import (
     UserStatusUpdate,
 )
 from app.services.room_service import RoomService
-from app.services.service_dependencies import get_room_service
+from app.services.background_service import BackgroundService
+from app.services.service_dependencies import get_room_service, get_background_service
 
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
@@ -27,7 +29,7 @@ async def get_all_rooms(
     :param room_service: Service instance handling room logic
     :return: List of active rooms
     """
-    return room_service.get_all_rooms()
+    return await room_service.get_all_rooms()
 
 
 @router.post("/", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
@@ -43,7 +45,7 @@ async def create_room(
     :param room_service: Service instance handling room logic
     :return: Created room object
     """
-    return room_service.create_room(
+    return await room_service.create_room(
         name=room_data.name,
         description=room_data.description,
         max_users=room_data.max_users,
@@ -66,7 +68,7 @@ async def update_room(
     :param room_service: Service instance handling room logic
     :return: Updated room object
     """
-    return room_service.update_room(
+    return await room_service.update_room(
         room_id=room_id,
         name=room_data.name,
         description=room_data.description,
@@ -88,7 +90,7 @@ async def delete_room(
     :param room_service: Service instance handling room logic
     :return: Cleanup summary with statistics
     """
-    return room_service.delete_room(room_id)
+    return await room_service.delete_room(room_id)
 
 
 @router.get("/count")
@@ -102,7 +104,7 @@ async def get_room_count(
     :param room_service: Service instance handling room logic
     :return: Dictionary with room count
     """
-    return room_service.get_room_count()
+    return await room_service.get_room_count()
 
 
 @router.get("/health")
@@ -124,39 +126,85 @@ async def get_room_by_id(
     :param room_service: Service instance handling room logic
     :return: Room object
     """
-    return room_service.get_room_by_id(room_id)
+    return await room_service.get_room_by_id(room_id)
 
 
 @router.post("/{room_id}/join", response_model=RoomJoinResponse)
 async def join_room(
     room_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
+    background_service: BackgroundService = Depends(get_background_service),
 ) -> RoomJoinResponse:
     """
     User joins room.
     :param room_id: ID of room to join
+    :param background_tasks: FastAPI background tasks
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
+    :param background_service: Background service for async tasks
     :return: Join confirmation with room info
     """
-    return room_service.join_room(current_user, room_id)
+    join_response = await room_service.join_room(current_user, room_id)
+
+    # Schedule background tasks
+    await async_bg_task_manager.add_async_task(
+        background_tasks,
+        background_service.log_user_activity_background,
+        current_user.id,
+        "room_joined",
+        {"room_id": room_id, "room_name": join_response.room_name}
+    )
+
+    await async_bg_task_manager.add_async_task(
+        background_tasks,
+        background_service.notify_room_users_background,
+        room_id,
+        f"{current_user.username} joined the room",
+        [current_user.id]  # Exclude the joining user
+    )
+
+    return join_response
 
 
 @router.post("/{room_id}/leave", response_model=RoomLeaveResponse)
 async def leave_room(
     room_id: int,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
+    background_service: BackgroundService = Depends(get_background_service),
 ) -> RoomLeaveResponse:
     """
     User leaves room.
     :param room_id: ID of room to leave
+    :param background_tasks: FastAPI background tasks
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
+    :param background_service: Background service for async tasks
     :return: Leave confirmation
     """
-    return room_service.leave_room(current_user, room_id)
+    leave_response = await room_service.leave_room(current_user, room_id)
+
+    # Schedule background tasks
+    await async_bg_task_manager.add_async_task(
+        background_tasks,
+        background_service.log_user_activity_background,
+        current_user.id,
+        "room_left",
+        {"room_id": room_id}
+    )
+
+    await async_bg_task_manager.add_async_task(
+        background_tasks,
+        background_service.notify_room_users_background,
+        room_id,
+        f"{current_user.username} left the room",
+        [current_user.id]  # Exclude the leaving user
+    )
+
+    return leave_response
 
 
 @router.get("/{room_id}/users", response_model=RoomUsersListResponse)
@@ -172,7 +220,7 @@ async def get_room_users(
     :param room_service: Service instance handling room logic
     :return: List of users in room
     """
-    return room_service.get_room_users(room_id)
+    return await room_service.get_room_users(room_id)
 
 
 @router.patch("/users/status")
@@ -188,25 +236,66 @@ async def update_user_status(
     :param room_service: Service instance handling room logic
     :return: Status update confirmation
     """
-    return room_service.update_user_status(current_user, status_update.status)
+    return await room_service.update_user_status(current_user, status_update.status)
 
 
 @router.post("/{room_id}/messages", response_model=MessageResponse)
 async def send_room_message(
     room_id: int,
     message_data: MessageCreate = Body(...),
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
+    background_service: BackgroundService = Depends(get_background_service),
 ) -> MessageResponse:
     """
     Send message to room, visible for every member.
+    Background tasks handle translation and notifications.
     :param room_id: Target room ID
     :param message_data: Message content
+    :param background_tasks: FastAPI background tasks
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
+    :param background_service: Background service for async tasks
     :return: Created message object
     """
-    return room_service.send_room_message(current_user, room_id, message_data.content)
+    # Send message immediately
+    message_response = await room_service.send_room_message(
+        current_user, room_id, message_data.content
+    )
+
+    # Get room info for translation settings
+    room = await room_service.get_room_by_id(room_id)
+
+    # Schedule background translation if enabled
+    if room.is_translation_enabled:
+        # Get room users to determine target languages
+        room_users = await room_service.get_room_users(room_id)
+        target_languages = [
+            user.get("preferred_language", "en")
+            for user in room_users.users
+            if user.get("preferred_language") and user.get("preferred_language") != "en"
+        ]
+
+        if target_languages:
+            await async_bg_task_manager.add_async_task(
+                background_tasks,
+                background_service.process_message_translation_background,
+                message_response,  # Message object
+                list(set(target_languages)),  # Unique target languages
+                room.is_translation_enabled
+            )
+
+    # Schedule activity logging
+    await async_bg_task_manager.add_async_task(
+        background_tasks,
+        background_service.log_user_activity_background,
+        current_user.id,
+        "message_sent",
+        {"room_id": room_id, "message_length": len(message_data.content)}
+    )
+
+    return message_response
 
 
 @router.get("/{room_id}/messages", response_model=list[MessageResponse])
@@ -226,7 +315,7 @@ async def get_room_messages(
     :param room_service: Service instance handling room logic
     :return: List of room messages
     """
-    messages, total_count = room_service.get_room_messages(
+    messages, total_count = await room_service.get_room_messages(
         current_user, room_id, page, page_size
     )
     return messages

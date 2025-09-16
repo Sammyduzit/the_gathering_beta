@@ -24,7 +24,7 @@ class ConversationService:
         self.user_repo = user_repo
         self.translation_service = translation_service
 
-    def create_conversation(
+    async def create_conversation(
         self,
         current_user: User,
         participant_usernames: list[str],
@@ -55,7 +55,7 @@ class ConversationService:
                 detail="Group conversations require at least 1 other participant",
             )
 
-        participant_users = self._validate_participants(
+        participant_users = await self._validate_participants(
             participant_usernames, current_user.current_room_id
         )
 
@@ -64,17 +64,17 @@ class ConversationService:
         ]
 
         if conversation_type == "private":
-            return self.conversation_repo.create_private_conversation(
+            return await self.conversation_repo.create_private_conversation(
                 room_id=current_user.current_room_id,
                 participant_ids=all_participant_ids,
             )
         else:
-            return self.conversation_repo.create_group_conversation(
+            return await self.conversation_repo.create_group_conversation(
                 room_id=current_user.current_room_id,
                 participant_ids=all_participant_ids,
             )
 
-    def send_message(
+    async def send_message(
         self, current_user: User, conversation_id: int, content: str
     ) -> Message:
         """
@@ -84,25 +84,25 @@ class ConversationService:
         :param content: Message content
         :return: Created message
         """
-        conversation = self.conversation_repo.get_by_id(conversation_id)
+        conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
             )
 
-        if not self.conversation_repo.is_participant(conversation_id, current_user.id):
+        if not await self.conversation_repo.is_participant(conversation_id, current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User is not a participant in this conversation",
             )
 
-        message = self.message_repo.create_conversation_message(
+        message = await self.message_repo.create_conversation_message(
             sender_id=current_user.id, conversation_id=conversation_id, content=content
         )
 
         room = conversation.room
         if room and room.is_translation_enabled:
-            participants = self.conversation_repo.get_participants(conversation_id)
+            participants = await self.conversation_repo.get_participants(conversation_id)
             target_languages = list(
                 set(
                     [
@@ -122,7 +122,7 @@ class ConversationService:
                     else None
                 )
 
-                self.translation_service.translate_and_store_message(
+                await self.translation_service.translate_and_store_message(
                     message_id=message.id,
                     content=content,
                     source_language=source_lang,
@@ -132,7 +132,7 @@ class ConversationService:
         message.sender_username = current_user.username
         return message
 
-    def get_messages(
+    async def get_messages(
         self,
         current_user: User,
         conversation_id: int,
@@ -147,26 +147,26 @@ class ConversationService:
         :param page_size: Messages per page
         :return: Tuple of (messages, total_count)
         """
-        self._validate_conversation_access(current_user.id, conversation_id)
+        await self._validate_conversation_access(current_user.id, conversation_id)
 
-        return self.message_repo.get_conversation_messages(
+        return await self.message_repo.get_conversation_messages(
             conversation_id=conversation_id,
             page=page,
             page_size=page_size,
             user_language=current_user.preferred_language,
         )
 
-    def get_user_conversations(self, user_id: int) -> list[dict]:
+    async def get_user_conversations(self, user_id: int) -> list[dict]:
         """
         Get all active conversations for user with formatted response.
         :param user_id: User ID
         :return: List of formatted conversation data
         """
-        conversations = self.conversation_repo.get_user_conversations(user_id)
+        conversations = await self.conversation_repo.get_user_conversations(user_id)
 
         conversation_list = []
         for conv in conversations:
-            participants = self.conversation_repo.get_participants(conv.id)
+            participants = await self.conversation_repo.get_participants(conv.id)
             participant_names = [p.username for p in participants if p.id != user_id]
 
             conversation_list.append(
@@ -182,16 +182,16 @@ class ConversationService:
 
         return conversation_list
 
-    def get_participants(self, current_user: User, conversation_id: int) -> list[dict]:
+    async def get_participants(self, current_user: User, conversation_id: int) -> list[dict]:
         """
         Get conversation participants with validation.
         :param current_user: User requesting participants
         :param conversation_id: Conversation ID
         :return: List of formatted participant data
         """
-        self._validate_conversation_access(current_user.id, conversation_id)
+        await self._validate_conversation_access(current_user.id, conversation_id)
 
-        participants = self.conversation_repo.get_participants(conversation_id)
+        participants = await self.conversation_repo.get_participants(conversation_id)
 
         return [
             {
@@ -203,7 +203,7 @@ class ConversationService:
             for user in participants
         ]
 
-    def _validate_participants(self, usernames: list[str], room_id: int) -> list[User]:
+    async def _validate_participants(self, usernames: list[str], room_id: int) -> list[User]:
         """
         Validate and return participant users.
         :param usernames: List of usernames to validate
@@ -212,7 +212,7 @@ class ConversationService:
         """
         participant_users = []
         for username in usernames:
-            user = self.user_repo.get_by_username(username)
+            user = await self.user_repo.get_by_username(username)
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -232,7 +232,7 @@ class ConversationService:
 
         return participant_users
 
-    def _validate_conversation_access(
+    async def _validate_conversation_access(
         self, user_id: int, conversation_id: int
     ) -> Conversation:
         """
@@ -241,13 +241,13 @@ class ConversationService:
         :param conversation_id: Conversation ID
         :return: Conversation object
         """
-        conversation = self.conversation_repo.get_by_id(conversation_id)
+        conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
             )
 
-        if not self.conversation_repo.is_participant(conversation_id, user_id):
+        if not await self.conversation_repo.is_participant(conversation_id, user_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User is not a participant in this conversation",

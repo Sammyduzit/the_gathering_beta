@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar, Optional, List
-from sqlalchemy.orm import Session
+from typing import Generic, TypeVar
+from sqlalchemy.ext.asyncio import AsyncSession
 
 T = TypeVar("T")
 
@@ -8,15 +8,15 @@ T = TypeVar("T")
 class BaseRepository(ABC, Generic[T]):
     """Abstract base repository providing common CRUD operations."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         """
-        Initialize repository with database session.
-        :param db: SQLAlchemy database session
+        Initialize repository with async database session.
+        :param db: SQLAlchemy async database session
         """
         self.db = db
 
     @abstractmethod
-    def get_by_id(self, id: int) -> Optional[T]:
+    async def get_by_id(self, id: int) -> T | None:
         """
         Get entity by ID.
         :param id: Entity ID
@@ -25,7 +25,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def get_all(self, limit: int = 100, offset: int = 0) -> List[T]:
+    async def get_all(self, limit: int = 100, offset: int = 0) -> list[T]:
         """
         Get all entities with pagination.
         :param limit: Maximum number of entities to return
@@ -35,7 +35,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def create(self, entity: T) -> T:
+    async def create(self, entity: T) -> T:
         """
         Create new entity
         :param entity: Entity to create
@@ -44,7 +44,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def update(self, entity: T) -> T:
+    async def update(self, entity: T) -> T:
         """
         Update existing entity.
         :param entity: Entity to update
@@ -53,7 +53,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def delete(self, id: int) -> bool:
+    async def delete(self, id: int) -> bool:
         """
         Delete entity by ID.
         :param id: Entity ID to delete
@@ -62,7 +62,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def exists(self, id: int) -> bool:
+    async def exists(self, id: int) -> bool:
         """
         Check if entity exists by ID.
         :param id: Entity ID to check

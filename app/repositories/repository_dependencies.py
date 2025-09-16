@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.repositories.user_repository import UserRepository, IUserRepository
@@ -15,50 +15,50 @@ from app.repositories.conversation_repository import (
 )
 
 
-def get_user_repository(db: Session = Depends(get_db)) -> IUserRepository:
+def get_user_repository(db: AsyncSession = Depends(get_db)) -> IUserRepository:
     """
-    Create UserRepository instance with database session.
-    :param db: Database session from get_db dependency
+    Create UserRepository instance with async database session.
+    :param db: Async database session from get_db dependency
     :return: UserRepository instance
     """
     return UserRepository(db)
 
 
-def get_room_repository(db: Session = Depends(get_db)) -> IRoomRepository:
+def get_room_repository(db: AsyncSession = Depends(get_db)) -> IRoomRepository:
     """
-    Create RoomRepository instance with database session.
-    :param db: Database session from get_db dependency
+    Create RoomRepository instance with async database session.
+    :param db: Async database session from get_db dependency
     :return: RoomRepository instance
     """
     return RoomRepository(db)
 
 
-def get_message_repository(db: Session = Depends(get_db)) -> IMessageRepository:
+def get_message_repository(db: AsyncSession = Depends(get_db)) -> IMessageRepository:
     """
-    Create MessageRepository instance with database session.
-    :param db: Database session from get_db dependency
+    Create MessageRepository instance with async database session.
+    :param db: Async database session from get_db dependency
     :return: MessageRepository instance
     """
     return MessageRepository(db)
 
 
 def get_conversation_repository(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> IConversationRepository:
     """
-    Create ConversationRepository instance with database session.
-    :param db: Database session from get_db dependency
+    Create ConversationRepository instance with async database session.
+    :param db: Async database session from get_db dependency
     :return: ConversationRepository instance
     """
     return ConversationRepository(db)
 
 
 def get_message_translation_repository(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> IMessageTranslationRepository:
     """
-    Create MessageTranslationRepository instance with database session.
-    :param db: Database session from get_db dependency
+    Create MessageTranslationRepository instance with async database session.
+    :param db: Async database session from get_db dependency
     :return: MessageTranslationRepository instance
     """
     return MessageTranslationRepository(db)

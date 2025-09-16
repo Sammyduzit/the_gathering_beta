@@ -23,7 +23,7 @@ async def create_conversation(
     :param conversation_service: Service instance handling conversation logic
     :return: Success response with conversation info
     """
-    new_conversation = conversation_service.create_conversation(
+    new_conversation = await conversation_service.create_conversation(
         current_user=current_user,
         participant_usernames=conversation_data.participant_usernames,
         conversation_type=conversation_data.conversation_type,
@@ -50,7 +50,7 @@ async def send_conversation_message(
     :param conversation_service: Service instance handling conversation logic
     :return: Created message object
     """
-    return conversation_service.send_message(
+    return await conversation_service.send_message(
         current_user=current_user,
         conversation_id=conversation_id,
         content=message_data.content,
@@ -74,7 +74,7 @@ async def get_conversation_messages(
     :param conversation_service: Service instance handling conversation logic
     :return: List of conversation messages
     """
-    messages, total_count = conversation_service.get_messages(
+    messages, total_count = await conversation_service.get_messages(
         current_user=current_user,
         conversation_id=conversation_id,
         page=page,
@@ -95,7 +95,7 @@ async def get_user_conversations(
     :param conversation_service: Service instance handling conversation logic
     :return: List of conversation dictionaries the user is part of
     """
-    return conversation_service.get_user_conversations(current_user.id)
+    return await conversation_service.get_user_conversations(current_user.id)
 
 
 @router.get("/{conversation_id}/participants", response_model=list[dict])
@@ -111,6 +111,6 @@ async def get_conversation_participants(
     :param conversation_service: Service instance handling conversation logic
     :return: List of participant user dictionaries for the given conversation
     """
-    return conversation_service.get_participants(
+    return await conversation_service.get_participants(
         current_user=current_user, conversation_id=conversation_id
     )

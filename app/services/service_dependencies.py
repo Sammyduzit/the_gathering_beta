@@ -3,6 +3,7 @@ from fastapi import Depends
 from app.services.conversation_service import ConversationService
 from app.services.room_service import RoomService
 from app.services.translation_service import TranslationService
+from app.services.background_service import BackgroundService
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import (
@@ -81,4 +82,22 @@ def get_room_service(
         message_repo=message_repo,
         conversation_repo=conversation_repo,
         translation_service=translation_service,
+    )
+
+
+def get_background_service(
+    translation_service: TranslationService = Depends(get_translation_service),
+    message_translation_repo: IMessageTranslationRepository = Depends(
+        get_message_translation_repository
+    ),
+) -> BackgroundService:
+    """
+    Create BackgroundService instance with service dependencies.
+    :param translation_service: Translation service instance
+    :param message_translation_repo: MessageTranslation repository instance
+    :return: BackgroundService instance
+    """
+    return BackgroundService(
+        translation_service=translation_service,
+        message_translation_repo=message_translation_repo,
     )

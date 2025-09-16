@@ -39,7 +39,7 @@ async def get_current_user(
     """
     username = get_user_from_token(token)
 
-    user = user_repo.get_by_username(username)
+    user = await user_repo.get_by_username(username)
 
     if not user:
         raise HTTPException(

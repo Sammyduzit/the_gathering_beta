@@ -1,3 +1,6 @@
+import asyncio
+from functools import partial
+
 import deepl
 
 from app.core.config import settings
@@ -42,7 +45,7 @@ class TranslationService:
 
         return self._deepl_client
 
-    def translate_message_content(
+    async def translate_message_content(
         self,
         content: str,
         source_language: str | None = None,
@@ -73,9 +76,14 @@ class TranslationService:
                 print(f"Translating to {target_lang}")
                 deepl_target = "EN-US" if target_lang.upper() == "EN" else target_lang
 
-                result = self.deepl_client.translate_text(
-                    content, source_lang=source_language, target_lang=deepl_target
+                # Run blocking DeepL call in thread pool to avoid blocking event loop
+                translate_func = partial(
+                    self.deepl_client.translate_text,
+                    content,
+                    source_lang=source_language,
+                    target_lang=deepl_target
                 )
+                result = await asyncio.get_event_loop().run_in_executor(None, translate_func)
 
                 if not result.text or not result.text.strip():
                     print(f"DeepL returned empty translation for {target_lang}")
@@ -96,7 +104,7 @@ class TranslationService:
         )
         return translations
 
-    def create_message_translations(
+    async def create_message_translations(
         self, message_id: int, translations: dict[str, str]
     ) -> list[MessageTranslation]:
         """
@@ -125,7 +133,7 @@ class TranslationService:
                 continue
 
         if translation_objects:
-            created_translations = self.translation_repo.bulk_create_translations(
+            created_translations = await self.translation_repo.bulk_create_translations(
                 translation_objects
             )
 
@@ -138,7 +146,7 @@ class TranslationService:
 
         return []
 
-    def translate_and_store_message(
+    async def translate_and_store_message(
         self,
         message_id: int,
         content: str,
@@ -154,7 +162,7 @@ class TranslationService:
         :return: Number of successful translations created
         """
         try:
-            translations = self.translate_message_content(
+            translations = await self.translate_message_content(
                 content=content,
                 source_language=source_language,
                 target_languages=target_languages,
@@ -164,7 +172,7 @@ class TranslationService:
                 print(f"No translations created for message {message_id}")
                 return 0
 
-            translation_objects = self.create_message_translations(
+            translation_objects = await self.create_message_translations(
                 message_id=message_id, translations=translations
             )
 
@@ -177,7 +185,7 @@ class TranslationService:
             print(f"Translation workflow failed for message {message_id}: {e}")
             return 0
 
-    def get_message_translation(
+    async def get_message_translation(
         self, message_id: int, target_language: str
     ) -> str | None:
         """
@@ -186,29 +194,29 @@ class TranslationService:
         :param target_language: Target language code
         :return: Translated content or None if not found
         """
-        translation = self.translation_repo.get_by_message_and_language(
+        translation = await self.translation_repo.get_by_message_and_language(
             message_id=message_id, target_language=target_language.upper()
         )
 
         return translation.content if translation else None
 
-    def get_all_message_translations(self, message_id: int) -> dict[str, str]:
+    async def get_all_message_translations(self, message_id: int) -> dict[str, str]:
         """
         Get all translations for a message.
         :param message_id: ID of the original message
         :return: Dictionary mapping language codes to translated content
         """
-        translations = self.translation_repo.get_by_message_id(message_id)
+        translations = await self.translation_repo.get_by_message_id(message_id)
 
         return {
             translation.target_language: translation.content
             for translation in translations
         }
 
-    def delete_message_translations(self, message_id: int) -> int:
+    async def delete_message_translations(self, message_id: int) -> int:
         """
         Delete all translations for a message.
         :param message_id: ID of the message
         :return: Number of translations deleted
         """
-        return self.translation_repo.delete_by_message_id(message_id)
+        return await self.translation_repo.delete_by_message_id(message_id)

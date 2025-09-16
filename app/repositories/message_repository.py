@@ -11,28 +11,28 @@ class IMessageRepository(BaseRepository[Message]):
     """Abstract interface for Message repository."""
 
     @abstractmethod
-    def create_room_message(
+    async def create_room_message(
         self, sender_id: int, room_id: int, content: str
     ) -> Message:
         """Create a room-wide message."""
         pass
 
     @abstractmethod
-    def create_conversation_message(
+    async def create_conversation_message(
         self, sender_id: int, conversation_id: int, content: str
     ) -> Message:
         """Create a conversation message (private/group)."""
         pass
 
     @abstractmethod
-    def get_room_messages(
+    async def get_room_messages(
         self, room_id: int, page: int = 1, page_size: int = 50
     ) -> tuple[list[Message], int]:
         """Get room messages with pagination."""
         pass
 
     @abstractmethod
-    def get_conversation_messages(
+    async def get_conversation_messages(
         self,
         conversation_id: int,
         page: int = 1,
@@ -43,17 +43,17 @@ class IMessageRepository(BaseRepository[Message]):
         pass
 
     @abstractmethod
-    def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
+    async def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
         """Get messages sent by a specific user."""
         pass
 
     @abstractmethod
-    def get_latest_room_messages(self, room_id: int, limit: int = 10) -> list[Message]:
+    async def get_latest_room_messages(self, room_id: int, limit: int = 10) -> list[Message]:
         """Get latest messages from a room."""
         pass
 
     @abstractmethod
-    def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
+    async def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
         """Delete old room messages, keeping only the most recent ones"""
         pass
 
@@ -68,13 +68,13 @@ class MessageRepository(IMessageRepository):
         """
         super().__init__(db)
 
-    def get_by_id(self, id: int) -> Message | None:
+    async def get_by_id(self, id: int) -> Message | None:
         """Get message by ID."""
         query = select(Message).where(Message.id == id)
-        result = self.db.execute(query)
+        result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    def create_room_message(
+    async def create_room_message(
         self, sender_id: int, room_id: int, content: str
     ) -> Message:
         """Create a room-wide message."""
@@ -87,11 +87,11 @@ class MessageRepository(IMessageRepository):
         )
 
         self.db.add(new_message)
-        self.db.commit()
-        self.db.refresh(new_message)
+        await self.db.commit()
+        await self.db.refresh(new_message)
         return new_message
 
-    def create_conversation_message(
+    async def create_conversation_message(
         self, sender_id: int, conversation_id: int, content: str
     ) -> Message:
         """Create a conversation message (private/group)."""
@@ -104,11 +104,11 @@ class MessageRepository(IMessageRepository):
         )
 
         self.db.add(new_message)
-        self.db.commit()
-        self.db.refresh(new_message)
+        await self.db.commit()
+        await self.db.refresh(new_message)
         return new_message
 
-    def get_room_messages(
+    async def get_room_messages(
         self,
         room_id: int,
         page: int = 1,
@@ -119,7 +119,7 @@ class MessageRepository(IMessageRepository):
         count_query = select(func.count(Message.id)).where(
             and_(Message.room_id == room_id, Message.conversation_id.is_(None))
         )
-        result = self.db.execute(count_query)
+        result = await self.db.execute(count_query)
         total_count = result.scalar() or 0
 
         offset = (page - 1) * page_size
@@ -132,7 +132,7 @@ class MessageRepository(IMessageRepository):
             .limit(page_size)
         )
 
-        result = self.db.execute(messages_query)
+        result = await self.db.execute(messages_query)
         message_rows = result.all()
 
         # Add sender_username to message objects
@@ -144,7 +144,7 @@ class MessageRepository(IMessageRepository):
         messages = self._apply_translations_to_messages(messages, user_language)
         return messages, total_count
 
-    def get_conversation_messages(
+    async def get_conversation_messages(
         self,
         conversation_id: int,
         page: int = 1,
@@ -155,7 +155,7 @@ class MessageRepository(IMessageRepository):
         count_query = select(func.count(Message.id)).where(
             and_(Message.conversation_id == conversation_id, Message.room_id.is_(None))
         )
-        result = self.db.execute(count_query)
+        result = await self.db.execute(count_query)
         total_count = result.scalar() or 0
 
         offset = (page - 1) * page_size
@@ -173,7 +173,7 @@ class MessageRepository(IMessageRepository):
             .limit(page_size)
         )
 
-        result = self.db.execute(messages_query)
+        result = await self.db.execute(messages_query)
         message_rows = result.all()
 
         # Add sender_username to message objects
@@ -185,7 +185,7 @@ class MessageRepository(IMessageRepository):
         messages = self._apply_translations_to_messages(messages, user_language)
         return messages, total_count
 
-    def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
+    async def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
         """Get messages sent by a specific user."""
         query = (
             select(Message)
@@ -194,10 +194,10 @@ class MessageRepository(IMessageRepository):
             .limit(limit)
         )
 
-        result = self.db.execute(query)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    def get_latest_room_messages(self, room_id: int, limit: int = 10) -> list[Message]:
+    async def get_latest_room_messages(self, room_id: int, limit: int = 10) -> list[Message]:
         """Get latest messages from a room."""
         query = (
             select(Message, User.username)
@@ -207,7 +207,7 @@ class MessageRepository(IMessageRepository):
             .limit(limit)
         )
 
-        result = self.db.execute(query)
+        result = await self.db.execute(query)
         message_rows = result.all()
 
         # Add sender_username to message objects
@@ -218,12 +218,12 @@ class MessageRepository(IMessageRepository):
 
         return messages
 
-    def get_all(self, limit: int = 100, offset: int = 0) -> list[Message]:
+    async def get_all(self, limit: int = 100, offset: int = 0) -> list[Message]:
         """Get all messages with pagination."""
         query = (
             select(Message).limit(limit).offset(offset).order_by(desc(Message.sent_at))
         )
-        result = self.db.execute(query)
+        result = await self.db.execute(query)
         return list(result.scalars().all())
 
     def _apply_translations_to_messages(
@@ -240,7 +240,7 @@ class MessageRepository(IMessageRepository):
 
         return messages
 
-    def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
+    async def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
         """Delete old room messages, keeping only the most recent ones"""
         try:
             threshold_query = (
@@ -253,7 +253,8 @@ class MessageRepository(IMessageRepository):
                 .limit(1)
             )
 
-            threshold_result = self.db.execute(threshold_query).scalar_one_or_none()
+            result = await self.db.execute(threshold_query)
+            threshold_result = result.scalar_one_or_none()
 
             if not threshold_result:
                 return 0
@@ -266,14 +267,15 @@ class MessageRepository(IMessageRepository):
                 )
             )
 
-            old_messages = self.db.execute(old_messages_query)
+            result = await self.db.execute(old_messages_query)
+            old_messages = result.all()
 
             deleted_count = 0
             for message in old_messages:
                 self.db.delete(message)
                 deleted_count += 1
 
-            self.db.commit()
+            await self.db.commit()
 
             if deleted_count > 0:
                 print(f"Cleaned up {deleted_count} old messages from room {room_id}")
@@ -282,32 +284,32 @@ class MessageRepository(IMessageRepository):
 
         except Exception as e:
             print(f"Error cleaning up room messages: {e}")
-            self.db.rollback()
+            await self.db.rollback()
             return 0
 
-    def create(self, message: Message) -> Message:
+    async def create(self, message: Message) -> Message:
         """Create new message."""
         self.db.add(message)
-        self.db.commit()
-        self.db.refresh(message)
+        await self.db.commit()
+        await self.db.refresh(message)
         return message
 
-    def update(self, message: Message) -> Message:
+    async def update(self, message: Message) -> Message:
         """Update existing message."""
-        self.db.commit()
-        self.db.refresh(message)
+        await self.db.commit()
+        await self.db.refresh(message)
         return message
 
-    def delete(self, id: int) -> bool:
+    async def delete(self, id: int) -> bool:
         """Delete message by ID."""
-        message = self.get_by_id(id)
+        message = await self.get_by_id(id)
         if message:
             self.db.delete(message)
-            self.db.commit()
+            await self.db.commit()
             return True
         return False
 
-    def exists(self, id: int) -> bool:
+    async def exists(self, id: int) -> bool:
         """Check if message exists by ID."""
-        message = self.get_by_id(id)
+        message = await self.get_by_id(id)
         return message is not None

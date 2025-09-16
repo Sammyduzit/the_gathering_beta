@@ -30,18 +30,18 @@ async def register_user(
     :return: Created user object
     """
 
-    if user_repo.email_exists(user_data.email):
+    if await user_repo.email_exists(user_data.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
-    if user_repo.username_exists(user_data.username):
+    if await user_repo.username_exists(user_data.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
         )
 
     hashed_password = hash_password(user_data.password)
-    avatar_url = generate_avatar_url(user_data.username)
+    avatar_url = await generate_avatar_url(user_data.username)
 
     new_user = User(
         email=user_data.email,
@@ -50,7 +50,7 @@ async def register_user(
         avatar_url=avatar_url,
     )
 
-    created_user = user_repo.create(new_user)
+    created_user = await user_repo.create(new_user)
 
     return created_user
 
@@ -66,7 +66,7 @@ async def login_user(
     :param user_repo: User Repository instance
     :return: JWT token object
     """
-    user = user_repo.get_by_email(user_credentials.email)
+    user = await user_repo.get_by_email(user_credentials.email)
 
     if not user:
         raise HTTPException(
@@ -119,7 +119,7 @@ async def update_user_preferences(
     :return: Updated user object
     """
     if user_update.username:
-        if user_repo.username_exists(user_update.username):
+        if await user_repo.username_exists(user_update.username):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
             )
@@ -133,5 +133,5 @@ async def update_user_preferences(
             )
         current_user.preferred_language = user_update.preferred_language.lower()
 
-    updated_user = user_repo.update(current_user)
+    updated_user = await user_repo.update(current_user)
     return updated_user
