@@ -1,13 +1,14 @@
 import os
 import pytest
+import pytest_asyncio
 from datetime import datetime
 
 if not os.getenv("CI"):
-    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+    os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
+from httpx import AsyncClient, ASGITransport
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy import event
 from sqlalchemy.pool import StaticPool
 
 from main import app
@@ -38,20 +39,23 @@ from app.services.conversation_service import ConversationService
 from app.services.translation_service import TranslationService
 
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 print(f"Test Database URL: {DATABASE_URL}")
 
 if "sqlite" in DATABASE_URL:
-    engine = create_engine(
-        DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
+    async_engine = create_async_engine(
+        DATABASE_URL, poolclass=StaticPool, echo=False
     )
-    print("Using SQLite engine configuration")
+    print("Using async SQLite engine configuration")
 else:
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
-    print("Using PostgreSQL engine configuration")
+    # Convert PostgreSQL URL to async if needed
+    if DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+    async_engine = create_async_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
+    print("Using async PostgreSQL engine configuration")
 
 
-@event.listens_for(engine, "connect")
+@event.listens_for(async_engine.sync_engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     """Activate Foreign Key Constraints for SQLite connections."""
     if "sqlite" in DATABASE_URL:
@@ -61,72 +65,72 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         print("SQLite Foreign Key Constraints aktiviert")
 
 
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+async_testing_session_local = async_sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
-@pytest.fixture(scope="function")
-def db_session():
-    """Create new database session for E2E tests."""
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
+@pytest_asyncio.fixture(scope="function")
+async def async_db_session():
+    """Create new async database session for E2E tests."""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with async_testing_session_local() as session:
+        yield session
+
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture(scope="function")
-def client(db_session):
-    """Create test client for E2E tests."""
+@pytest_asyncio.fixture(scope="function")
+async def async_client(async_db_session):
+    """Create async test client for E2E tests."""
 
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
+    async def override_get_db():
+        yield async_db_session
 
     def override_user_repository():
-        return UserRepository(db_session)
+        return UserRepository(async_db_session)
 
     def override_room_repository():
-        return RoomRepository(db_session)
+        return RoomRepository(async_db_session)
 
     def override_conversation_repository():
-        return ConversationRepository(db_session)
+        return ConversationRepository(async_db_session)
 
     def override_message_repository():
-        return MessageRepository(db_session)
+        return MessageRepository(async_db_session)
 
     def override_message_translation_repository():
-        return MessageTranslationRepository(db_session)
+        return MessageTranslationRepository(async_db_session)
 
     def override_translation_service():
         return TranslationService(
-            message_repo=MessageRepository(db_session),
-            translation_repo=MessageTranslationRepository(db_session),
+            message_repo=MessageRepository(async_db_session),
+            translation_repo=MessageTranslationRepository(async_db_session),
         )
 
     def override_room_service():
         return RoomService(
-            room_repo=RoomRepository(db_session),
-            user_repo=UserRepository(db_session),
-            message_repo=MessageRepository(db_session),
-            conversation_repo=ConversationRepository(db_session),
+            room_repo=RoomRepository(async_db_session),
+            user_repo=UserRepository(async_db_session),
+            message_repo=MessageRepository(async_db_session),
+            conversation_repo=ConversationRepository(async_db_session),
             translation_service=TranslationService(
-                message_repo=MessageRepository(db_session),
-                translation_repo=MessageTranslationRepository(db_session),
+                message_repo=MessageRepository(async_db_session),
+                translation_repo=MessageTranslationRepository(async_db_session),
             ),
         )
 
     def override_conversation_service():
         return ConversationService(
-            conversation_repo=ConversationRepository(db_session),
-            message_repo=MessageRepository(db_session),
-            user_repo=UserRepository(db_session),
+            conversation_repo=ConversationRepository(async_db_session),
+            message_repo=MessageRepository(async_db_session),
+            user_repo=UserRepository(async_db_session),
             translation_service=TranslationService(
-                message_repo=MessageRepository(db_session),
-                translation_repo=MessageTranslationRepository(db_session),
+                message_repo=MessageRepository(async_db_session),
+                translation_repo=MessageTranslationRepository(async_db_session),
             ),
         )
 
@@ -144,13 +148,15 @@ def client(db_session):
     app.dependency_overrides[get_room_service] = override_room_service
     app.dependency_overrides[get_conversation_service] = override_conversation_service
 
-    with TestClient(app) as test_client:
-        yield test_client
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver"
+    ) as async_test_client:
+        yield async_test_client
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def created_user(db_session, sample_user_data):
+@pytest_asyncio.fixture
+async def created_user(async_db_session, sample_user_data):
     """Create a user in database for E2E tests."""
     user = User(
         email=sample_user_data["email"],
@@ -159,14 +165,16 @@ def created_user(db_session, sample_user_data):
         is_admin=False,
         last_active=datetime.now(),
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+    async_db_session.add(user)
+    await async_db_session.commit()
+    await async_db_session.refresh(user)
+    # Force load all attributes to avoid lazy loading issues
+    user_id = user.id
     return user
 
 
-@pytest.fixture
-def created_admin(db_session, sample_admin_data):
+@pytest_asyncio.fixture
+async def created_admin(async_db_session, sample_admin_data):
     """Create an admin in database for E2E tests."""
     admin = User(
         email=sample_admin_data["email"],
@@ -175,30 +183,34 @@ def created_admin(db_session, sample_admin_data):
         is_admin=True,
         last_active=datetime.now(),
     )
-    db_session.add(admin)
-    db_session.commit()
-    db_session.refresh(admin)
+    async_db_session.add(admin)
+    await async_db_session.commit()
+    await async_db_session.refresh(admin)
+    # Force load all attributes to avoid lazy loading issues
+    admin_id = admin.id
     return admin
 
 
-@pytest.fixture
-def created_room(db_session, sample_room_data):
+@pytest_asyncio.fixture
+async def created_room(async_db_session, sample_room_data):
     """Create a room in database for E2E tests."""
     room = Room(
         name=sample_room_data["name"],
         description=sample_room_data["description"],
         max_users=sample_room_data["max_users"],
     )
-    db_session.add(room)
-    db_session.commit()
-    db_session.refresh(room)
+    async_db_session.add(room)
+    await async_db_session.commit()
+    await async_db_session.refresh(room)
+    # Force load all attributes to avoid lazy loading issues
+    room_id = room.id
     return room
 
 
-@pytest.fixture
-def authenticated_user_headers(client, sample_user_data, created_user):
+@pytest_asyncio.fixture
+async def authenticated_user_headers(async_client, sample_user_data, created_user):
     """Return headers with JWT token for authenticated user requests."""
-    login_response = client.post(
+    login_response = await async_client.post(
         "/api/v1/auth/login",
         json={
             "email": sample_user_data["email"],
@@ -209,10 +221,10 @@ def authenticated_user_headers(client, sample_user_data, created_user):
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest.fixture
-def authenticated_admin_headers(client, sample_admin_data, created_admin):
+@pytest_asyncio.fixture
+async def authenticated_admin_headers(async_client, sample_admin_data, created_admin):
     """Return headers with JWT token for authenticated admin requests."""
-    login_response = client.post(
+    login_response = await async_client.post(
         "/api/v1/auth/login",
         json={
             "email": sample_admin_data["email"],

@@ -1,14 +1,15 @@
+import asyncio
 from app.models.user import User
 from app.models.room import Room
 from app.core.auth_utils import hash_password
-from app.core.database import SessionLocal
+from app.core.database import AsyncSessionLocal
 from app.services.avatar_service import generate_avatar_url
 from sqlalchemy import select
 
 
-def create_test_users():
+async def create_test_users():
     """Create test admin and user"""
-    with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         try:
             test_users = [
                 {
@@ -45,7 +46,7 @@ def create_test_users():
             created_users = []
             for user_data in test_users:
                 user_query = select(User).where(User.email == user_data["email"])
-                result = db.execute(user_query)
+                result = await db.execute(user_query)
                 existing_user = result.scalar_one_or_none()
 
                 if not existing_user:
@@ -60,19 +61,19 @@ def create_test_users():
                     created_users.append(user_data)
 
             if created_users:
-                db.commit()
+                await db.commit()
 
         except Exception as e:
             print(f"Error creating users: {e}")
-            db.rollback()
+            await db.rollback()
             raise
 
     return created_users
 
 
-def create_test_rooms():
+async def create_test_rooms():
     """Create test rooms for tests"""
-    with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         try:
             test_rooms = [
                 {
@@ -110,7 +111,7 @@ def create_test_rooms():
             created_rooms = []
             for room_data in test_rooms:
                 room_query = select(Room).where(Room.name == room_data["name"])
-                result = db.execute(room_query)
+                result = await db.execute(room_query)
                 existing_room = result.scalar_one_or_none()
 
                 if not existing_room:
@@ -124,22 +125,22 @@ def create_test_rooms():
                     created_rooms.append(room_data)
 
             if created_rooms:
-                db.commit()
+                await db.commit()
 
         except Exception as e:
             print(f"Error creating rooms: {e}")
-            db.rollback()
+            await db.rollback()
             raise
 
     return created_rooms
 
 
-def setup_complete_test_environment():
+async def setup_complete_test_environment():
     """Create complete test environment for development"""
     print("\nCreating test environment...\n")
 
-    created_users = create_test_users()
-    created_rooms = create_test_rooms()
+    created_users = await create_test_users()
+    created_rooms = await create_test_rooms()
 
     if created_users:
         print("═" * 68)

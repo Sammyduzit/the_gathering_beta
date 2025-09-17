@@ -1,10 +1,11 @@
 import os
 
-os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 import pytest
+import pytest_asyncio
 from datetime import datetime
-from sqlalchemy import text
+from sqlalchemy import text, select, delete
 from sqlalchemy.exc import IntegrityError
 
 
@@ -20,15 +21,16 @@ from app.core.auth_utils import hash_password
 class TestDatabaseConstraints:
     """Test database schema constraints and data integrity."""
 
-    def test_message_xor_constraint(self, db_session, created_user, created_room):
+    @pytest.mark.asyncio
+    async def test_message_xor_constraint(self, async_db_session, created_user, created_room):
         """Test XOR constraint: message must have either room_id OR conversation_id, not both."""
 
         conversation = Conversation(
             room_id=created_room.id, conversation_type=ConversationType.PRIVATE
         )
 
-        db_session.add(conversation)
-        db_session.commit()
+        async_db_session.add(conversation)
+        await async_db_session.commit()
 
         # Test valid options first, room_id only and conversation_id only
         room_message = Message(
@@ -37,8 +39,8 @@ class TestDatabaseConstraints:
             room_id=created_room.id,
             conversation_id=None,
         )
-        db_session.add(room_message)
-        db_session.commit()
+        async_db_session.add(room_message)
+        await async_db_session.commit()
 
         conv_message = Message(
             sender_id=created_user.id,
@@ -46,8 +48,8 @@ class TestDatabaseConstraints:
             room_id=None,
             conversation_id=conversation.id,
         )
-        db_session.add(conv_message)
-        db_session.commit()
+        async_db_session.add(conv_message)
+        await async_db_session.commit()
 
         # Test XOR violations
         with pytest.raises(IntegrityError):
@@ -57,10 +59,10 @@ class TestDatabaseConstraints:
                 room_id=created_room.id,
                 conversation_id=conversation.id,
             )
-            db_session.add(invalid_message)
-            db_session.commit()
+            async_db_session.add(invalid_message)
+            await async_db_session.commit()
 
-        db_session.rollback()
+        await async_db_session.rollback()
 
         with pytest.raises(IntegrityError):
             orphan_message = Message(
@@ -69,10 +71,11 @@ class TestDatabaseConstraints:
                 room_id=None,
                 conversation_id=None,
             )
-            db_session.add(orphan_message)
-            db_session.commit()
+            async_db_session.add(orphan_message)
+            await async_db_session.commit()
 
-    def test_unique_constraints(self, db_session, created_user, created_room):
+    @pytest.mark.asyncio
+    async def test_unique_constraints(self, async_db_session, created_user, created_room):
         """Test unique constraints on User and Room."""
 
         # username and email unique constraints
@@ -83,10 +86,10 @@ class TestDatabaseConstraints:
                 password_hash=hash_password("password"),
                 last_active=datetime.now(),
             )
-            db_session.add(user2)
-            db_session.commit()
+            async_db_session.add(user2)
+            await async_db_session.commit()
 
-        db_session.rollback()
+        await async_db_session.rollback()
 
         with pytest.raises(IntegrityError):
             user3 = User(
@@ -95,71 +98,74 @@ class TestDatabaseConstraints:
                 password_hash=hash_password("password"),
                 last_active=datetime.now(),
             )
-            db_session.add(user3)
-            db_session.commit()
+            async_db_session.add(user3)
+            await async_db_session.commit()
 
-        db_session.rollback()
+        await async_db_session.rollback()
 
         with pytest.raises(IntegrityError):
             room2 = Room(name=created_room.name, description="Second room")
-            db_session.add(room2)
-            db_session.commit()
+            async_db_session.add(room2)
+            await async_db_session.commit()
 
-    def test_foreign_key_constraints(self, db_session, created_user, created_room):
+    @pytest.mark.asyncio
+    async def test_foreign_key_constraints(self, async_db_session, created_user, created_room):
         """Test foreign key constraints and cascading behavior."""
         created_user.current_room_id = created_room.id
-        db_session.commit()
+        await async_db_session.commit()
 
         # Invalid room id foreign key
         with pytest.raises(IntegrityError):
             created_user.current_room_id = 9999
-            db_session.commit()
+            await async_db_session.commit()
 
-        db_session.rollback()
+        await async_db_session.rollback()
 
         # Invalid message sender
         with pytest.raises(IntegrityError):
             invalid_message = Message(
                 sender_id=9999, content="Invalid sender", room_id=created_room.id
             )
-            db_session.add(invalid_message)
-            db_session.commit()
+            async_db_session.add(invalid_message)
+            await async_db_session.commit()
 
-    def test_conversation_participant_constraints(
-        self, db_session, created_user, created_room
+    @pytest.mark.asyncio
+    async def test_conversation_participant_constraints(
+        self, async_db_session, created_user, created_room
     ):
         """Test conversation participant unique constraints."""
         conversation = Conversation(
             room_id=created_room.id, conversation_type=ConversationType.PRIVATE
         )
 
-        db_session.add(conversation)
-        db_session.commit()
+        async_db_session.add(conversation)
+        await async_db_session.commit()
 
         participant1 = ConversationParticipant(
             conversation_id=conversation.id, user_id=created_user.id
         )
-        db_session.add(participant1)
-        db_session.commit()
+        async_db_session.add(participant1)
+        await async_db_session.commit()
 
         # Duplicate participant should fail
         with pytest.raises(IntegrityError):
             participant2 = ConversationParticipant(
                 conversation_id=conversation.id, user_id=created_user.id
             )
-            db_session.add(participant2)
-            db_session.commit()
+            async_db_session.add(participant2)
+            await async_db_session.commit()
 
-    def test_enum_validation(self, db_session, created_user, created_room):
+    @pytest.mark.asyncio
+    async def test_enum_validation(self, async_db_session, created_user, created_room):
         """Test enum field validation."""
         valid_conversation = Conversation(
             room_id=created_room.id, conversation_type=ConversationType.PRIVATE
         )
-        db_session.add(valid_conversation)
-        db_session.commit()
+        async_db_session.add(valid_conversation)
+        await async_db_session.commit()
 
         created_user.status = UserStatus.AVAILABLE
-        db_session.commit()
+        await async_db_session.commit()
 
         # Test MessageType enum
         message = Message(
@@ -168,10 +174,11 @@ class TestDatabaseConstraints:
             message_type=MessageType.TEXT,
             room_id=created_room.id,
         )
-        db_session.add(message)
-        db_session.commit()
+        async_db_session.add(message)
+        await async_db_session.commit()
 
-    def test_nullable_constraints(self, db_session, created_user, created_room):
+    @pytest.mark.asyncio
+    async def test_nullable_constraints(self, async_db_session, created_user, created_room):
         """Test required (non-nullable) field constraints."""
 
         with pytest.raises(IntegrityError):
@@ -181,32 +188,33 @@ class TestDatabaseConstraints:
                 password_hash=hash_password("password"),
                 last_active=datetime.now(),
             )
-            db_session.add(invalid_user)
-            db_session.commit()
+            async_db_session.add(invalid_user)
+            await async_db_session.commit()
 
-        db_session.rollback()
+        await async_db_session.rollback()
 
         with pytest.raises(IntegrityError):
             invalid_room = Room(name=None, description="Test room")
-            db_session.add(invalid_room)
-            db_session.commit()
+            async_db_session.add(invalid_room)
+            await async_db_session.commit()
 
-        db_session.rollback()
+        await async_db_session.rollback()
 
         with pytest.raises(IntegrityError):
             invalid_message = Message(
                 sender_id=created_user.id, content=None, room_id=created_room.id
             )
-            db_session.add(invalid_message)
-            db_session.commit()
+            async_db_session.add(invalid_message)
+            await async_db_session.commit()
 
-    def test_cascading_deletes(self, db_session, created_user, created_room):
+    @pytest.mark.asyncio
+    async def test_cascading_deletes(self, async_db_session, created_user, created_room):
         """Test that deleting conversation removes related data correctly."""
         conversation = Conversation(
             room_id=created_room.id, conversation_type=ConversationType.PRIVATE
         )
-        db_session.add(conversation)
-        db_session.commit()
+        async_db_session.add(conversation)
+        await async_db_session.commit()
 
         participant = ConversationParticipant(
             conversation_id=conversation.id, user_id=created_user.id
@@ -217,69 +225,78 @@ class TestDatabaseConstraints:
             conversation_id=conversation.id,
         )
 
-        db_session.add_all([participant, message])
-        db_session.commit()
+        async_db_session.add_all([participant, message])
+        await async_db_session.commit()
 
         conversation_id = conversation.id
 
         # Verify data exists before deletion
         participants_before = (
-            db_session.query(ConversationParticipant)
-            .filter_by(conversation_id=conversation_id)
-            .count()
-        )
+            await async_db_session.execute(
+                select(ConversationParticipant).filter_by(conversation_id=conversation_id)
+            )
+        ).all()
         messages_before = (
-            db_session.query(Message).filter_by(conversation_id=conversation_id).count()
-        )
+            await async_db_session.execute(
+                select(Message).filter_by(conversation_id=conversation_id)
+            )
+        ).all()
 
-        assert participants_before == 1
-        assert messages_before == 1
+        assert len(participants_before) == 1
+        assert len(messages_before) == 1
 
         # Manually delete related data
-        db_session.query(ConversationParticipant).filter_by(
-            conversation_id=conversation_id
-        ).delete()
-        db_session.query(Message).filter_by(conversation_id=conversation_id).delete()
+        await async_db_session.execute(
+            delete(ConversationParticipant).filter_by(conversation_id=conversation_id)
+        )
+        await async_db_session.execute(
+            delete(Message).filter_by(conversation_id=conversation_id)
+        )
 
         # Delete conversation
-        db_session.delete(conversation)
-        db_session.commit()
+        await async_db_session.delete(conversation)
+        await async_db_session.commit()
 
         # Verify all related data is gone
         remaining_participants = (
-            db_session.query(ConversationParticipant)
-            .filter_by(conversation_id=conversation_id)
-            .count()
-        )
+            await async_db_session.execute(
+                select(ConversationParticipant).filter_by(conversation_id=conversation_id)
+            )
+        ).all()
         remaining_messages = (
-            db_session.query(Message).filter_by(conversation_id=conversation_id).count()
-        )
+            await async_db_session.execute(
+                select(Message).filter_by(conversation_id=conversation_id)
+            )
+        ).all()
         remaining_conversations = (
-            db_session.query(Conversation).filter_by(id=conversation_id).count()
-        )
+            await async_db_session.execute(
+                select(Conversation).filter_by(id=conversation_id)
+            )
+        ).all()
 
-        assert remaining_participants == 0
-        assert remaining_messages == 0
-        assert remaining_conversations == 0
+        assert len(remaining_participants) == 0
+        assert len(remaining_messages) == 0
+        assert len(remaining_conversations) == 0
 
-    def test_database_indexes_exist(self, db_session):
+    @pytest.mark.asyncio
+    async def test_database_indexes_exist(self, async_db_session):
         """Verify that important database indexes exist for performance."""
 
-        database_url = str(db_session.bind.url)
+        database_url = str(async_db_session.bind.url)
 
         if "sqlite" in database_url:
             sql = """
-                    SELECT name FROM sqlite_master 
+                    SELECT name FROM sqlite_master
                     WHERE type='index' AND name NOT LIKE 'sqlite_%'
                 """
         else:
             sql = """
-                    SELECT indexname FROM pg_indexes 
-                    WHERE schemaname = 'public' 
+                    SELECT indexname FROM pg_indexes
+                    WHERE schemaname = 'public'
                     AND indexname NOT LIKE 'pg_%'
                 """
 
-        result = db_session.execute(text(sql))
+        result = await async_db_session.execute(text(sql))
 
         index_names = [row[0] for row in result.fetchall()]
 

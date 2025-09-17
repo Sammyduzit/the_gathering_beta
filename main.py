@@ -20,11 +20,11 @@ async def lifespan(app: FastAPI):
 
     if os.getenv("RESET_DB") == "true":
         print("RESET_DB=true - Resetting database...")
-        drop_tables()
+        await drop_tables()
         print("Database reset complete")
 
-    create_tables()
-    setup_complete_test_environment()
+    await create_tables()
+    await setup_complete_test_environment()
     print("Database tables created")
     yield
     print("Shutting down...")

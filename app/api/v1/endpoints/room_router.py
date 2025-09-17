@@ -243,10 +243,10 @@ async def update_user_status(
 async def send_room_message(
     room_id: int,
     message_data: MessageCreate = Body(...),
-    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
     background_service: BackgroundService = Depends(get_background_service),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> MessageResponse:
     """
     Send message to room, visible for every member.

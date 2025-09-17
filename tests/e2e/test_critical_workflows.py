@@ -1,17 +1,19 @@
 import os
 
-os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 import pytest
+import pytest_asyncio
 
 
 @pytest.mark.e2e
 class TestCriticalUserJourneys:
     """Critical user workflows that must always work."""
 
-    def test_complete_chat_workflow(
+    @pytest.mark.asyncio
+    async def test_complete_chat_workflow(
         self,
-        client,
+        async_client,
         created_admin,
         created_user,
         authenticated_admin_headers,
@@ -20,25 +22,25 @@ class TestCriticalUserJourneys:
     ):
         """Complete user journey: Register → Login → Create Room → Join → Chat → Private Chat"""
 
-        room_response = client.post(
+        room_response = await async_client.post(
             "/api/v1/rooms/", json=sample_room_data, headers=authenticated_admin_headers
         )
         assert room_response.status_code == 201
         room_id = room_response.json()["id"]
 
-        admin_join = client.post(
+        admin_join = await async_client.post(
             f"/api/v1/rooms/{room_id}/join", headers=authenticated_admin_headers
         )
         assert admin_join.status_code == 200
 
-        user_join = client.post(
+        user_join = await async_client.post(
             f"/api/v1/rooms/{room_id}/join", headers=authenticated_user_headers
         )
         assert user_join.status_code == 200
         assert user_join.json()["user_count"] == 2
 
         # 3 type chat system messaging
-        room_message = client.post(
+        room_message = await async_client.post(
             f"/api/v1/rooms/{room_id}/messages",
             json={"content": "Hello everyone!"},
             headers=authenticated_user_headers,
@@ -46,7 +48,7 @@ class TestCriticalUserJourneys:
         assert room_message.status_code == 200
         assert room_message.json()["content"] == "Hello everyone!"
 
-        room_history = client.get(
+        room_history = await async_client.get(
             f"/api/v1/rooms/{room_id}/messages", headers=authenticated_admin_headers
         )
         assert room_history.status_code == 200
@@ -59,20 +61,20 @@ class TestCriticalUserJourneys:
             "participant_usernames": [created_admin.username],
             "conversation_type": "private",
         }
-        conv_response = client.post(
+        conv_response = await async_client.post(
             "/api/v1/conversations", json=conv_data, headers=authenticated_user_headers
         )
         assert conv_response.status_code == 201
         conv_id = conv_response.json()["conversation_id"]
 
-        private_message = client.post(
+        private_message = await async_client.post(
             f"/api/v1/conversations/{conv_id}/messages",
             json={"content": "Private hello!"},
             headers=authenticated_user_headers,
         )
         assert private_message.status_code == 200
 
-        private_history = client.get(
+        private_history = await async_client.get(
             f"/api/v1/conversations/{conv_id}/messages",
             headers=authenticated_admin_headers,
         )
@@ -86,9 +88,10 @@ class TestCriticalUserJourneys:
         assert private_message.json()["conversation_id"] == conv_id
         assert private_message.json()["room_id"] is None
 
-    def test_room_closure_workflow(
+    @pytest.mark.asyncio
+    async def test_room_closure_workflow(
         self,
-        client,
+        async_client,
         created_admin,
         created_user,
         authenticated_admin_headers,
@@ -96,19 +99,19 @@ class TestCriticalUserJourneys:
     ):
         """Test room deletion workflow with cleanup."""
         # Create room and conversation
-        room_response = client.post(
+        room_response = await async_client.post(
             "/api/v1/rooms/",
             json={"name": "Test Room", "description": "Test"},
             headers=authenticated_admin_headers,
         )
         room_id = room_response.json()["id"]
 
-        client.post(
+        await async_client.post(
             f"/api/v1/rooms/{room_id}/join", headers=authenticated_admin_headers
         )
-        client.post(f"/api/v1/rooms/{room_id}/join", headers=authenticated_user_headers)
+        await async_client.post(f"/api/v1/rooms/{room_id}/join", headers=authenticated_user_headers)
 
-        conv_response = client.post(
+        conv_response = await async_client.post(
             "/api/v1/conversations",
             json={
                 "participant_usernames": [created_admin.username],
@@ -118,14 +121,14 @@ class TestCriticalUserJourneys:
         )
         conv_id = conv_response.json()["conversation_id"]
 
-        client.post(
+        await async_client.post(
             f"/api/v1/conversations/{conv_id}/messages",
             json={"content": "Test message"},
             headers=authenticated_user_headers,
         )
 
         # Verify users are in room
-        room_users = client.get(
+        room_users = await async_client.get(
             f"/api/v1/rooms/{room_id}/users", headers=authenticated_admin_headers
         )
         assert room_users.json()["total_users"] == 2
@@ -143,21 +146,22 @@ class TestCriticalUserJourneys:
         assert "Chat history remains accessible" in delete_result["note"]
 
         # Verify users were kicked out
-        room_users_after = client.get(
+        room_users_after = await async_client.get(
             f"/api/v1/rooms/{room_id}/users", headers=authenticated_admin_headers
         )
         assert room_users_after.status_code == 404
 
-    def test_authentication_security(self, client, sample_user_data):
+    @pytest.mark.asyncio
+    async def test_authentication_security(self, async_client, sample_user_data):
         """Test authentication and authorization security."""
         # Unauthorized access
-        no_auth_response = client.get("/api/v1/auth/me")
+        no_auth_response = await async_client.get("/api/v1/auth/me")
         assert no_auth_response.status_code == 401
 
-        register_response = client.post("/api/v1/auth/register", json=sample_user_data)
+        register_response = await async_client.post("/api/v1/auth/register", json=sample_user_data)
         assert register_response.status_code == 201
 
-        login_response = client.post(
+        login_response = await async_client.post(
             "/api/v1/auth/login",
             json={
                 "email": sample_user_data["email"],
@@ -169,13 +173,13 @@ class TestCriticalUserJourneys:
 
         # Authenticated access
         auth_headers = {"Authorization": f"Bearer {token}"}
-        me_response = client.get("/api/v1/auth/me", headers=auth_headers)
+        me_response = await async_client.get("/api/v1/auth/me", headers=auth_headers)
         assert me_response.status_code == 200
         assert me_response.json()["username"] == sample_user_data["username"]
 
         # Non-admin should not be able to create rooms
         room_data = {"name": "Test Room", "description": "Test"}
-        create_room_response = client.post(
+        create_room_response = await async_client.post(
             "/api/v1/rooms/", json=room_data, headers=auth_headers
         )
         assert create_room_response.status_code == 403

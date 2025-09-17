@@ -5,6 +5,7 @@ from typing import Dict, List
 from app.core.background_tasks import background_task_retry
 from app.services.translation_service import TranslationService
 from app.models.message import Message
+from app.models.message_translation import MessageTranslation
 from app.repositories.message_translation_repository import IMessageTranslationRepository
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ class BackgroundService:
                 )
 
                 if existing_translation:
-                    translations[target_lang] = existing_translation.translated_content
+                    translations[target_lang] = existing_translation.content
                     logger.info(f"Using existing translation for message {message.id} -> {target_lang}")
                     continue
 
@@ -63,18 +64,17 @@ class BackgroundService:
                 )
 
                 if target_lang in translation_result:
-                    translated_content = translation_result[target_lang]
+                    content = translation_result[target_lang]
 
                     # Store translation in database
-                    await self.message_translation_repo.store_translation(
+                    new_translation = MessageTranslation(
                         message_id=message.id,
-                        original_content=message.content,
-                        translated_content=translated_content,
-                        source_language="auto",
+                        content=content,
                         target_language=target_lang
                     )
+                    await self.message_translation_repo.create(new_translation)
 
-                    translations[target_lang] = translated_content
+                    translations[target_lang] = content
                     logger.info(f"Successfully translated message {message.id} -> {target_lang}")
 
             except Exception as e:
