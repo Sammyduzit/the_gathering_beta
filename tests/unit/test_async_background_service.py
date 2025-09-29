@@ -1,7 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock, patch
 
 import deepl
+import pytest
 
 from app.models.message_translation import MessageTranslation
 
@@ -10,6 +10,7 @@ from tests.async_conftest import (
     async_background_service,
     async_mock_repositories,
     sample_async_message,
+    mock_translation_service,
 )
 
 

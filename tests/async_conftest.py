@@ -53,8 +53,21 @@ def async_mock_repositories():
 
 
 @pytest_asyncio.fixture
+async def mock_translation_service():
+    """Reusable mock translation service for all service tests."""
+    mock = AsyncMock()
+    # Standard mock behavior for common use cases
+    mock.translate_message_content.return_value = {}
+    mock.get_message_translation.return_value = None
+    mock.translate_and_store_message.return_value = 0
+    mock.create_message_translations.return_value = []
+    mock.get_all_message_translations.return_value = {}
+    mock.delete_message_translations.return_value = 0
+    return mock
+
+@pytest_asyncio.fixture
 async def async_translation_service(async_mock_repositories):
-    """Async TranslationService with mocked repositories."""
+    """Async TranslationService with mocked repositories (for integration-style tests)."""
     return TranslationService(
         message_repo=async_mock_repositories["message_repo"],
         translation_repo=async_mock_repositories["translation_repo"],
@@ -85,10 +98,10 @@ async def async_room_service(async_mock_repositories, async_translation_service)
 
 
 @pytest_asyncio.fixture
-async def async_background_service(async_mock_repositories, async_translation_service):
+async def async_background_service(async_mock_repositories, mock_translation_service):
     """Async BackgroundService with mocked dependencies."""
     return BackgroundService(
-        translation_service=async_translation_service,
+        translation_service=mock_translation_service,
         message_translation_repo=async_mock_repositories["translation_repo"],
     )
 

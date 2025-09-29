@@ -1,13 +1,17 @@
 import pytest
 
-from app.repositories.user_repository import UserRepository
-from app.repositories.room_repository import RoomRepository
-from app.repositories.message_repository import MessageRepository
-from app.models.user import User, UserStatus
-from app.models.room import Room
 from app.models.message import Message
+from app.models.room import Room
+from app.models.user import User, UserStatus
+from app.repositories.message_repository import MessageRepository
+from app.repositories.room_repository import RoomRepository
+from app.repositories.user_repository import UserRepository
 
 # Import async fixtures
+from tests.async_conftest import (
+    async_db_session,
+    async_test_data_setup,
+)
 
 
 @pytest.mark.asyncio
