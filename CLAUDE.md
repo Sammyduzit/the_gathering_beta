@@ -80,6 +80,35 @@ Environment variables (`.env` file):
 - `conftest.py` - Shared test fixtures and database setup
 - Test environment automatically creates sample users (admin, alice, carol)
 
+### Test Fixture Best Practices (SQLAlchemy 2.0)
+
+E2E test fixtures use SQLAlchemy 2.0 eager loading pattern to prevent lazy loading issues:
+
+```python
+@pytest_asyncio.fixture
+async def created_user(async_db_session, sample_user_data):
+    """Create a user using SQLAlchemy 2.0 eager loading best practice."""
+    # Create user
+    user = User(...)
+    async_db_session.add(user)
+    await async_db_session.commit()
+
+    # Reload with eager loading of all attributes
+    user = await async_db_session.scalar(
+        select(User).where(User.id == user.id)
+    )
+
+    async_db_session.expunge(user)
+    return user
+```
+
+**Key Benefits:**
+- Prevents `MissingGreenlet` errors in async contexts
+- Follows SQLAlchemy 2.0 documentation recommendations
+- Eliminates need for manual attribute access
+- Performance-optimized (single query reload)
+- Clean, maintainable fixture code
+
 ## Database Schema Notes
 
 - Three conversation types use XOR constraint ensuring messages route to exactly one type

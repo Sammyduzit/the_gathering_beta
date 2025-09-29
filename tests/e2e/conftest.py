@@ -7,7 +7,7 @@ if not os.getenv("CI"):
 
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy.pool import StaticPool
 
 from main import app
@@ -158,7 +158,8 @@ async def async_client(async_db_session):
 
 @pytest_asyncio.fixture
 async def created_user(async_db_session, sample_user_data):
-    """Create a user in database for E2E tests."""
+    """Create a user in database for E2E tests using SQLAlchemy 2.0 eager loading."""
+    # Create user
     user = User(
         email=sample_user_data["email"],
         username=sample_user_data["username"],
@@ -168,20 +169,20 @@ async def created_user(async_db_session, sample_user_data):
     )
     async_db_session.add(user)
     await async_db_session.commit()
-    await async_db_session.refresh(user)
-    # Force load all attributes to avoid lazy loading issues and detach from session
-    user_id = user.id
-    # TODO: Will be replaced with eager loading in upcoming fixture refactor
-    _ = user.email, user.username  # Force attribute loading before expunge
-    print(f"✅ Created test user with ID: {user_id}")
-    # Create a detached copy to avoid session issues
+
+    # Reload with eager loading of all attributes (SQLAlchemy 2.0 best practice)
+    user = await async_db_session.scalar(
+        select(User).where(User.id == user.id)
+    )
+
     async_db_session.expunge(user)
     return user
 
 
 @pytest_asyncio.fixture
 async def created_admin(async_db_session, sample_admin_data):
-    """Create an admin in database for E2E tests."""
+    """Create an admin in database for E2E tests using SQLAlchemy 2.0 eager loading."""
+    # Create admin
     admin = User(
         email=sample_admin_data["email"],
         username=sample_admin_data["username"],
@@ -191,20 +192,20 @@ async def created_admin(async_db_session, sample_admin_data):
     )
     async_db_session.add(admin)
     await async_db_session.commit()
-    await async_db_session.refresh(admin)
-    # Force load all attributes to avoid lazy loading issues and detach from session
-    admin_id = admin.id
-    # TODO: Will be replaced with eager loading in upcoming fixture refactor
-    _ = admin.email, admin.username  # Force attribute loading before expunge
-    print(f"✅ Created test admin with ID: {admin_id}")
-    # Create a detached copy to avoid session issues
+
+    # Reload with eager loading of all attributes (SQLAlchemy 2.0 best practice)
+    admin = await async_db_session.scalar(
+        select(User).where(User.id == admin.id)
+    )
+
     async_db_session.expunge(admin)
     return admin
 
 
 @pytest_asyncio.fixture
 async def created_room(async_db_session, sample_room_data):
-    """Create a room in database for E2E tests."""
+    """Create a room in database for E2E tests using SQLAlchemy 2.0 eager loading."""
+    # Create room
     room = Room(
         name=sample_room_data["name"],
         description=sample_room_data["description"],
@@ -212,13 +213,12 @@ async def created_room(async_db_session, sample_room_data):
     )
     async_db_session.add(room)
     await async_db_session.commit()
-    await async_db_session.refresh(room)
-    # Force load all attributes to avoid lazy loading issues and detach from session
-    room_id = room.id
-    # TODO: Will be replaced with eager loading in upcoming fixture refactor
-    _ = room.name, room.description  # Force attribute loading before expunge
-    print(f"✅ Created test room with ID: {room_id}")
-    # Create a detached copy to avoid session issues
+
+    # Reload with eager loading of all attributes (SQLAlchemy 2.0 best practice)
+    room = await async_db_session.scalar(
+        select(Room).where(Room.id == room.id)
+    )
+
     async_db_session.expunge(room)
     return room
 
