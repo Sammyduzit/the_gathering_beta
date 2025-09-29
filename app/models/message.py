@@ -111,13 +111,3 @@ class Message(Base):
         else:
             return {"type": "conversation", "id": self.conversation_id}
 
-    def get_translation(self, target_language: str) -> str | None:
-        """
-        Get translated content for specific language
-        :param target_language: Target language (EN, DE, FR, etc.)
-        :return: Translated content or None if not found
-        """
-        translation = self.translations.filter_by(
-            target_language=target_language
-        ).first()
-        return translation.content if translation else None

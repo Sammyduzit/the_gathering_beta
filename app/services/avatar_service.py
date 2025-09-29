@@ -1,6 +1,9 @@
 import urllib.parse
 import random
 import httpx
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def get_available_avatar_styles() -> list[str]:
@@ -18,8 +21,8 @@ async def get_available_avatar_styles() -> list[str]:
                 return [style["id"] for style in styles_data if "id" in style]
 
     except (httpx.RequestError, KeyError, ValueError) as e:
-        print(f"Could not fetch DiceBear styles from API : {e}")
-        print("Fallback to hardcoded style list")
+        logger.warning(f"Could not fetch DiceBear styles from API: {e}")
+        logger.info("Fallback to hardcoded style list")
 
     return [
         "bottts",

@@ -51,7 +51,7 @@ class TestAsyncAPIEndpoints:
     async def test_health_check_endpoint(self, async_client):
         """Test health check endpoint."""
         # Act
-        response = await async_client.get("/rooms/health")
+        response = await async_client.get("/api/v1/rooms/health")
 
         # Assert
         assert response.status_code == 200
@@ -69,7 +69,7 @@ class TestAsyncAPIEndpoints:
                 "max_users": 5,
                 "is_active": True,
                 "is_translation_enabled": True,
-                "current_users": 0,
+                "created_at": "2024-01-01T00:00:00",
             }
         ]
 
@@ -77,7 +77,7 @@ class TestAsyncAPIEndpoints:
             mock_get_rooms.return_value = mock_rooms
 
             # Act
-            response = await async_client.get("/rooms/")
+            response = await async_client.get("/api/v1/rooms/")
 
             # Assert
             assert response.status_code == 200
@@ -103,7 +103,7 @@ class TestAsyncAPIEndpoints:
             mock_get_room.return_value = mock_room
 
             # Act
-            response = await async_client.get(f"/rooms/{room_id}")
+            response = await async_client.get(f"/api/v1/rooms/{room_id}")
 
             # Assert
             assert response.status_code == 200
@@ -120,7 +120,7 @@ class TestAsyncAPIEndpoints:
             mock_count_rooms.return_value = mock_count
 
             # Act
-            response = await async_client.get("/rooms/count")
+            response = await async_client.get("/api/v1/rooms/count")
 
             # Assert
             assert response.status_code == 200
@@ -143,7 +143,7 @@ class TestAsyncAPIEndpoints:
 
             with patch('app.core.background_tasks.async_bg_task_manager.add_async_task') as mock_bg_task:
                 # Act
-                response = await async_client.post(f"/rooms/{room_id}/join")
+                response = await async_client.post(f"/api/v1/rooms/{room_id}/join")
 
                 # Assert
                 assert response.status_code == 200
@@ -168,7 +168,7 @@ class TestAsyncAPIEndpoints:
 
             with patch('app.core.background_tasks.async_bg_task_manager.add_async_task') as mock_bg_task:
                 # Act
-                response = await async_client.post(f"/rooms/{room_id}/leave")
+                response = await async_client.post(f"/api/v1/rooms/{room_id}/leave")
 
                 # Assert
                 assert response.status_code == 200
@@ -219,7 +219,7 @@ class TestAsyncAPIEndpoints:
                     with patch('app.core.background_tasks.async_bg_task_manager.add_async_task') as mock_bg_task:
                         # Act
                         response = await async_client.post(
-                            f"/rooms/{room_id}/messages",
+                            f"/api/v1/rooms/{room_id}/messages",
                             json={"content": message_content}
                         )
 
@@ -242,6 +242,7 @@ class TestAsyncAPIEndpoints:
                 "id": 1,
                 "content": "Test message",
                 "sender_id": 1,
+                "sender_username": "testuser",
                 "room_id": room_id,
                 "sent_at": "2024-01-01T00:00:00",
             }
@@ -251,7 +252,7 @@ class TestAsyncAPIEndpoints:
             mock_get_messages.return_value = (mock_messages, 1)
 
             # Act
-            response = await async_client.get(f"/rooms/{room_id}/messages")
+            response = await async_client.get(f"/api/v1/rooms/{room_id}/messages")
 
             # Assert
             assert response.status_code == 200
@@ -275,7 +276,7 @@ class TestAsyncAPIEndpoints:
             mock_get_users.return_value = mock_users_response
 
             # Act
-            response = await async_client.get(f"/rooms/{room_id}/users")
+            response = await async_client.get(f"/api/v1/rooms/{room_id}/users")
 
             # Assert
             assert response.status_code == 200
@@ -297,7 +298,7 @@ class TestAsyncAPIEndpoints:
 
             # Act
             response = await async_client.patch(
-                "/rooms/users/status",
+                "/api/v1/rooms/users/status",
                 json={"status": new_status}
             )
 

@@ -6,6 +6,7 @@ from app.models.user import User
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.user_repository import IUserRepository
+from app.repositories.room_repository import IRoomRepository
 from app.services.translation_service import TranslationService
 
 
@@ -17,11 +18,13 @@ class ConversationService:
         conversation_repo: IConversationRepository,
         message_repo: IMessageRepository,
         user_repo: IUserRepository,
+        room_repo: IRoomRepository,
         translation_service: TranslationService,
     ):
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
         self.user_repo = user_repo
+        self.room_repo = room_repo
         self.translation_service = translation_service
 
     async def create_conversation(
@@ -100,7 +103,11 @@ class ConversationService:
             sender_id=current_user.id, conversation_id=conversation_id, content=content
         )
 
-        room = conversation.room
+        # Load room async to check translation settings (avoid lazy loading)
+        room = None
+        if conversation.room_id:
+            room = await self.room_repo.get_by_id(conversation.room_id)
+
         if room and room.is_translation_enabled:
             participants = await self.conversation_repo.get_participants(conversation_id)
             target_languages = list(

@@ -1,10 +1,14 @@
+import logging
 from abc import abstractmethod
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func, desc
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.models.message import Message, MessageType
 from app.models.user import User
 from app.repositories.base_repository import BaseRepository
+
+logger = logging.getLogger(__name__)
 
 
 class IMessageRepository(BaseRepository[Message]):
@@ -61,10 +65,10 @@ class IMessageRepository(BaseRepository[Message]):
 class MessageRepository(IMessageRepository):
     """SQLAlchemy implementation of Message repository."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         """
-        Initialize with database session.
-        :param db: SQLAlchemy database session
+        Initialize with async database session.
+        :param db: SQLAlchemy async database session
         """
         super().__init__(db)
 
@@ -141,7 +145,6 @@ class MessageRepository(IMessageRepository):
             message_object.sender_username = username
             messages.append(message_object)
 
-        messages = self._apply_translations_to_messages(messages, user_language)
         return messages, total_count
 
     async def get_conversation_messages(
@@ -182,7 +185,6 @@ class MessageRepository(IMessageRepository):
             message_object.sender_username = username
             messages.append(message_object)
 
-        messages = self._apply_translations_to_messages(messages, user_language)
         return messages, total_count
 
     async def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
@@ -226,19 +228,6 @@ class MessageRepository(IMessageRepository):
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    def _apply_translations_to_messages(
-        self, messages: list[Message], user_language: str | None = None
-    ) -> list[Message]:
-        """Apply translations to messages based on User's preferred language"""
-        if not user_language:
-            return messages
-
-        for message in messages:
-            translated_content = message.get_translation(user_language.upper())
-            if translated_content:
-                message.content = translated_content
-
-        return messages
 
     async def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
         """Delete old room messages, keeping only the most recent ones"""
@@ -278,12 +267,12 @@ class MessageRepository(IMessageRepository):
             await self.db.commit()
 
             if deleted_count > 0:
-                print(f"Cleaned up {deleted_count} old messages from room {room_id}")
+                logger.info(f"Cleaned up {deleted_count} old messages from room {room_id}")
 
             return deleted_count
 
-        except Exception as e:
-            print(f"Error cleaning up room messages: {e}")
+        except SQLAlchemyError as e:
+            logger.error(f"Error cleaning up room messages: {e}")
             await self.db.rollback()
             return 0
 

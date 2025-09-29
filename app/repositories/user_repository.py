@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from app.models.user import User
@@ -43,10 +43,10 @@ class IUserRepository(BaseRepository[User]):
 class UserRepository(IUserRepository):
     """SQLAlchemy implementation of User repository."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         """
-        Initialize with database session.
-        :param db: SQLAlchemy database session
+        Initialize with async database session.
+        :param db: SQLAlchemy async database session
         """
         super().__init__(db)
 

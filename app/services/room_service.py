@@ -1,6 +1,8 @@
+import logging
 from fastapi import HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.constants import MAX_ROOM_MESSAGES
+from app.core.constants import MAX_ROOM_MESSAGES, MESSAGE_CLEANUP_FREQUENCY
 from app.models.message import Message
 from app.models.room import Room
 from app.models.user import User, UserStatus
@@ -8,8 +10,10 @@ from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
 from app.repositories.message_repository import IMessageRepository
-from app.schemas.room_user_schemas import RoomUserResponse
+from app.repositories.message_translation_repository import IMessageTranslationRepository
 from app.services.translation_service import TranslationService
+
+logger = logging.getLogger(__name__)
 
 
 class RoomService:
@@ -21,12 +25,14 @@ class RoomService:
         user_repo: IUserRepository,
         message_repo: IMessageRepository,
         conversation_repo: IConversationRepository,
+        message_translation_repo: IMessageTranslationRepository,
         translation_service: TranslationService,
     ):
         self.room_repo = room_repo
         self.user_repo = user_repo
         self.message_repo = message_repo
         self.conversation_repo = conversation_repo
+        self.message_translation_repo = message_translation_repo
         self.translation_service = translation_service
 
     async def get_all_rooms(self) -> list[Room]:
@@ -204,13 +210,13 @@ class RoomService:
         users = await self.room_repo.get_users_in_room(room_id)
 
         room_users = [
-            RoomUserResponse(
-                id=user.id,
-                username=user.username,
-                avatar_url=user.avatar_url,
-                status=user.status.value,
-                last_active=user.last_active,
-            )
+            {
+                "id": user.id,
+                "username": user.username,
+                "avatar_url": user.avatar_url,
+                "status": user.status.value,
+                "last_active": user.last_active,
+            }
             for user in users
         ]
 
@@ -291,10 +297,10 @@ class RoomService:
 
         # Old message cleanup
         try:
-            if message.id % 10 == 0:
+            if message.id % MESSAGE_CLEANUP_FREQUENCY == 0:
                 await self.message_repo.cleanup_old_room_messages(room_id, MAX_ROOM_MESSAGES)
-        except Exception as e:
-            print(f"Cleanup failed, but message sent successfully: {e}")
+        except SQLAlchemyError as e:
+            logger.warning(f"Cleanup failed, but message sent successfully: {e}")
 
         message.sender_username = current_user.username
         return message
@@ -318,12 +324,45 @@ class RoomService:
                 detail="User must join the room before viewing messages",
             )
 
-        return await self.message_repo.get_room_messages(
+        messages, total_count = await self.message_repo.get_room_messages(
             room_id=room_id,
             page=page,
             page_size=page_size,
-            user_language=current_user.preferred_language,
         )
+
+        # Apply translations if user has preferred language
+        if current_user.preferred_language:
+            messages = await self._apply_translations_to_messages(
+                messages, current_user.preferred_language
+            )
+
+        return messages, total_count
+
+    async def _apply_translations_to_messages(
+        self, messages: list[Message], user_language: str
+    ) -> list[Message]:
+        """Apply translations to messages based on user's preferred language."""
+        if not messages:
+            return messages
+
+        # Get all message IDs for batch translation lookup
+        message_ids = [msg.id for msg in messages]
+
+        # Batch query all translations for efficiency (avoid N+1 queries)
+        translations = {}
+        for message_id in message_ids:
+            translation = await self.message_translation_repo.get_by_message_and_language(
+                message_id, user_language.upper()
+            )
+            if translation:
+                translations[message_id] = translation.content
+
+        # Apply translations to messages
+        for message in messages:
+            if message.id in translations:
+                message.content = translations[message.id]
+
+        return messages
 
     async def _get_room_or_404(self, room_id: int) -> Room:
         """Get room by ID or raise 404."""

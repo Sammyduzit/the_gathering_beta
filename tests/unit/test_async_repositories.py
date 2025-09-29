@@ -1,6 +1,4 @@
 import pytest
-import pytest_asyncio
-from sqlalchemy import select
 
 from app.repositories.user_repository import UserRepository
 from app.repositories.room_repository import RoomRepository
@@ -10,10 +8,6 @@ from app.models.room import Room
 from app.models.message import Message
 
 # Import async fixtures
-from tests.async_conftest import (
-    async_db_session,
-    async_test_data_setup,
-)
 
 
 @pytest.mark.asyncio

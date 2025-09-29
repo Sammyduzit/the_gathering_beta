@@ -1,9 +1,6 @@
 import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, patch
 
-from app.services.translation_service import TranslationService
-from app.models.message import Message
 from app.models.message_translation import MessageTranslation
 
 # Import async fixtures

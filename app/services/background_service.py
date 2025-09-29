@@ -1,6 +1,8 @@
-import asyncio
 import logging
 from typing import Dict, List
+
+from sqlalchemy.exc import SQLAlchemyError
+import deepl
 
 from app.core.background_tasks import background_task_retry
 from app.services.translation_service import TranslationService
@@ -47,7 +49,7 @@ class BackgroundService:
         for target_lang in target_languages:
             try:
                 # Check if translation already exists
-                existing_translation = await self.message_translation_repo.get_translation(
+                existing_translation = await self.message_translation_repo.get_by_message_and_language(
                     message.id, target_lang
                 )
 
@@ -77,7 +79,7 @@ class BackgroundService:
                     translations[target_lang] = content
                     logger.info(f"Successfully translated message {message.id} -> {target_lang}")
 
-            except Exception as e:
+            except (deepl.DeepLException, SQLAlchemyError, ValueError) as e:
                 logger.error(f"Failed to translate message {message.id} to {target_lang}: {e}")
                 continue
 
@@ -99,7 +101,7 @@ class BackgroundService:
             # For now, just log the intention
             logger.info("Translation cleanup completed (placeholder)")
             return 0
-        except Exception as e:
+        except SQLAlchemyError as e:
             logger.error(f"Translation cleanup failed: {e}")
             raise
 
@@ -122,7 +124,7 @@ class BackgroundService:
             # This could be extended to store in database or external service
             activity_details = details or {}
             logger.info(f"User {user_id} activity: {activity_type} - {activity_details}")
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Failed to log user activity: {e}")
             raise
 
@@ -146,6 +148,6 @@ class BackgroundService:
             # This would integrate with a notification service
             # For now, just log the intention
             logger.info(f"Room {room_id} notification: {message}")
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Failed to send room notifications: {e}")
             raise

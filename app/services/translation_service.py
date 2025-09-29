@@ -1,5 +1,6 @@
 import asyncio
 from functools import partial
+import logging
 
 import deepl
 
@@ -9,6 +10,8 @@ from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import (
     IMessageTranslationRepository,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TranslationService:
@@ -37,10 +40,10 @@ class TranslationService:
 
                 self._deepl_client = deepl.DeepLClient(settings.deepl_api_key)
                 self._deepl_client.set_app_info("the-gathering", "1.0.0")
-                print("DeepL client initialized successfully")
+                logger.info("DeepL client initialized successfully")
 
-            except Exception as e:
-                print(f"Failed to initialize DeepL client: {e}")
+            except deepl.DeepLException as e:
+                logger.error(f"Failed to initialize DeepL client: {e}")
                 return None
 
         return self._deepl_client
@@ -90,16 +93,16 @@ class TranslationService:
                     continue
 
                 translations[target_lang] = result.text
-                print(f"Successfully translated to {target_lang}")
+                logger.info(f"Successfully translated to {target_lang}")
 
             except deepl.DeepLException as e:
-                print(f"DeepL API error for {target_lang}: {e}")
+                logger.error(f"DeepL API error for {target_lang}: {e}")
                 continue
-            except Exception as e:
-                print(f"Unexpected error translating to {target_lang}: {e}")
+            except (deepl.DeepLException, ValueError, RuntimeError) as e:
+                logger.error(f"Unexpected error translating to {target_lang}: {e}")
                 continue
 
-        print(
+        logger.info(
             f"Translation summary: {len(translations)}/{len(target_languages)} successful"
         )
         return translations
@@ -128,8 +131,8 @@ class TranslationService:
 
                 translation_objects.append(translation)
 
-            except Exception as e:
-                print(f"Failed to create translation for {target_language}: {e}")
+            except ValueError as e:
+                logger.error(f"Failed to create translation for {target_language}: {e}")
                 continue
 
         if translation_objects:
@@ -181,8 +184,8 @@ class TranslationService:
             )
             return len(translation_objects)
 
-        except Exception as e:
-            print(f"Translation workflow failed for message {message_id}: {e}")
+        except (deepl.DeepLException, ValueError, RuntimeError) as e:
+            logger.error(f"Translation workflow failed for message {message_id}: {e}")
             return 0
 
     async def get_message_translation(

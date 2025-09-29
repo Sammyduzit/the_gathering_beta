@@ -42,6 +42,7 @@ def get_conversation_service(
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),
     message_repo: IMessageRepository = Depends(get_message_repository),
     user_repo: IUserRepository = Depends(get_user_repository),
+    room_repo: IRoomRepository = Depends(get_room_repository),
     translation_service: TranslationService = Depends(get_translation_service),
 ) -> ConversationService:
     """
@@ -49,6 +50,7 @@ def get_conversation_service(
     :param conversation_repo: Conversation repository instance
     :param message_repo: Message repository instance
     :param user_repo: User repository instance
+    :param room_repo: Room repository instance
     :param translation_service: Translation service instance
     :return: ConversationService instance
     """
@@ -56,6 +58,7 @@ def get_conversation_service(
         conversation_repo=conversation_repo,
         message_repo=message_repo,
         user_repo=user_repo,
+        room_repo=room_repo,
         translation_service=translation_service,
     )
 
@@ -65,6 +68,7 @@ def get_room_service(
     user_repo: IUserRepository = Depends(get_user_repository),
     message_repo: IMessageRepository = Depends(get_message_repository),
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),
+    message_translation_repo: IMessageTranslationRepository = Depends(get_message_translation_repository),
     translation_service: TranslationService = Depends(get_translation_service),
 ) -> RoomService:
     """
@@ -73,6 +77,7 @@ def get_room_service(
     :param user_repo: User repository instance
     :param message_repo: Message repository instance
     :param conversation_repo: Conversation repository instance
+    :param message_translation_repo: MessageTranslation repository instance
     :param translation_service: Translation service instance
     :return: RoomService instance
     """
@@ -81,6 +86,7 @@ def get_room_service(
         user_repo=user_repo,
         message_repo=message_repo,
         conversation_repo=conversation_repo,
+        message_translation_repo=message_translation_repo,
         translation_service=translation_service,
     )
 

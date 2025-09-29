@@ -16,3 +16,6 @@ SUPPORTED_LANGUAGES = {
 CORE_TRANSLATION_LANGUAGES = ["EN", "DE", "FR", "ES", "IT"]
 
 MAX_ROOM_MESSAGES = 100
+
+# Message cleanup frequency (every N messages)
+MESSAGE_CLEANUP_FREQUENCY = 10

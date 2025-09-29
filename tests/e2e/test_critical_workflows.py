@@ -3,7 +3,6 @@ import os
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 import pytest
-import pytest_asyncio
 
 
 @pytest.mark.e2e
@@ -62,7 +61,7 @@ class TestCriticalUserJourneys:
             "conversation_type": "private",
         }
         conv_response = await async_client.post(
-            "/api/v1/conversations", json=conv_data, headers=authenticated_user_headers
+            "/api/v1/conversations/", json=conv_data, headers=authenticated_user_headers
         )
         assert conv_response.status_code == 201
         conv_id = conv_response.json()["conversation_id"]
@@ -112,7 +111,7 @@ class TestCriticalUserJourneys:
         await async_client.post(f"/api/v1/rooms/{room_id}/join", headers=authenticated_user_headers)
 
         conv_response = await async_client.post(
-            "/api/v1/conversations",
+            "/api/v1/conversations/",
             json={
                 "participant_usernames": [created_admin.username],
                 "conversation_type": "private",
@@ -134,7 +133,7 @@ class TestCriticalUserJourneys:
         assert room_users.json()["total_users"] == 2
 
         # Admin closes room
-        delete_response = client.delete(
+        delete_response = await async_client.delete(
             f"/api/v1/rooms/{room_id}", headers=authenticated_admin_headers
         )
         assert delete_response.status_code == 200

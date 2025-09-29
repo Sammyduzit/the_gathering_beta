@@ -154,7 +154,7 @@ async def join_room(
         background_service.log_user_activity_background,
         current_user.id,
         "room_joined",
-        {"room_id": room_id, "room_name": join_response.room_name}
+        {"room_id": room_id, "room_name": join_response["room_name"]}
     )
 
     await async_bg_task_manager.add_async_task(
@@ -273,7 +273,7 @@ async def send_room_message(
         room_users = await room_service.get_room_users(room_id)
         target_languages = [
             user.get("preferred_language", "en")
-            for user in room_users.users
+            for user in room_users["users"]
             if user.get("preferred_language") and user.get("preferred_language") != "en"
         ]
 

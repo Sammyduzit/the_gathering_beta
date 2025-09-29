@@ -1,5 +1,4 @@
 import os
-import pytest
 import pytest_asyncio
 from datetime import datetime
 
@@ -117,6 +116,7 @@ async def async_client(async_db_session):
             user_repo=UserRepository(async_db_session),
             message_repo=MessageRepository(async_db_session),
             conversation_repo=ConversationRepository(async_db_session),
+            message_translation_repo=MessageTranslationRepository(async_db_session),
             translation_service=TranslationService(
                 message_repo=MessageRepository(async_db_session),
                 translation_repo=MessageTranslationRepository(async_db_session),
@@ -128,6 +128,7 @@ async def async_client(async_db_session):
             conversation_repo=ConversationRepository(async_db_session),
             message_repo=MessageRepository(async_db_session),
             user_repo=UserRepository(async_db_session),
+            room_repo=RoomRepository(async_db_session),
             translation_service=TranslationService(
                 message_repo=MessageRepository(async_db_session),
                 translation_repo=MessageTranslationRepository(async_db_session),
@@ -168,8 +169,13 @@ async def created_user(async_db_session, sample_user_data):
     async_db_session.add(user)
     await async_db_session.commit()
     await async_db_session.refresh(user)
-    # Force load all attributes to avoid lazy loading issues
+    # Force load all attributes to avoid lazy loading issues and detach from session
     user_id = user.id
+    # TODO: Will be replaced with eager loading in upcoming fixture refactor
+    _ = user.email, user.username  # Force attribute loading before expunge
+    print(f"✅ Created test user with ID: {user_id}")
+    # Create a detached copy to avoid session issues
+    async_db_session.expunge(user)
     return user
 
 
@@ -186,8 +192,13 @@ async def created_admin(async_db_session, sample_admin_data):
     async_db_session.add(admin)
     await async_db_session.commit()
     await async_db_session.refresh(admin)
-    # Force load all attributes to avoid lazy loading issues
+    # Force load all attributes to avoid lazy loading issues and detach from session
     admin_id = admin.id
+    # TODO: Will be replaced with eager loading in upcoming fixture refactor
+    _ = admin.email, admin.username  # Force attribute loading before expunge
+    print(f"✅ Created test admin with ID: {admin_id}")
+    # Create a detached copy to avoid session issues
+    async_db_session.expunge(admin)
     return admin
 
 
@@ -202,8 +213,13 @@ async def created_room(async_db_session, sample_room_data):
     async_db_session.add(room)
     await async_db_session.commit()
     await async_db_session.refresh(room)
-    # Force load all attributes to avoid lazy loading issues
+    # Force load all attributes to avoid lazy loading issues and detach from session
     room_id = room.id
+    # TODO: Will be replaced with eager loading in upcoming fixture refactor
+    _ = room.name, room.description  # Force attribute loading before expunge
+    print(f"✅ Created test room with ID: {room_id}")
+    # Create a detached copy to avoid session issues
+    async_db_session.expunge(room)
     return room
 
 

@@ -1,16 +1,14 @@
 import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, patch
 
-from app.services.background_service import BackgroundService
-from app.models.message import Message
+import deepl
+
 from app.models.message_translation import MessageTranslation
 
 # Import async fixtures
 from tests.async_conftest import (
     async_background_service,
     async_mock_repositories,
-    async_translation_service,
     sample_async_message,
 )
 
@@ -28,7 +26,7 @@ class TestAsyncBackgroundService:
         room_translation_enabled = True
 
         # Mock existing translation check (none found)
-        async_mock_repositories["translation_repo"].get_translation.return_value = None
+        async_mock_repositories["translation_repo"].get_by_message_and_language.return_value = None
 
         # Mock translation service response
         translation_result = {"de": "Hallo Welt", "fr": "Bonjour le monde"}
@@ -94,7 +92,7 @@ class TestAsyncBackgroundService:
             content="Existing Hallo",
             target_language="de"
         )
-        async_mock_repositories["translation_repo"].get_translation.return_value = existing_translation
+        async_mock_repositories["translation_repo"].get_by_message_and_language.return_value = existing_translation
 
         # Mock translation service as AsyncMock
         async_background_service.translation_service.translate_message_content = AsyncMock()
@@ -121,12 +119,12 @@ class TestAsyncBackgroundService:
         room_translation_enabled = True
 
         # Mock no existing translation
-        async_mock_repositories["translation_repo"].get_translation.return_value = None
+        async_mock_repositories["translation_repo"].get_by_message_and_language.return_value = None
 
         # Mock translation service failure for first language, success for second
         mock_translate = AsyncMock()
         mock_translate.side_effect = [
-            Exception("Translation API error"),
+            deepl.DeepLException("Translation API error"),
             {"fr": "Bonjour"}
         ]
         async_background_service.translation_service.translate_message_content = mock_translate
