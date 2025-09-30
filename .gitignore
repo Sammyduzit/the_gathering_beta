@@ -29,8 +29,19 @@ venv.bak/
 htmlcov/
 __test
 
+# Documentation & Development Notes
+docs/
+CLAUDE.md
+*.roadmap.md
+*.analysis.md
+logs_*/
+
 # OS
 .DS_Store
 Thumbs.db
 
+# Development artifacts
 __old
+local_versions.txt
+*.log
+.claude/

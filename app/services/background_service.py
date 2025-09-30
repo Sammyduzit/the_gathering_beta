@@ -1,9 +1,9 @@
 import logging
 
-import deepl
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.background_tasks import background_task_retry
+from app.interfaces.translator import TranslationError
 from app.models.message import Message
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_translation_repository import IMessageTranslationRepository
@@ -56,7 +56,7 @@ class BackgroundService:
 
                 # Create new translation
                 translation_result = await self.translation_service.translate_message_content(
-                    content=message.content, target_language=target_lang, source_language="auto"
+                    content=message.content, target_languages=[target_lang], source_language="auto"
                 )
 
                 if target_lang in translation_result:
@@ -71,7 +71,7 @@ class BackgroundService:
                     translations[target_lang] = content
                     logger.info(f"Successfully translated message {message.id} -> {target_lang}")
 
-            except (deepl.DeepLException, SQLAlchemyError, ValueError) as e:
+            except (TranslationError, SQLAlchemyError, ValueError) as e:
                 logger.error(f"Failed to translate message {message.id} to {target_lang}: {e}")
                 continue
 

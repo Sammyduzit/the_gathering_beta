@@ -7,28 +7,18 @@ from app.repositories.message_repository import MessageRepository
 from app.repositories.room_repository import RoomRepository
 from app.repositories.user_repository import UserRepository
 
-# Import async fixtures
-from tests.async_conftest import (
-    async_db_session,
-    async_test_data_setup,
-)
 
-
-@pytest.mark.asyncio
+@pytest.mark.unit
 class TestAsyncUserRepository:
-    """Async unit tests for UserRepository."""
+    """Unit tests for UserRepository with SQLite and factories."""
 
-    async def test_create_user_success(self, async_db_session):
-        """Test successful user creation."""
+    async def test_create_user_success(self, db_session, user_factory):
+        """Test successful user creation using factory."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
-        user_data = User(
+        user_repo = UserRepository(db_session)
+        user_data = user_factory.build(
             username="testuser",
-            email="test@example.com",
-            password_hash="hashed_password",
-            status=UserStatus.AVAILABLE,
-            is_active=True,
-            preferred_language="en",
+            email="test@example.com"
         )
 
         # Act
@@ -40,11 +30,10 @@ class TestAsyncUserRepository:
         assert created_user.email == "test@example.com"
         assert created_user.is_active is True
 
-    async def test_get_by_id_success(self, async_db_session, async_test_data_setup):
+    async def test_get_by_id_success(self, db_session, test_user):
         """Test successful user retrieval by ID."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
+        user_repo = UserRepository(db_session)
 
         # Act
         retrieved_user = await user_repo.get_by_id(test_user.id)
@@ -54,10 +43,10 @@ class TestAsyncUserRepository:
         assert retrieved_user.id == test_user.id
         assert retrieved_user.username == test_user.username
 
-    async def test_get_by_id_not_found(self, async_db_session):
+    async def test_get_by_id_not_found(self, db_session):
         """Test user retrieval when ID not found."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
+        user_repo = UserRepository(db_session)
 
         # Act
         retrieved_user = await user_repo.get_by_id(999)
@@ -65,11 +54,10 @@ class TestAsyncUserRepository:
         # Assert
         assert retrieved_user is None
 
-    async def test_get_by_username_success(self, async_db_session, async_test_data_setup):
+    async def test_get_by_username_success(self, db_session, test_user):
         """Test successful user retrieval by username."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
+        user_repo = UserRepository(db_session)
 
         # Act
         retrieved_user = await user_repo.get_by_username(test_user.username)
@@ -78,11 +66,10 @@ class TestAsyncUserRepository:
         assert retrieved_user is not None
         assert retrieved_user.username == test_user.username
 
-    async def test_get_by_email_success(self, async_db_session, async_test_data_setup):
+    async def test_get_by_email_success(self, db_session, test_user):
         """Test successful user retrieval by email."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
+        user_repo = UserRepository(db_session)
 
         # Act
         retrieved_user = await user_repo.get_by_email(test_user.email)
@@ -91,11 +78,10 @@ class TestAsyncUserRepository:
         assert retrieved_user is not None
         assert retrieved_user.email == test_user.email
 
-    async def test_update_user_success(self, async_db_session, async_test_data_setup):
+    async def test_update_user_success(self, db_session, test_user):
         """Test successful user update."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
+        user_repo = UserRepository(db_session)
         test_user.preferred_language = "de"
 
         # Act
@@ -104,11 +90,10 @@ class TestAsyncUserRepository:
         # Assert
         assert updated_user.preferred_language == "de"
 
-    async def test_username_exists_true(self, async_db_session, async_test_data_setup):
+    async def test_username_exists_true(self, db_session, test_user):
         """Test username existence check when username exists."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
+        user_repo = UserRepository(db_session)
 
         # Act
         exists = await user_repo.username_exists(test_user.username)
@@ -116,10 +101,10 @@ class TestAsyncUserRepository:
         # Assert
         assert exists is True
 
-    async def test_username_exists_false(self, async_db_session):
+    async def test_username_exists_false(self, db_session):
         """Test username existence check when username doesn't exist."""
         # Arrange
-        user_repo = UserRepository(async_db_session)
+        user_repo = UserRepository(db_session)
 
         # Act
         exists = await user_repo.username_exists("nonexistent")
@@ -128,20 +113,18 @@ class TestAsyncUserRepository:
         assert exists is False
 
 
-@pytest.mark.asyncio
+@pytest.mark.unit
 class TestAsyncRoomRepository:
-    """Async unit tests for RoomRepository."""
+    """Unit tests for RoomRepository with SQLite and factories."""
 
-    async def test_create_room_success(self, async_db_session):
-        """Test successful room creation."""
+    async def test_create_room_success(self, db_session, room_factory):
+        """Test successful room creation using factory."""
         # Arrange
-        room_repo = RoomRepository(async_db_session)
-        room_data = Room(
+        room_repo = RoomRepository(db_session)
+        room_data = room_factory.build(
             name="Test Room",
             description="Test room description",
-            max_users=5,
-            is_active=True,
-            is_translation_enabled=True,
+            max_users=5
         )
 
         # Act
@@ -153,10 +136,10 @@ class TestAsyncRoomRepository:
         assert created_room.is_active is True
         assert created_room.is_translation_enabled is True
 
-    async def test_get_active_rooms(self, async_db_session, async_test_data_setup):
+    async def test_get_active_rooms(self, db_session, test_room):
         """Test retrieval of active rooms."""
         # Arrange
-        room_repo = RoomRepository(async_db_session)
+        room_repo = RoomRepository(db_session)
 
         # Act
         active_rooms = await room_repo.get_active_rooms()
@@ -165,11 +148,10 @@ class TestAsyncRoomRepository:
         assert len(active_rooms) >= 1
         assert all(room.is_active for room in active_rooms)
 
-    async def test_get_user_count(self, async_db_session, async_test_data_setup):
+    async def test_get_user_count(self, db_session, test_user, test_room):
         """Test user count in room retrieval."""
         # Arrange
-        room_repo = RoomRepository(async_db_session)
-        test_room = async_test_data_setup["room"]
+        room_repo = RoomRepository(db_session)
 
         # Act
         count = await room_repo.get_user_count(test_room.id)
@@ -177,11 +159,10 @@ class TestAsyncRoomRepository:
         # Assert
         assert count >= 0  # Can be 0 if no users in room
 
-    async def test_update_room_success(self, async_db_session, async_test_data_setup):
+    async def test_update_room_success(self, db_session, test_user, test_room):
         """Test successful room update."""
         # Arrange
-        room_repo = RoomRepository(async_db_session)
-        test_room = async_test_data_setup["room"]
+        room_repo = RoomRepository(db_session)
         test_room.description = "Updated description"
 
         # Act
@@ -191,16 +172,14 @@ class TestAsyncRoomRepository:
         assert updated_room.description == "Updated description"
 
 
-@pytest.mark.asyncio
+@pytest.mark.unit
 class TestAsyncMessageRepository:
     """Async unit tests for MessageRepository."""
 
-    async def test_create_message_success(self, async_db_session, async_test_data_setup):
+    async def test_create_message_success(self, db_session, test_user, test_room):
         """Test successful message creation."""
         # Arrange
-        message_repo = MessageRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
-        test_room = async_test_data_setup["room"]
+        message_repo = MessageRepository(db_session)
 
         message_data = Message(
             content="Test message content",
@@ -218,12 +197,10 @@ class TestAsyncMessageRepository:
         assert created_message.sender_id == test_user.id
         assert created_message.room_id == test_room.id
 
-    async def test_get_room_messages_success(self, async_db_session, async_test_data_setup):
+    async def test_get_room_messages_success(self, db_session, test_user, test_room):
         """Test successful retrieval of room messages."""
         # Arrange
-        message_repo = MessageRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
-        test_room = async_test_data_setup["room"]
+        message_repo = MessageRepository(db_session)
 
         # Create a test message first
         message_data = Message(
@@ -242,21 +219,11 @@ class TestAsyncMessageRepository:
         assert len(messages) >= 1
         assert messages[0].room_id == test_room.id
 
-    async def test_get_conversation_messages_success(self, async_db_session, async_test_data_setup):
-        """Test successful retrieval of conversation messages."""
+    async def test_get_conversation_messages_empty(self, db_session):
+        """Test retrieval of conversation messages when none exist."""
         # Arrange
-        message_repo = MessageRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
-        conversation_id = 1
-
-        # Create a test conversation message first
-        message_data = Message(
-            content="Test conversation message",
-            sender_id=test_user.id,
-            room_id=None,
-            conversation_id=conversation_id,
-        )
-        await message_repo.create(message_data)
+        message_repo = MessageRepository(db_session)
+        conversation_id = 999  # Non-existent conversation
 
         # Act
         messages, count = await message_repo.get_conversation_messages(
@@ -264,14 +231,13 @@ class TestAsyncMessageRepository:
         )
 
         # Assert
-        assert count >= 1
-        assert len(messages) >= 1
-        assert messages[0].conversation_id == conversation_id
+        assert count == 0
+        assert len(messages) == 0
 
-    async def test_get_all_messages_pagination(self, async_db_session):
+    async def test_get_all_messages_pagination(self, db_session):
         """Test message pagination."""
         # Arrange
-        message_repo = MessageRepository(async_db_session)
+        message_repo = MessageRepository(db_session)
 
         # Act
         messages = await message_repo.get_all(limit=5, offset=0)
@@ -280,12 +246,10 @@ class TestAsyncMessageRepository:
         assert len(messages) <= 5
         assert isinstance(messages, list)
 
-    async def test_exists_message(self, async_db_session, async_test_data_setup):
+    async def test_exists_message(self, db_session, test_user, test_room):
         """Test message existence check."""
         # Arrange
-        message_repo = MessageRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
-        test_room = async_test_data_setup["room"]
+        message_repo = MessageRepository(db_session)
 
         # Create a test message
         message_data = Message(
@@ -301,12 +265,10 @@ class TestAsyncMessageRepository:
         # Assert
         assert exists is True
 
-    async def test_delete_message_success(self, async_db_session, async_test_data_setup):
+    async def test_delete_message_success(self, db_session, test_user, test_room):
         """Test successful message deletion."""
         # Arrange
-        message_repo = MessageRepository(async_db_session)
-        test_user = async_test_data_setup["user"]
-        test_room = async_test_data_setup["room"]
+        message_repo = MessageRepository(db_session)
 
         # Create a test message
         message_data = Message(

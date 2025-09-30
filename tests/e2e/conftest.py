@@ -3,9 +3,6 @@ from datetime import datetime
 
 import pytest_asyncio
 
-if not os.getenv("CI"):
-    os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
-
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -37,44 +34,61 @@ from app.services.service_dependencies import (
 from app.services.translation_service import TranslationService
 from main import app
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-print(f"Test Database URL: {DATABASE_URL}")
+# E2E tests require PostgreSQL for production parity
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "E2E tests require DATABASE_URL environment variable with PostgreSQL.\n"
+        "Please set DATABASE_URL or use 'docker-compose up -d db' for local development."
+    )
 
-if "sqlite" in DATABASE_URL:
-    async_engine = create_async_engine(DATABASE_URL, poolclass=StaticPool, echo=False)
-    print("Using async SQLite engine configuration")
-else:
-    # Convert PostgreSQL URL to async if needed
-    if DATABASE_URL.startswith("postgresql://"):
-        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-    async_engine = create_async_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=3600)
-    print("Using async PostgreSQL engine configuration")
+# Ensure we're using PostgreSQL
+if not DATABASE_URL.startswith(("postgresql://", "postgresql+asyncpg://")):
+    raise RuntimeError(
+        f"E2E tests require PostgreSQL, got: {DATABASE_URL}\n"
+        "Unit tests use SQLite, E2E tests need PostgreSQL for production parity."
+    )
+
+print(f"E2E Test Database URL: {DATABASE_URL}")
+
+# Convert PostgreSQL URL to async if needed
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+
+# Optimized PostgreSQL configuration for testing
+async_engine = create_async_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=3600,
+    echo=False,  # Set to True for SQL debugging
+    future=True,
+    pool_size=5,
+    max_overflow=10
+)
+print("Using async PostgreSQL engine configuration")
 
 
-@event.listens_for(async_engine.sync_engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Activate Foreign Key Constraints for SQLite connections."""
-    if "sqlite" in DATABASE_URL:
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
-        print("SQLite Foreign Key Constraints aktiviert")
-
-
-async_testing_session_local = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+@pytest_asyncio.fixture(scope="session")
+async def async_db_schema():
+    """Create database schema once per test session."""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def async_db_session():
-    """Create new async database session for E2E tests."""
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def async_db_session(async_db_schema):
+    """Create isolated database session for each test with transaction rollback."""
+    # Create session maker for this test
+    async_session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
-    async with async_testing_session_local() as session:
-        yield session
-
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+    async with async_session_maker() as session:
+        # Start a transaction that we can rollback
+        async with session.begin():
+            yield session
+            # Transaction is automatically rolled back at the end of the context
 
 
 @pytest_asyncio.fixture(scope="function")

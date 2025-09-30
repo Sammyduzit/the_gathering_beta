@@ -5,11 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Testing
-- `pytest tests/unit/ -v` - Run unit tests (fast, mocked dependencies)
-- `pytest tests/e2e/ -v` - Run end-to-end integration tests (slower)
+- `pytest tests/unit/ -v` - Run unit tests (fast, mocked dependencies, uses SQLite)
+- `pytest tests/e2e/ -v` - Run end-to-end integration tests (requires PostgreSQL)
 - `pytest --cov=app --cov-report=term-missing` - Run tests with coverage report
 - `pytest -m unit` - Run only unit tests
 - `pytest -m e2e` - Run only e2e tests
+
+**E2E Test Requirements:**
+- E2E tests require PostgreSQL for production parity
+- Set `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/the_gathering_test`
+- For local development: `docker compose up -d db` to start PostgreSQL
+- Unit tests use SQLite in-memory for speed, E2E tests use PostgreSQL for realism
 
 ### Code Quality
 - `ruff check app/ tests/ main.py` - Run linting checks
@@ -18,6 +24,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Configuration in `pyproject.toml` optimized for FastAPI projects
 
 ### Database Operations
+- **Local Development**: `docker compose up -d db` - Start PostgreSQL for E2E tests
+- **CI Environment**: PostgreSQL service automatically started
 - Set `RESET_DB=true` environment variable to reset database on startup
 
 ### Running the Application

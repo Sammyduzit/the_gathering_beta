@@ -1,5 +1,8 @@
 from fastapi import Depends
 
+from app.core.config import settings
+from app.implementations.deepl_translator import DeepLTranslator
+from app.interfaces.translator import TranslatorInterface
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import (
@@ -20,17 +23,28 @@ from app.services.room_service import RoomService
 from app.services.translation_service import TranslationService
 
 
+def get_deepl_translator() -> TranslatorInterface:
+    """
+    Create DeepL translator instance with API key from settings.
+    :return: DeepL translator instance implementing TranslatorInterface
+    """
+    return DeepLTranslator(api_key=settings.deepl_api_key)
+
+
 def get_translation_service(
+    translator: TranslatorInterface = Depends(get_deepl_translator),
     message_repo: IMessageRepository = Depends(get_message_repository),
     translation_repo: IMessageTranslationRepository = Depends(get_message_translation_repository),
 ) -> TranslationService:
     """
-    Create TranslationService instance with repository dependencies.
+    Create TranslationService instance with translator and repository dependencies.
+    :param translator: Translator interface instance (DeepL implementation)
     :param message_repo: Message repository instance
     :param translation_repo: MessageTranslation repository instance
     :return: TranslationService instance
     """
     return TranslationService(
+        translator=translator,
         message_repo=message_repo,
         translation_repo=translation_repo,
     )

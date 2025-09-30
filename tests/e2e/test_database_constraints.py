@@ -179,9 +179,8 @@ class TestDatabaseConstraints:
         await async_db_session.commit()
 
     @pytest.mark.asyncio
-    async def test_nullable_constraints(self, async_db_session, created_user, created_room):
-        """Test required (non-nullable) field constraints."""
-
+    async def test_user_email_null_constraint(self, async_db_session):
+        """Test that User.email cannot be NULL."""
         with pytest.raises(IntegrityError):
             invalid_user = User(
                 email=None,
@@ -190,21 +189,23 @@ class TestDatabaseConstraints:
                 last_active=datetime.now(),
             )
             async_db_session.add(invalid_user)
-            await async_db_session.flush()
+            await async_db_session.commit()
 
-        await async_db_session.rollback()
-
+    @pytest.mark.asyncio
+    async def test_room_name_null_constraint(self, async_db_session):
+        """Test that Room.name cannot be NULL."""
         with pytest.raises(IntegrityError):
             invalid_room = Room(name=None, description="Test room")
             async_db_session.add(invalid_room)
-            await async_db_session.flush()
+            await async_db_session.commit()
 
-        await async_db_session.rollback()
-
+    @pytest.mark.asyncio
+    async def test_message_content_null_constraint(self, async_db_session, created_user, created_room):
+        """Test that Message.content cannot be NULL."""
         with pytest.raises(IntegrityError):
             invalid_message = Message(sender_id=created_user.id, content=None, room_id=created_room.id)
             async_db_session.add(invalid_message)
-            await async_db_session.flush()
+            await async_db_session.commit()
 
     @pytest.mark.asyncio
     async def test_cascading_deletes(self, async_db_session, created_user, created_room):

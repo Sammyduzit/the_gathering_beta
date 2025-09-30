@@ -1,10 +1,6 @@
-import asyncio
 import logging
-from functools import partial
 
-import deepl
-
-from app.core.config import settings
+from app.interfaces.translator import TranslatorInterface, TranslationError
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import (
@@ -15,38 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 class TranslationService:
-    """Service for DeepL translation API integration"""
+    """Service for text translation with dependency injection."""
 
     def __init__(
         self,
+        translator: TranslatorInterface,
         message_repo: IMessageRepository,
         translation_repo: IMessageTranslationRepository,
     ):
+        self.translator = translator
         self.message_repo = message_repo
         self.translation_repo = translation_repo
-        self._deepl_client: deepl.DeepLClient | None = None
-
-    @property
-    def deepl_client(self) -> deepl.DeepLClient | None:
-        """
-        Lazy-loaded DeepL client with error handling.
-        :return: DeepL client or None if initialization fails
-        """
-        if self._deepl_client is None:
-            try:
-                if not settings.deepl_api_key:
-                    print("DEEPL_API_KEY not configured - translations disabled")
-                    return None
-
-                self._deepl_client = deepl.DeepLClient(settings.deepl_api_key)
-                self._deepl_client.set_app_info("the-gathering", "1.0.0")
-                logger.info("DeepL client initialized successfully")
-
-            except deepl.DeepLException as e:
-                logger.error(f"Failed to initialize DeepL client: {e}")
-                return None
-
-        return self._deepl_client
 
     async def translate_message_content(
         self,
@@ -56,51 +31,32 @@ class TranslationService:
     ) -> dict[str, str]:
         """
         Translate message content to multiple target languages.
-        :param content: Original message content
-        :param source_language: Source language (auto-detect if None)
-        :param target_languages: List of target language codes
-        :return: Dictionary mapping language codes to translated content
+
+        Args:
+            content: Original message content
+            source_language: Source language (auto-detect if None)
+            target_languages: List of target language codes
+
+        Returns:
+            Dictionary mapping language codes to translated content
         """
-        if not self.deepl_client:
-            print("DeepL client not available - skipping translation")
-            return {}
-
         if not target_languages:
-            print("No target languages specified - skipping translation")
+            logger.debug("No target languages specified - skipping translation")
             return {}
 
-        if source_language and source_language.upper() in target_languages:
-            target_languages.remove(source_language.upper())
+        if not content or not content.strip():
+            logger.debug("Empty content - skipping translation")
+            return {}
 
-        translations = {}
-
-        for target_lang in target_languages:
-            try:
-                print(f"Translating to {target_lang}")
-                deepl_target = "EN-US" if target_lang.upper() == "EN" else target_lang
-
-                # Run blocking DeepL call in thread pool to avoid blocking event loop
-                translate_func = partial(
-                    self.deepl_client.translate_text, content, source_lang=source_language, target_lang=deepl_target
-                )
-                result = await asyncio.get_event_loop().run_in_executor(None, translate_func)
-
-                if not result.text or not result.text.strip():
-                    print(f"DeepL returned empty translation for {target_lang}")
-                    continue
-
-                translations[target_lang] = result.text
-                logger.info(f"Successfully translated to {target_lang}")
-
-            except deepl.DeepLException as e:
-                logger.error(f"DeepL API error for {target_lang}: {e}")
-                continue
-            except (deepl.DeepLException, ValueError, RuntimeError) as e:
-                logger.error(f"Unexpected error translating to {target_lang}: {e}")
-                continue
-
-        logger.info(f"Translation summary: {len(translations)}/{len(target_languages)} successful")
-        return translations
+        try:
+            return await self.translator.translate_to_multiple_languages(
+                text=content,
+                target_languages=target_languages,
+                source_language=source_language
+            )
+        except Exception as e:
+            logger.error(f"Translation failed: {e}")
+            return {}
 
     async def create_message_translations(
         self, message_id: int, translations: dict[str, str]
@@ -175,7 +131,7 @@ class TranslationService:
             print(f"Created {len(translation_objects)} translations for message {message_id}")
             return len(translation_objects)
 
-        except (deepl.DeepLException, ValueError, RuntimeError) as e:
+        except (TranslationError, ValueError, RuntimeError) as e:
             logger.error(f"Translation workflow failed for message {message_id}: {e}")
             return 0
 
