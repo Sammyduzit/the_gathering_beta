@@ -1,0 +1,65 @@
+﻿2025-09-30T01:34:36.5866630Z ##[group]Run pytest tests/unit/ -v --tb=short
+2025-09-30T01:34:36.5866957Z [36;1mpytest tests/unit/ -v --tb=short[0m
+2025-09-30T01:34:36.5886944Z shell: /usr/bin/bash -e {0}
+2025-09-30T01:34:36.5887187Z env:
+2025-09-30T01:34:36.5887694Z   DATABASE_URL: ***localhost:5432/postgres
+2025-09-30T01:34:36.5887940Z   CI: true
+2025-09-30T01:34:36.5888118Z   SECRET_KEY: test-secret-key-for-ci
+2025-09-30T01:34:36.5888351Z   ALGORITHM: HS256
+2025-09-30T01:34:36.5888539Z   ACCESS_TOKEN_EXPIRE_MINUTES: 30
+2025-09-30T01:34:36.5888773Z   APP_NAME: The Gathering Test
+2025-09-30T01:34:36.5888979Z   DEBUG: false
+2025-09-30T01:34:36.5889343Z   DEEPL_API_KEY: test-deepl-key-for-ci
+2025-09-30T01:34:36.5889674Z   pythonLocation: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T01:34:36.5890052Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.13.7/x64/lib/pkgconfig
+2025-09-30T01:34:36.5890395Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T01:34:36.5890731Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T01:34:36.5891080Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T01:34:36.5891398Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.13.7/x64/lib
+2025-09-30T01:34:36.5891661Z ##[endgroup]
+2025-09-30T01:34:38.3647286Z ============================= test session starts ==============================
+2025-09-30T01:34:38.3648510Z platform linux -- Python 3.13.7, pytest-8.4.1, pluggy-1.6.0 -- /opt/hostedtoolcache/Python/3.13.7/x64/bin/python
+2025-09-30T01:34:38.3649812Z cachedir: .pytest_cache
+2025-09-30T01:34:38.3650451Z rootdir: /home/runner/work/the_gathering_beta/the_gathering_beta
+2025-09-30T01:34:38.3650915Z configfile: pytest.ini
+2025-09-30T01:34:38.3651231Z plugins: anyio-4.11.0, asyncio-0.25.1, cov-6.2.1
+2025-09-30T01:34:38.3651775Z asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=session
+2025-09-30T01:34:39.1728944Z collecting ... collected 35 items
+2025-09-30T01:34:39.1730663Z 
+2025-09-30T01:34:39.1935855Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_process_message_translation_background_success PASSED [  2%]
+2025-09-30T01:34:39.1967402Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_process_message_translation_background_disabled PASSED [  5%]
+2025-09-30T01:34:39.2001324Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_process_message_translation_background_existing_translation PASSED [  8%]
+2025-09-30T01:34:39.2036512Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_process_message_translation_background_translation_failure PASSED [ 11%]
+2025-09-30T01:34:39.2066827Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_log_user_activity_background_success PASSED [ 14%]
+2025-09-30T01:34:39.2095865Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_log_user_activity_background_without_details PASSED [ 17%]
+2025-09-30T01:34:39.2121995Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_notify_room_users_background_success PASSED [ 20%]
+2025-09-30T01:34:39.2150768Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_notify_room_users_background_no_exclusions PASSED [ 22%]
+2025-09-30T01:34:39.2186605Z tests/unit/test_async_background_service.py::TestAsyncBackgroundService::test_background_task_error_logging PASSED [ 25%]
+2025-09-30T01:34:39.2468941Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_create_user_success PASSED [ 28%]
+2025-09-30T01:34:39.2672413Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_get_by_id_success PASSED [ 31%]
+2025-09-30T01:34:39.2812194Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_get_by_id_not_found PASSED [ 34%]
+2025-09-30T01:34:39.3002968Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_get_by_username_success PASSED [ 37%]
+2025-09-30T01:34:39.3193911Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_get_by_email_success PASSED [ 40%]
+2025-09-30T01:34:39.3391303Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_update_user_success PASSED [ 42%]
+2025-09-30T01:34:39.3581382Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_username_exists_true PASSED [ 45%]
+2025-09-30T01:34:39.3720194Z tests/unit/test_async_repositories.py::TestAsyncUserRepository::test_username_exists_false PASSED [ 48%]
+2025-09-30T01:34:39.3871128Z tests/unit/test_async_repositories.py::TestAsyncRoomRepository::test_create_room_success PASSED [ 51%]
+2025-09-30T01:34:39.4074832Z tests/unit/test_async_repositories.py::TestAsyncRoomRepository::test_get_active_rooms PASSED [ 54%]
+2025-09-30T01:34:39.4263038Z tests/unit/test_async_repositories.py::TestAsyncRoomRepository::test_get_user_count PASSED [ 57%]
+2025-09-30T01:34:39.4444868Z tests/unit/test_async_repositories.py::TestAsyncRoomRepository::test_update_room_success PASSED [ 60%]
+2025-09-30T01:34:39.4673393Z tests/unit/test_async_repositories.py::TestAsyncMessageRepository::test_create_message_success PASSED [ 62%]
+2025-09-30T01:34:39.4894115Z tests/unit/test_async_repositories.py::TestAsyncMessageRepository::test_get_room_messages_success PASSED [ 65%]
+2025-09-30T01:34:39.5114569Z tests/unit/test_async_repositories.py::TestAsyncMessageRepository::test_get_conversation_messages_success PASSED [ 68%]
+2025-09-30T01:34:39.5244487Z tests/unit/test_async_repositories.py::TestAsyncMessageRepository::test_get_all_messages_pagination PASSED [ 71%]
+2025-09-30T01:34:39.5481253Z tests/unit/test_async_repositories.py::TestAsyncMessageRepository::test_exists_message PASSED [ 74%]
+2025-09-30T01:34:39.5723483Z tests/unit/test_async_repositories.py::TestAsyncMessageRepository::test_delete_message_success PASSED [ 77%]
+2025-09-30T01:34:39.5749953Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_translate_message_content_success PASSED [ 80%]
+2025-09-30T01:34:39.5909624Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_translate_message_content_empty_content PASSED [ 82%]
+2025-09-30T01:34:40.0325666Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_translate_message_content_invalid_language PASSED [ 85%]
+2025-09-30T01:34:40.0369331Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_translate_multiple_languages_success PASSED [ 88%]
+2025-09-30T01:34:40.0393150Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_translate_multiple_languages_empty_list PASSED [ 91%]
+2025-09-30T01:34:40.0414061Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_get_existing_translation_found PASSED [ 94%]
+2025-09-30T01:34:40.0435251Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_get_existing_translation_not_found PASSED [ 97%]
+2025-09-30T01:34:40.1812607Z tests/unit/test_async_translation_service.py::TestAsyncTranslationService::test_translate_and_store_message_success PASSED [100%]
+2025-09-30T01:34:40.1815688Z 
+2025-09-30T01:34:40.1815938Z ======================== 35 passed, 1 warning in 1.69s =========================

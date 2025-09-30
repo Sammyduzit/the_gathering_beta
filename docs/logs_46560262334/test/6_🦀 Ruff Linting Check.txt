@@ -1,0 +1,20 @@
+﻿2025-09-30T00:59:21.7815165Z ##[group]Run ruff check app/ tests/ main.py
+2025-09-30T00:59:21.7815522Z [36;1mruff check app/ tests/ main.py[0m
+2025-09-30T00:59:21.7848334Z shell: /usr/bin/bash -e {0}
+2025-09-30T00:59:21.7848569Z env:
+2025-09-30T00:59:21.7849026Z   DATABASE_URL: ***localhost:5432/postgres
+2025-09-30T00:59:21.7849279Z   CI: true
+2025-09-30T00:59:21.7849463Z   SECRET_KEY: test-secret-key-for-ci
+2025-09-30T00:59:21.7849701Z   ALGORITHM: HS256
+2025-09-30T00:59:21.7849904Z   ACCESS_TOKEN_EXPIRE_MINUTES: 30
+2025-09-30T00:59:21.7850139Z   APP_NAME: The Gathering Test
+2025-09-30T00:59:21.7850352Z   DEBUG: false
+2025-09-30T00:59:21.7850546Z   DEEPL_API_KEY: test-deepl-key-for-ci
+2025-09-30T00:59:21.7850864Z   pythonLocation: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T00:59:21.7851260Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.13.7/x64/lib/pkgconfig
+2025-09-30T00:59:21.7851642Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T00:59:21.7852005Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T00:59:21.7852381Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.13.7/x64
+2025-09-30T00:59:21.7852736Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.13.7/x64/lib
+2025-09-30T00:59:21.7853301Z ##[endgroup]
+2025-09-30T00:59:21.8067925Z All checks passed!

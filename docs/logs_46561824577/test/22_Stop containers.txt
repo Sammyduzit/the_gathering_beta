@@ -1,0 +1,80 @@
+﻿2025-09-30T01:34:55.3766064Z Print service container logs: 57e23b4e62c440d7b6e8150f6ba298ae_postgres13_6562e3
+2025-09-30T01:34:55.3770553Z ##[command]/usr/bin/docker logs --details cbd7b6fdbd7ee8f31b3105d35235defdb7b339c8c06a3180502d7e7482bf32d3
+2025-09-30T01:34:55.3896378Z  The files belonging to this database system will be owned by user "postgres".
+2025-09-30T01:34:55.3897303Z  This user must also own the server process.
+2025-09-30T01:34:55.3897706Z  
+2025-09-30T01:34:55.3898118Z  The database cluster will be initialized with locale "en_US.utf8".
+2025-09-30T01:34:55.3898778Z  The default database encoding has accordingly been set to "UTF8".
+2025-09-30T01:34:55.3899580Z  The default text search configuration will be set to "english".
+2025-09-30T01:34:55.3900060Z  
+2025-09-30T01:34:55.3900308Z  Data page checksums are disabled.
+2025-09-30T01:34:55.3900665Z  
+2025-09-30T01:34:55.3901093Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2025-09-30T01:34:55.3901620Z  creating subdirectories ... ok
+2025-09-30T01:34:55.3902138Z  selecting dynamic shared memory implementation ... posix
+2025-09-30T01:34:55.3902625Z  selecting default max_connections ... 100
+2025-09-30T01:34:55.3903061Z  selecting default shared_buffers ... 128MB
+2025-09-30T01:34:55.3903472Z  selecting default time zone ... Etc/UTC
+2025-09-30T01:34:55.3903899Z  creating configuration files ... ok
+2025-09-30T01:34:55.3904329Z  running bootstrap script ... ok
+2025-09-30T01:34:55.3904766Z  performing post-bootstrap initialization ... ok
+2025-09-30T01:34:55.3908248Z  initdb: warning: enabling "trust" authentication for local connections
+2025-09-30T01:34:55.3909422Z  You can change this by editing pg_hba.conf or using the option -A, or
+2025-09-30T01:34:55.3910068Z  --auth-local and --auth-host, the next time you run initdb.
+2025-09-30T01:34:55.3911051Z  2025-09-30 01:34:03.906 UTC [1] LOG:  starting PostgreSQL 13.22 (Debian 13.22-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2025-09-30T01:34:55.3912056Z  2025-09-30 01:34:03.906 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2025-09-30T01:34:55.3912719Z  2025-09-30 01:34:03.906 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2025-09-30T01:34:55.3913455Z  2025-09-30 01:34:03.907 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2025-09-30T01:34:55.3914255Z  2025-09-30 01:34:03.908 UTC [59] LOG:  database system was shut down at 2025-09-30 01:34:03 UTC
+2025-09-30T01:34:55.3914984Z  2025-09-30 01:34:03.911 UTC [1] LOG:  database system is ready to accept connections
+2025-09-30T01:34:55.3915611Z  2025-09-30 01:34:13.155 UTC [73] FATAL:  role "root" does not exist
+2025-09-30T01:34:55.3916189Z  2025-09-30 01:34:23.240 UTC [80] FATAL:  role "root" does not exist
+2025-09-30T01:34:55.3916743Z  2025-09-30 01:34:33.319 UTC [88] FATAL:  role "root" does not exist
+2025-09-30T01:34:55.3917292Z  2025-09-30 01:34:43.390 UTC [97] FATAL:  role "root" does not exist
+2025-09-30T01:34:55.3918022Z  2025-09-30 01:34:46.460 UTC [99] ERROR:  duplicate key value violates unique constraint "ix_users_username"
+2025-09-30T01:34:55.3918818Z  2025-09-30 01:34:46.460 UTC [99] DETAIL:  Key (username)=(testuser) already exists.
+2025-09-30T01:34:55.3920927Z  2025-09-30 01:34:46.460 UTC [99] STATEMENT:  INSERT INTO users (email, username, password_hash, avatar_url, preferred_language, status, is_active, last_active, is_admin, current_room_id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::userstatus, $7::BOOLEAN, $8::TIMESTAMP WITH TIME ZONE, $9::BOOLEAN, $10::INTEGER) RETURNING users.id, users.created_at
+2025-09-30T01:34:55.3923423Z  2025-09-30 01:34:48.697 UTC [100] ERROR:  duplicate key value violates unique constraint "ix_users_username"
+2025-09-30T01:34:55.3924296Z  2025-09-30 01:34:48.697 UTC [100] DETAIL:  Key (username)=(testuser) already exists.
+2025-09-30T01:34:55.3926383Z  2025-09-30 01:34:48.697 UTC [100] STATEMENT:  INSERT INTO users (email, username, password_hash, avatar_url, preferred_language, status, is_active, last_active, is_admin, current_room_id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::userstatus, $7::BOOLEAN, $8::TIMESTAMP WITH TIME ZONE, $9::BOOLEAN, $10::INTEGER) RETURNING users.id, users.created_at
+2025-09-30T01:34:55.3928836Z  2025-09-30 01:34:49.720 UTC [100] ERROR:  null value in column "email" of relation "users" violates not-null constraint
+2025-09-30T01:34:55.3931066Z  2025-09-30 01:34:49.720 UTC [100] DETAIL:  Failing row contains (2, null, testuser, $2b$12$vqk30WxgUiW48mxTwyhTQux9f83GwkN.xzo3BkeWoplQf4emvUDHK, null, en, AVAILABLE, t, 2025-09-30 01:34:49.463713+00, 2025-09-30 01:34:49.718755+00, f, null).
+2025-09-30T01:34:55.3933903Z  2025-09-30 01:34:49.720 UTC [100] STATEMENT:  INSERT INTO users (email, username, password_hash, avatar_url, preferred_language, status, is_active, last_active, is_admin, current_room_id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::userstatus, $7::BOOLEAN, $8::TIMESTAMP WITH TIME ZONE, $9::BOOLEAN, $10::INTEGER) RETURNING users.id, users.created_at
+2025-09-30T01:34:55.3935381Z  2025-09-30 01:34:50.625 UTC [101] ERROR:  duplicate key value violates unique constraint "ix_users_username"
+2025-09-30T01:34:55.3935814Z  2025-09-30 01:34:50.625 UTC [101] DETAIL:  Key (username)=(testuser) already exists.
+2025-09-30T01:34:55.3936873Z  2025-09-30 01:34:50.625 UTC [101] STATEMENT:  INSERT INTO users (email, username, password_hash, avatar_url, preferred_language, status, is_active, last_active, is_admin, current_room_id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::userstatus, $7::BOOLEAN, $8::TIMESTAMP WITH TIME ZONE, $9::BOOLEAN, $10::INTEGER) RETURNING users.id, users.created_at
+2025-09-30T01:34:55.3938039Z  2025-09-30 01:34:53.472 UTC [109] FATAL:  role "root" does not exist
+2025-09-30T01:34:55.3938430Z  2025-09-30 01:34:54.871 UTC [101] LOG:  unexpected EOF on client connection with an open transaction
+2025-09-30T01:34:55.3938882Z  2025-09-30 01:34:55.148 UTC [89] LOG:  unexpected EOF on client connection with an open transaction
+2025-09-30T01:34:55.3939467Z  syncing data to disk ... ok
+2025-09-30T01:34:55.3939711Z  
+2025-09-30T01:34:55.3939860Z  
+2025-09-30T01:34:55.3940051Z  Success. You can now start the database server using:
+2025-09-30T01:34:55.3940304Z  
+2025-09-30T01:34:55.3940506Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2025-09-30T01:34:55.3940746Z  
+2025-09-30T01:34:55.3941235Z  waiting for server to start....2025-09-30 01:34:03.674 UTC [46] LOG:  starting PostgreSQL 13.22 (Debian 13.22-1.pgdg13+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2025-09-30T01:34:55.3941914Z  2025-09-30 01:34:03.675 UTC [46] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2025-09-30T01:34:55.3942343Z  2025-09-30 01:34:03.676 UTC [47] LOG:  database system was shut down at 2025-09-30 01:34:03 UTC
+2025-09-30T01:34:55.3942747Z  2025-09-30 01:34:03.679 UTC [46] LOG:  database system is ready to accept connections
+2025-09-30T01:34:55.3943042Z   done
+2025-09-30T01:34:55.3943192Z  server started
+2025-09-30T01:34:55.3943358Z  
+2025-09-30T01:34:55.3943636Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2025-09-30T01:34:55.3943959Z  
+2025-09-30T01:34:55.3944169Z  2025-09-30 01:34:03.791 UTC [46] LOG:  received fast shutdown request
+2025-09-30T01:34:55.3944579Z  waiting for server to shut down....2025-09-30 01:34:03.792 UTC [46] LOG:  aborting any active transactions
+2025-09-30T01:34:55.3945113Z  2025-09-30 01:34:03.793 UTC [46] LOG:  background worker "logical replication launcher" (PID 53) exited with exit code 1
+2025-09-30T01:34:55.3945532Z  2025-09-30 01:34:03.794 UTC [48] LOG:  shutting down
+2025-09-30T01:34:55.3945823Z  2025-09-30 01:34:03.800 UTC [46] LOG:  database system is shut down
+2025-09-30T01:34:55.3946078Z   done
+2025-09-30T01:34:55.3946224Z  server stopped
+2025-09-30T01:34:55.3946384Z  
+2025-09-30T01:34:55.3946577Z  PostgreSQL init process complete; ready for start up.
+2025-09-30T01:34:55.3946818Z  
+2025-09-30T01:34:55.3952202Z Stop and remove container: 57e23b4e62c440d7b6e8150f6ba298ae_postgres13_6562e3
+2025-09-30T01:34:55.3956535Z ##[command]/usr/bin/docker rm --force cbd7b6fdbd7ee8f31b3105d35235defdb7b339c8c06a3180502d7e7482bf32d3
+2025-09-30T01:34:55.5152181Z cbd7b6fdbd7ee8f31b3105d35235defdb7b339c8c06a3180502d7e7482bf32d3
+2025-09-30T01:34:55.5174311Z Remove container network: github_network_129d360d8a194ec6b3121a11e42977ca
+2025-09-30T01:34:55.5178533Z ##[command]/usr/bin/docker network rm github_network_129d360d8a194ec6b3121a11e42977ca
+2025-09-30T01:34:55.5906792Z github_network_129d360d8a194ec6b3121a11e42977ca
