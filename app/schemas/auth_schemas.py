@@ -12,7 +12,7 @@ class UserRegister(BaseModel):
 
     email: EmailStr = Field(description="User email address")
     username: SanitizedString = Field(min_length=3, max_length=20, description="Username")
-    password: str = Field(min_length=8, description="Password")
+    password: str = Field(min_length=8, max_length=70, description="Password")
 
 
 class UserLogin(BaseModel):
@@ -21,7 +21,7 @@ class UserLogin(BaseModel):
     """
 
     email: EmailStr = Field(description="User email address")
-    password: str = Field(min_length=8, description="Password")
+    password: str = Field(min_length=8, max_length=70, description="Password")
 
 
 class Token(BaseModel):

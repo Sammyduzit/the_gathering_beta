@@ -15,9 +15,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `ruff check app/ tests/ main.py` - Run linting checks
 - `ruff format app/ tests/ main.py` - Format code
 - `ruff format --check app/ tests/ main.py` - Check formatting without changes
+- Configuration in `pyproject.toml` optimized for FastAPI projects
 
 ### Database Operations
-- `python reset_db.py` - Reset database and recreate tables
 - Set `RESET_DB=true` environment variable to reset database on startup
 
 ### Running the Application
@@ -59,6 +59,7 @@ This is a FastAPI-based chat application called "The Gathering" with a three-tie
 - `ConversationService` - Private and group chat logic
 - `TranslationService` - DeepL API integration for message translation
 - `AvatarService` - User avatar management
+- `BackgroundService` - Async background task processing with retry logic
 
 **Authentication**:
 - JWT tokens with configurable expiration
@@ -77,8 +78,24 @@ Environment variables (`.env` file):
 
 - `tests/unit/` - Unit tests with mocked dependencies (marked with `@pytest.mark.unit`)
 - `tests/e2e/` - Integration tests with real database (marked with `@pytest.mark.e2e`)
+- `tests/async_conftest.py` - Async test fixtures with reusable mock services
 - `conftest.py` - Shared test fixtures and database setup
 - Test environment automatically creates sample users (admin, alice, carol)
+
+### Mock Service Architecture
+
+Unit tests use reusable mock service fixtures for better maintainability:
+
+```python
+@pytest_asyncio.fixture
+async def mock_translation_service():
+    """Reusable mock translation service for all service tests."""
+    mock = AsyncMock()
+    mock.translate_message_content.return_value = {}
+    mock.get_message_translation.return_value = None
+    mock.translate_and_store_message.return_value = 0
+    return mock
+```
 
 ### Test Fixture Best Practices (SQLAlchemy 2.0)
 
