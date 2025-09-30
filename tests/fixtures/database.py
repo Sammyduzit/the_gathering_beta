@@ -12,7 +12,7 @@ from typing import AsyncGenerator
 import pytest_asyncio
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 
 from app.core.database import Base
 
@@ -79,15 +79,26 @@ def create_test_engine(strategy: DatabaseStrategy) -> AsyncEngine:
 
     else:
         # PostgreSQL configuration for integration/E2E tests
-        engine = create_async_engine(
-            strategy.value,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            echo=False,
-            future=True,
-            pool_size=5,
-            max_overflow=10
-        )
+        # Use NullPool to prevent asyncpg event loop binding issues
+        # Each transaction gets a fresh connection, avoiding "attached to different loop" errors
+        if strategy == DatabaseStrategy.INTEGRATION:
+            engine = create_async_engine(
+                strategy.value,
+                poolclass=NullPool,  # No pooling for integration tests
+                echo=False,
+                future=True,
+            )
+        else:
+            # E2E tests can use connection pooling (HTTP layer overhead is higher anyway)
+            engine = create_async_engine(
+                strategy.value,
+                pool_pre_ping=True,
+                pool_recycle=3600,
+                echo=False,
+                future=True,
+                pool_size=5,
+                max_overflow=10
+            )
 
     return engine
 

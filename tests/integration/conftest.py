@@ -1,19 +1,31 @@
 """
 Integration test fixtures with PostgreSQL and real services.
 
-Integration tests verify service interactions with real database connections
-and actual external dependencies, providing confidence in system behavior
-without full HTTP stack overhead.
+Integration tests verify:
+- Real database operations with PostgreSQL
+- Real service interactions
+- Database constraints and transactions
+- NO HTTP layer (use e2e tests for that)
+
+Architecture (Learned from asyncpg + pytest-asyncio issues):
+- event_loop: function-scoped (pytest-asyncio creates new loop per test anyway)
+- engine: function-scoped with NullPool (prevents asyncpg event loop binding errors)
+- db_session: function-scoped with transaction rollback (test isolation)
+
+Why NullPool?
+- asyncpg connection pools bind to a specific event loop
+- pytest-asyncio creates a new loop per test (even with session-scoped fixtures)
+- NullPool = no pooling = fresh connection per test = no event loop conflicts
+- Performance is acceptable for integration tests (< 30s total)
 """
 
-import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.core.database import Base
@@ -32,54 +44,49 @@ from tests.fixtures import (
     RoomFactory,
     MessageFactory,
     ConversationFactory,
+    DatabaseStrategy,
+    create_test_engine,
 )
 
 # Force integration test environment
 os.environ["TEST_TYPE"] = "integration"
 
 
-# Function-scoped event loop for Integration Tests (PostgreSQL Compatibility)
-@pytest.fixture(scope="function")
-def event_loop():
-    """Function-scoped event loop for Integration Tests with PostgreSQL."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    asyncio.set_event_loop(loop)
-    yield loop
-    loop.close()
+# ============================================================================
+# Database Fixtures
+# ============================================================================
 
-
-# PostgreSQL database fixtures with function scope for integration tests
 @pytest_asyncio.fixture(scope="function")
 async def integration_engine() -> AsyncGenerator[AsyncEngine, None]:
-    """Create PostgreSQL engine for each integration test."""
-    from tests.fixtures.database import DatabaseStrategy, create_test_engine
+    """
+    PostgreSQL engine for each integration test.
 
+    Uses NullPool to prevent asyncpg event loop binding issues.
+    Schema is created/dropped per test for complete isolation.
+    """
     strategy = DatabaseStrategy.INTEGRATION
-    engine = create_test_engine(strategy)
+    engine = create_test_engine(strategy)  # Uses NullPool from database.py
 
-    try:
-        yield engine
-    finally:
-        await engine.dispose()
+    # Create schema
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    yield engine
+
+    # Cleanup
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def integration_schema(integration_engine: AsyncEngine) -> AsyncGenerator[None, None]:
-    """Create database schema for each integration test."""
-    async with integration_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def db_session(integration_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Isolated database session with automatic transaction rollback.
 
-    yield
-
-    async with integration_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-
-@pytest_asyncio.fixture
-async def db_session(integration_engine: AsyncEngine, integration_schema) -> AsyncGenerator[AsyncSession, None]:
-    """Create isolated database session for integration test."""
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-
+    Each test gets a fresh transaction that is rolled back after the test,
+    ensuring no test data persists between tests.
+    """
     session_maker = async_sessionmaker(
         integration_engine,
         class_=AsyncSession,
@@ -91,10 +98,15 @@ async def db_session(integration_engine: AsyncEngine, integration_schema) -> Asy
         try:
             yield session
         finally:
-            await transaction.rollback()
+            # Rollback if transaction is still active
+            if transaction.is_active:
+                await transaction.rollback()
 
 
-# Real Repository Instances (no mocks!)
+# ============================================================================
+# Repository Fixtures (Real Implementations)
+# ============================================================================
+
 @pytest_asyncio.fixture
 async def user_repo(db_session):
     """Real UserRepository with PostgreSQL."""
@@ -125,10 +137,18 @@ async def message_translation_repo(db_session):
     return MessageTranslationRepository(db_session)
 
 
-# Real Service Instances (with real dependencies!)
+# ============================================================================
+# Service Fixtures (Real Implementations)
+# ============================================================================
+
 @pytest_asyncio.fixture
 async def deepl_translator():
-    """Real DeepL translator (if API key available, otherwise skip)."""
+    """
+    Real DeepL translator (skip tests if no API key available).
+
+    Integration tests that require translation will be skipped
+    if DEEPL_API_KEY environment variable is not set.
+    """
     if not settings.deepl_api_key:
         pytest.skip("DeepL API key not available for integration tests")
 
@@ -137,7 +157,6 @@ async def deepl_translator():
 
     yield translator
 
-    # Cleanup
     await translator.dispose()
 
 
@@ -185,7 +204,10 @@ async def background_service(translation_service, message_translation_repo):
     )
 
 
-# Factory fixtures for integration tests
+# ============================================================================
+# Factory Fixtures
+# ============================================================================
+
 @pytest_asyncio.fixture
 async def user_factory():
     """User factory for creating test users in PostgreSQL."""
@@ -208,69 +230,3 @@ async def message_factory():
 async def conversation_factory():
     """Conversation factory for creating test conversations in PostgreSQL."""
     return ConversationFactory
-
-
-# Test scenario fixtures
-@pytest_asyncio.fixture
-async def test_room_with_users(db_session, room_factory, user_factory):
-    """Create a room with multiple users for integration testing."""
-    # Create room
-    room = await room_factory.create(db_session, name="Integration Test Room")
-
-    # Create users in the room
-    admin = await user_factory.create_admin(db_session, current_room_id=room.id)
-    user1 = await user_factory.create(db_session,
-                                     username="user1_integration",
-                                     email="user1@integration.test",
-                                     current_room_id=room.id,
-                                     preferred_language="en")
-    user2 = await user_factory.create(db_session,
-                                     username="user2_integration",
-                                     email="user2@integration.test",
-                                     current_room_id=room.id,
-                                     preferred_language="de")
-
-    return {
-        "room": room,
-        "admin": admin,
-        "users": [user1, user2],
-        "english_user": user1,
-        "german_user": user2,
-    }
-
-
-@pytest_asyncio.fixture
-async def test_conversation_scenario(db_session, conversation_factory, user_factory, room_factory):
-    """Create a conversation scenario for integration testing."""
-    # Create room and users
-    room = await room_factory.create(db_session, name="Conversation Test Room")
-
-    user1 = await user_factory.create(db_session,
-                                     username="conv_user1",
-                                     email="conv1@test.com",
-                                     current_room_id=room.id)
-    user2 = await user_factory.create(db_session,
-                                     username="conv_user2",
-                                     email="conv2@test.com",
-                                     current_room_id=room.id)
-    user3 = await user_factory.create(db_session,
-                                     username="conv_user3",
-                                     email="conv3@test.com",
-                                     current_room_id=room.id)
-
-    # Create private conversation
-    private_conv = await conversation_factory.create_private(
-        db_session, room=room, participants=[user1, user2]
-    )
-
-    # Create group conversation
-    group_conv = await conversation_factory.create_group(
-        db_session, room=room, participants=[user1, user2, user3]
-    )
-
-    return {
-        "room": room,
-        "users": [user1, user2, user3],
-        "private_conversation": private_conv,
-        "group_conversation": group_conv,
-    }

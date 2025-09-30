@@ -1,6 +1,15 @@
+# Docker Compose for The Gathering - Development & Testing
+# Usage:
+#   docker compose up -d      # Start all services
+#   docker compose up -d db   # Start only database
+#   docker compose down       # Stop all services
+#   docker compose down -v    # Stop and remove volumes (clean slate)
+
 services:
+  # PostgreSQL database for development and testing
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: the_gathering_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -14,6 +23,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
 volumes:
   postgres_data:
+    driver: local

@@ -1,20 +1,25 @@
 """
 Global test configuration and fixtures.
 
-This module contains only global fixtures that are shared across all test types.
+This module contains ONLY global, test-agnostic fixtures that are shared
+across ALL test types (unit/integration/e2e).
+
 Test-specific fixtures are located in their respective conftest.py files:
-- tests/unit/conftest.py - Unit test fixtures with SQLite + mocks
-- tests/integration/conftest.py - Integration test fixtures with PostgreSQL
-- tests/e2e/conftest.py - E2E test fixtures with PostgreSQL + FastAPI
+- tests/unit/conftest.py       - Unit test fixtures (SQLite, mocks)
+- tests/integration/conftest.py - Integration test fixtures (PostgreSQL, real services)
+- tests/e2e/conftest.py         - E2E test fixtures (PostgreSQL + FastAPI HTTP client)
 """
 
 import pytest
 
 
-# Global sample data fixtures (no database dependencies)
+# ============================================================================
+# Sample Data Fixtures (No Database Dependencies)
+# ============================================================================
+
 @pytest.fixture
 def sample_user_data():
-    """Standard user registration data for API testing."""
+    """Standard user registration data for all test types."""
     return {
         "email": "user@example.com",
         "username": "testuser",
@@ -24,7 +29,7 @@ def sample_user_data():
 
 @pytest.fixture
 def sample_admin_data():
-    """Standard admin registration data for API testing."""
+    """Standard admin registration data for all test types."""
     return {
         "email": "admin@example.com",
         "username": "testadmin",
@@ -34,7 +39,7 @@ def sample_admin_data():
 
 @pytest.fixture
 def sample_room_data():
-    """Standard room creation data for API testing."""
+    """Standard room creation data for all test types."""
     return {
         "name": "Test Room",
         "description": "A test room for testing purposes",
@@ -44,7 +49,7 @@ def sample_room_data():
 
 @pytest.fixture
 def sample_message_data():
-    """Standard message data for API testing."""
+    """Standard message data for all test types."""
     return {
         "content": "Test message content for testing purposes"
     }
@@ -52,17 +57,20 @@ def sample_message_data():
 
 @pytest.fixture
 def sample_conversation_data():
-    """Standard conversation data for API testing."""
+    """Standard conversation data for all test types."""
     return {
         "conversation_type": "PRIVATE",
         "max_participants": 2
     }
 
 
-# Configuration fixtures
+# ============================================================================
+# Global Test Configuration
+# ============================================================================
+
 @pytest.fixture(scope="session")
 def test_config():
-    """Global test configuration."""
+    """Global test configuration settings."""
     return {
         "test_database_prefix": "test_",
         "max_test_duration": 300,  # 5 minutes
@@ -71,35 +79,57 @@ def test_config():
     }
 
 
-# Pytest configuration
+# ============================================================================
+# Pytest Hooks
+# ============================================================================
+
 def pytest_configure(config):
-    """Configure pytest with custom markers."""
+    """
+    Configure pytest with custom markers.
+
+    This hook is called after command line options have been parsed
+    and all plugins and initial conftest files have been loaded.
+    """
+    # Markers are already defined in pytest.ini, but we register them
+    # here programmatically for IDE support and documentation
     config.addinivalue_line(
-        "markers", "unit: Unit tests with mocked dependencies (fast)"
+        "markers",
+        "unit: Unit tests with mocked dependencies (fast)"
     )
     config.addinivalue_line(
-        "markers", "integration: Integration tests with real database (medium)"
+        "markers",
+        "integration: Integration tests with real database (medium)"
     )
     config.addinivalue_line(
-        "markers", "e2e: End-to-end tests with full API (slow)"
+        "markers",
+        "e2e: End-to-end tests with full API (slow)"
     )
     config.addinivalue_line(
-        "markers", "slow: Tests that take longer to run"
+        "markers",
+        "slow: Tests that take longer to run"
     )
     config.addinivalue_line(
-        "markers", "ci: Tests for CI environment"
+        "markers",
+        "ci: Tests for CI environment"
     )
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-mark tests based on their location."""
+    """
+    Auto-mark tests based on their file location.
+
+    This ensures tests are properly categorized even if developers
+    forget to add the @pytest.mark.xxx decorator.
+    """
     for item in items:
-        # Auto-mark based on test location
-        if "unit" in str(item.fspath):
+        test_path = str(item.fspath)
+
+        # Auto-mark based on directory
+        if "/unit/" in test_path:
             item.add_marker(pytest.mark.unit)
-        elif "integration" in str(item.fspath):
+        elif "/integration/" in test_path:
             item.add_marker(pytest.mark.integration)
-        elif "e2e" in str(item.fspath):
+        elif "/e2e/" in test_path:
             item.add_marker(pytest.mark.e2e)
 
         # Auto-mark async tests

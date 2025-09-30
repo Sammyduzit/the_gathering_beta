@@ -38,14 +38,4 @@ quote-style = "double"
 indent-style = "space"
 docstring-code-format = true
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q --strict-markers"
-testpaths = ["tests"]
-markers = [
-    "unit: Unit tests with mocked dependencies",
-    "e2e: End-to-end integration tests",
-    "slow: Marks tests as slow",
-]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
+# NOTE: pytest configuration is in pytest.ini (single source of truth)
