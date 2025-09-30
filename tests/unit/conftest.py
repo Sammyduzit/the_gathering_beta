@@ -6,6 +6,11 @@ Unit tests should be fast, isolated, and deterministic. This module provides:
 - Comprehensive mocks for all external dependencies
 - Factory-based test data creation
 - Automatic cleanup between tests
+
+Scope Strategy:
+- event_loop: session (fast, no asyncpg issues with SQLite)
+- engine: session (in-memory SQLite persists across tests)
+- db_session: function (transaction rollback isolation)
 """
 
 import asyncio
@@ -38,7 +43,7 @@ from tests.fixtures import (
 os.environ["TEST_TYPE"] = "unit"
 
 
-# Session-scoped event loop for Unit Tests (SQLite Performance)
+# Session-scoped event loop (SQLite has no asyncpg binding issues)
 @pytest.fixture(scope="session")
 def event_loop():
     """Session-scoped event loop for Unit Tests with SQLite."""
@@ -50,7 +55,7 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="session")
 async def unit_engine():
-    """SQLite engine for unit tests - fast and isolated."""
+    """SQLite engine for unit tests - session-scoped for speed."""
     strategy = DatabaseStrategy.UNIT
     engine = create_test_engine(strategy)
 
