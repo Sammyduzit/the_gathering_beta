@@ -1,12 +1,12 @@
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
-from main import app
-from app.core.database import get_db
 from app.core.auth_dependencies import get_current_active_user
-from app.models.user import User, UserStatus
+from app.core.database import get_db
 from app.models.room import Room
+from app.models.user import User, UserStatus
+from main import app
 
 
 @pytest.mark.asyncio
@@ -145,10 +145,7 @@ class TestIntegrationAPI:
 
         # Send a message to the room
         message_data = {"content": "Hello from integration test!"}
-        send_response = await authenticated_client.post(
-            f"/api/v1/rooms/{test_room.id}/messages",
-            json=message_data
-        )
+        send_response = await authenticated_client.post(f"/api/v1/rooms/{test_room.id}/messages", json=message_data)
         assert send_response.status_code == 200
 
         message_response = send_response.json()

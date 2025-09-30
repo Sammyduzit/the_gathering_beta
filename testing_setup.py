@@ -1,10 +1,10 @@
-import asyncio
-from app.models.user import User
-from app.models.room import Room
+from sqlalchemy import select
+
 from app.core.auth_utils import hash_password
 from app.core.database import AsyncSessionLocal
+from app.models.room import Room
+from app.models.user import User
 from app.services.avatar_service import generate_avatar_url
-from sqlalchemy import select
 
 
 async def create_test_users():
@@ -160,11 +160,7 @@ async def setup_complete_test_environment():
         print()
         for room in created_rooms:
             name = room["name"]
-            description = (
-                room["description"][:40] + "..."
-                if len(room["description"]) > 40
-                else room["description"]
-            )
+            description = room["description"][:40] + "..." if len(room["description"]) > 40 else room["description"]
             line = f"  ROOM : {name:<20} | {description:<35}"
             print(line)
 

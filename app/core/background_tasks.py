@@ -1,8 +1,10 @@
-from fastapi import BackgroundTasks
-from typing import Callable, Any
 import asyncio
 import logging
+from collections.abc import Callable
 from functools import wraps
+from typing import Any
+
+from fastapi import BackgroundTasks
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +15,7 @@ class AsyncBackgroundTask:
     def __init__(self):
         self._running_tasks: set[asyncio.Task] = set()
 
-    async def add_async_task(
-        self,
-        background_tasks: BackgroundTasks,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> None:
+    async def add_async_task(self, background_tasks: BackgroundTasks, func: Callable, *args, **kwargs) -> None:
         """
         Add an async function as background task.
         :param background_tasks: FastAPI BackgroundTasks instance
@@ -33,12 +29,7 @@ class AsyncBackgroundTask:
 
         background_tasks.add_task(self._await_task, task)
 
-    async def _execute_with_error_handling(
-        self,
-        func: Callable,
-        *args,
-        **kwargs
-    ) -> Any:
+    async def _execute_with_error_handling(self, func: Callable, *args, **kwargs) -> Any:
         """
         Execute async function with error handling and logging.
         :param func: Async function to execute
@@ -80,6 +71,7 @@ def background_task_retry(max_retries: int = 3, delay: float = 1.0):
     :param max_retries: Maximum number of retry attempts
     :param delay: Delay between retries in seconds
     """
+
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -97,10 +89,10 @@ def background_task_retry(max_retries: int = 3, delay: float = 1.0):
                         )
                         await asyncio.sleep(delay)
                     else:
-                        logger.error(
-                            f"Background task {func.__name__} failed after {max_retries + 1} attempts: {e}"
-                        )
+                        logger.error(f"Background task {func.__name__} failed after {max_retries + 1} attempts: {e}")
 
             raise last_exception
+
         return wrapper
+
     return decorator

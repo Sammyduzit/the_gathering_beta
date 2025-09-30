@@ -1,8 +1,10 @@
 from abc import abstractmethod
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 
 from app.models.user import User
+
 from .base_repository import BaseRepository
 
 
@@ -82,9 +84,7 @@ class UserRepository(IUserRepository):
 
     async def get_users_in_room(self, room_id: int) -> list[User]:
         """Get all users currently in a specific room."""
-        query = select(User).where(
-            and_(User.current_room_id == room_id, User.is_active.is_(True))
-        )
+        query = select(User).where(and_(User.current_room_id == room_id, User.is_active.is_(True)))
         result = await self.db.execute(query)
         return list(result.scalars().all())
 

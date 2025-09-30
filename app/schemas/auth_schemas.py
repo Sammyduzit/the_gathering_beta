@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.core.validators import SanitizedString, SanitizedUsername
 
@@ -10,9 +11,7 @@ class UserRegister(BaseModel):
     """
 
     email: EmailStr = Field(description="User email address")
-    username: SanitizedString = Field(
-        min_length=3, max_length=20, description="Username"
-    )
+    username: SanitizedString = Field(min_length=3, max_length=20, description="Username")
     password: str = Field(min_length=8, description="Password")
 
 
@@ -64,6 +63,4 @@ class UserUpdate(BaseModel):
         min_length=2,
         max_length=5,
     )
-    username: SanitizedUsername | None = Field(
-        None, min_length=3, max_length=20, description="New username"
-    )
+    username: SanitizedUsername | None = Field(None, min_length=3, max_length=20, description="New username")

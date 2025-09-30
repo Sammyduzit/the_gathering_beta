@@ -1,5 +1,6 @@
-from markupsafe import escape
 from typing import Annotated
+
+from markupsafe import escape
 from pydantic import AfterValidator
 
 from app.core.constants import SUPPORTED_LANGUAGES

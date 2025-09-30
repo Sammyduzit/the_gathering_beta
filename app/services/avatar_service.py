@@ -1,7 +1,8 @@
-import urllib.parse
-import random
-import httpx
 import logging
+import random
+import urllib.parse
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +62,7 @@ async def is_valid_avatar_style(style: str) -> bool:
     :return: True if available, else False
     """
     available_styles = await get_available_avatar_styles()
-    return style.lower() in [
-        available_style.lower() for available_style in available_styles
-    ]
+    return style.lower() in [available_style.lower() for available_style in available_styles]
 
 
 async def generate_avatar_url(username: str, style: str = "bottts") -> str:

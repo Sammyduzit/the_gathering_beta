@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta, timezone
-from fastapi import HTTPException, status
+from datetime import UTC, datetime, timedelta
 
 import jwt
+from fastapi import HTTPException, status
 
 from app.core.config import settings
 
@@ -16,16 +16,12 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            minutes=settings.access_token_expire_minutes
-        )
+        expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
 
     to_encode.update({"exp": expire})
-    encode_jwt = jwt.encode(
-        to_encode, settings.secret_key, algorithm=settings.algorithm
-    )
+    encode_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
     return encode_jwt
 
@@ -37,9 +33,7 @@ def verify_token(token: str) -> dict:
     :return: Decoded token
     """
     try:
-        payload = jwt.decode(
-            token, settings.secret_key, algorithms=[settings.algorithm]
-        )
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return payload
 
     except jwt.ExpiredSignatureError:

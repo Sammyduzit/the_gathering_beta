@@ -1,4 +1,5 @@
 import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -7,10 +8,10 @@ from app.models.message import Message
 from app.models.room import Room
 from app.models.user import User, UserStatus
 from app.repositories.conversation_repository import IConversationRepository
-from app.repositories.room_repository import IRoomRepository
-from app.repositories.user_repository import IUserRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import IMessageTranslationRepository
+from app.repositories.room_repository import IRoomRepository
+from app.repositories.user_repository import IUserRepository
 from app.services.translation_service import TranslationService
 
 logger = logging.getLogger(__name__)
@@ -243,9 +244,7 @@ class RoomService:
             "user": current_user.username,
         }
 
-    async def send_room_message(
-        self, current_user: User, room_id: int, content: str
-    ) -> Message:
+    async def send_room_message(self, current_user: User, room_id: int, content: str) -> Message:
         """
         Send message to room with validation.
         :param current_user: User sending message
@@ -282,11 +281,7 @@ class RoomService:
             )
 
             if target_languages:
-                source_lang = (
-                    current_user.preferred_language.upper()
-                    if current_user.preferred_language
-                    else None
-                )
+                source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
 
                 await self.translation_service.translate_and_store_message(
                     message_id=message.id,
@@ -332,15 +327,11 @@ class RoomService:
 
         # Apply translations if user has preferred language
         if current_user.preferred_language:
-            messages = await self._apply_translations_to_messages(
-                messages, current_user.preferred_language
-            )
+            messages = await self._apply_translations_to_messages(messages, current_user.preferred_language)
 
         return messages, total_count
 
-    async def _apply_translations_to_messages(
-        self, messages: list[Message], user_language: str
-    ) -> list[Message]:
+    async def _apply_translations_to_messages(self, messages: list[Message], user_language: str) -> list[Message]:
         """Apply translations to messages based on user's preferred language."""
         if not messages:
             return messages

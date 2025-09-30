@@ -1,14 +1,13 @@
 import logging
-from typing import Dict, List
 
-from sqlalchemy.exc import SQLAlchemyError
 import deepl
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.background_tasks import background_task_retry
-from app.services.translation_service import TranslationService
 from app.models.message import Message
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_translation_repository import IMessageTranslationRepository
+from app.services.translation_service import TranslationService
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +25,8 @@ class BackgroundService:
 
     @background_task_retry(max_retries=2, delay=2.0)
     async def process_message_translation_background(
-        self,
-        message: Message,
-        target_languages: List[str],
-        room_translation_enabled: bool = True
-    ) -> Dict[str, str]:
+        self, message: Message, target_languages: list[str], room_translation_enabled: bool = True
+    ) -> dict[str, str]:
         """
         Process message translation in background for multiple languages.
         :param message: Message to translate
@@ -60,9 +56,7 @@ class BackgroundService:
 
                 # Create new translation
                 translation_result = await self.translation_service.translate_message_content(
-                    content=message.content,
-                    target_language=target_lang,
-                    source_language="auto"
+                    content=message.content, target_language=target_lang, source_language="auto"
                 )
 
                 if target_lang in translation_result:
@@ -70,9 +64,7 @@ class BackgroundService:
 
                     # Store translation in database
                     new_translation = MessageTranslation(
-                        message_id=message.id,
-                        content=content,
-                        target_language=target_lang
+                        message_id=message.id, content=content, target_language=target_lang
                     )
                     await self.message_translation_repo.create(new_translation)
 
@@ -107,10 +99,7 @@ class BackgroundService:
 
     @background_task_retry(max_retries=1, delay=0.5)
     async def log_user_activity_background(
-        self,
-        user_id: int,
-        activity_type: str,
-        details: Dict[str, any] = None
+        self, user_id: int, activity_type: str, details: dict[str, any] = None
     ) -> None:
         """
         Log user activity in background.
@@ -130,10 +119,7 @@ class BackgroundService:
 
     @background_task_retry(max_retries=2, delay=3.0)
     async def notify_room_users_background(
-        self,
-        room_id: int,
-        message: str,
-        exclude_user_ids: List[int] = None
+        self, room_id: int, message: str, exclude_user_ids: list[int] = None
     ) -> None:
         """
         Send notifications to room users in background.

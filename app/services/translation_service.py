@@ -1,6 +1,6 @@
 import asyncio
-from functools import partial
 import logging
+from functools import partial
 
 import deepl
 
@@ -81,10 +81,7 @@ class TranslationService:
 
                 # Run blocking DeepL call in thread pool to avoid blocking event loop
                 translate_func = partial(
-                    self.deepl_client.translate_text,
-                    content,
-                    source_lang=source_language,
-                    target_lang=deepl_target
+                    self.deepl_client.translate_text, content, source_lang=source_language, target_lang=deepl_target
                 )
                 result = await asyncio.get_event_loop().run_in_executor(None, translate_func)
 
@@ -102,9 +99,7 @@ class TranslationService:
                 logger.error(f"Unexpected error translating to {target_lang}: {e}")
                 continue
 
-        logger.info(
-            f"Translation summary: {len(translations)}/{len(target_languages)} successful"
-        )
+        logger.info(f"Translation summary: {len(translations)}/{len(target_languages)} successful")
         return translations
 
     async def create_message_translations(
@@ -136,9 +131,7 @@ class TranslationService:
                 continue
 
         if translation_objects:
-            created_translations = await self.translation_repo.bulk_create_translations(
-                translation_objects
-            )
+            created_translations = await self.translation_repo.bulk_create_translations(translation_objects)
 
             if created_translations:
                 print(f"✅ Saved {len(created_translations)} translations to database")
@@ -179,18 +172,14 @@ class TranslationService:
                 message_id=message_id, translations=translations
             )
 
-            print(
-                f"Created {len(translation_objects)} translations for message {message_id}"
-            )
+            print(f"Created {len(translation_objects)} translations for message {message_id}")
             return len(translation_objects)
 
         except (deepl.DeepLException, ValueError, RuntimeError) as e:
             logger.error(f"Translation workflow failed for message {message_id}: {e}")
             return 0
 
-    async def get_message_translation(
-        self, message_id: int, target_language: str
-    ) -> str | None:
+    async def get_message_translation(self, message_id: int, target_language: str) -> str | None:
         """
         Retrieve specific translation via repository.
         :param message_id: ID of the original message
@@ -211,10 +200,7 @@ class TranslationService:
         """
         translations = await self.translation_repo.get_by_message_id(message_id)
 
-        return {
-            translation.target_language: translation.content
-            for translation in translations
-        }
+        return {translation.target_language: translation.content for translation in translations}
 
     async def delete_message_translations(self, message_id: int) -> int:
         """

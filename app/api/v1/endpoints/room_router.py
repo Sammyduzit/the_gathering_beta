@@ -1,19 +1,19 @@
-from fastapi import APIRouter, Depends, status, Body, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
+
 from app.core.auth_dependencies import get_current_active_user, get_current_admin_user
 from app.core.background_tasks import async_bg_task_manager
 from app.models.user import User
-from app.schemas.chat_schemas import MessageResponse, MessageCreate
-from app.schemas.room_schemas import RoomResponse, RoomCreate
+from app.schemas.chat_schemas import MessageCreate, MessageResponse
+from app.schemas.room_schemas import RoomCreate, RoomResponse
 from app.schemas.room_user_schemas import (
     RoomJoinResponse,
     RoomLeaveResponse,
     RoomUsersListResponse,
     UserStatusUpdate,
 )
-from app.services.room_service import RoomService
 from app.services.background_service import BackgroundService
-from app.services.service_dependencies import get_room_service, get_background_service
-
+from app.services.room_service import RoomService
+from app.services.service_dependencies import get_background_service, get_room_service
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
 
@@ -154,7 +154,7 @@ async def join_room(
         background_service.log_user_activity_background,
         current_user.id,
         "room_joined",
-        {"room_id": room_id, "room_name": join_response["room_name"]}
+        {"room_id": room_id, "room_name": join_response["room_name"]},
     )
 
     await async_bg_task_manager.add_async_task(
@@ -162,7 +162,7 @@ async def join_room(
         background_service.notify_room_users_background,
         room_id,
         f"{current_user.username} joined the room",
-        [current_user.id]  # Exclude the joining user
+        [current_user.id],  # Exclude the joining user
     )
 
     return join_response
@@ -193,7 +193,7 @@ async def leave_room(
         background_service.log_user_activity_background,
         current_user.id,
         "room_left",
-        {"room_id": room_id}
+        {"room_id": room_id},
     )
 
     await async_bg_task_manager.add_async_task(
@@ -201,7 +201,7 @@ async def leave_room(
         background_service.notify_room_users_background,
         room_id,
         f"{current_user.username} left the room",
-        [current_user.id]  # Exclude the leaving user
+        [current_user.id],  # Exclude the leaving user
     )
 
     return leave_response
@@ -260,9 +260,7 @@ async def send_room_message(
     :return: Created message object
     """
     # Send message immediately
-    message_response = await room_service.send_room_message(
-        current_user, room_id, message_data.content
-    )
+    message_response = await room_service.send_room_message(current_user, room_id, message_data.content)
 
     # Get room info for translation settings
     room = await room_service.get_room_by_id(room_id)
@@ -283,7 +281,7 @@ async def send_room_message(
                 background_service.process_message_translation_background,
                 message_response,  # Message object
                 list(set(target_languages)),  # Unique target languages
-                room.is_translation_enabled
+                room.is_translation_enabled,
             )
 
     # Schedule activity logging
@@ -292,7 +290,7 @@ async def send_room_message(
         background_service.log_user_activity_background,
         current_user.id,
         "message_sent",
-        {"room_id": room_id, "message_length": len(message_data.content)}
+        {"room_id": room_id, "message_length": len(message_data.content)},
     )
 
     return message_response
@@ -315,7 +313,5 @@ async def get_room_messages(
     :param room_service: Service instance handling room logic
     :return: List of room messages
     """
-    messages, total_count = await room_service.get_room_messages(
-        current_user, room_id, page, page_size
-    )
+    messages, total_count = await room_service.get_room_messages(current_user, room_id, page, page_size)
     return messages

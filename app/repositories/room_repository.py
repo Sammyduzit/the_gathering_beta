@@ -1,6 +1,7 @@
 from abc import abstractmethod
+
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
 
 from app.models.room import Room
 from app.models.user import User
@@ -82,18 +83,14 @@ class RoomRepository(IRoomRepository):
 
     async def get_user_count(self, room_id: int) -> int:
         """Get count of users currently in room."""
-        user_count_query = select(func.count(User.id)).where(
-            User.current_room_id == room_id
-        )
+        user_count_query = select(func.count(User.id)).where(User.current_room_id == room_id)
         result = await self.db.execute(user_count_query)
         return result.scalar() or 0
 
     async def get_users_in_room(self, room_id: int) -> list[User]:
         """Get all users currently in a specific room."""
         query = (
-            select(User)
-            .where(and_(User.current_room_id == room_id, User.is_active.is_(True)))
-            .order_by(User.username)
+            select(User).where(and_(User.current_room_id == room_id, User.is_active.is_(True))).order_by(User.username)
         )
 
         result = await self.db.execute(query)

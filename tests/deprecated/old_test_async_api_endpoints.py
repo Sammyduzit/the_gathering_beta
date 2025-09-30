@@ -1,13 +1,14 @@
-import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch
 
-from main import app
-from app.core.database import get_db
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+
 from app.core.auth_dependencies import get_current_active_user
-from app.models.user import User, UserStatus
+from app.core.database import get_db
 from app.models.room import Room
+from app.models.user import User, UserStatus
+from main import app
 
 
 # Test database override
@@ -73,7 +74,7 @@ class TestAsyncAPIEndpoints:
             }
         ]
 
-        with patch('app.services.room_service.RoomService.get_all_rooms') as mock_get_rooms:
+        with patch("app.services.room_service.RoomService.get_all_rooms") as mock_get_rooms:
             mock_get_rooms.return_value = mock_rooms
 
             # Act
@@ -99,7 +100,7 @@ class TestAsyncAPIEndpoints:
             "current_users": 0,
         }
 
-        with patch('app.services.room_service.RoomService.get_room_by_id') as mock_get_room:
+        with patch("app.services.room_service.RoomService.get_room_by_id") as mock_get_room:
             mock_get_room.return_value = mock_room
 
             # Act
@@ -116,7 +117,7 @@ class TestAsyncAPIEndpoints:
         # Arrange
         mock_count = {"active_rooms": 3}
 
-        with patch('app.services.room_service.RoomService.get_room_count') as mock_count_rooms:
+        with patch("app.services.room_service.RoomService.get_room_count") as mock_count_rooms:
             mock_count_rooms.return_value = mock_count
 
             # Act
@@ -138,10 +139,10 @@ class TestAsyncAPIEndpoints:
             "user_count": 2,
         }
 
-        with patch('app.services.room_service.RoomService.join_room') as mock_join_room:
+        with patch("app.services.room_service.RoomService.join_room") as mock_join_room:
             mock_join_room.return_value = mock_join_response
 
-            with patch('app.core.background_tasks.async_bg_task_manager.add_async_task') as mock_bg_task:
+            with patch("app.core.background_tasks.async_bg_task_manager.add_async_task") as mock_bg_task:
                 # Act
                 response = await async_client.post(f"/api/v1/rooms/{room_id}/join")
 
@@ -163,10 +164,10 @@ class TestAsyncAPIEndpoints:
             "room_id": room_id,
         }
 
-        with patch('app.services.room_service.RoomService.leave_room') as mock_leave_room:
+        with patch("app.services.room_service.RoomService.leave_room") as mock_leave_room:
             mock_leave_room.return_value = mock_leave_response
 
-            with patch('app.core.background_tasks.async_bg_task_manager.add_async_task') as mock_bg_task:
+            with patch("app.core.background_tasks.async_bg_task_manager.add_async_task") as mock_bg_task:
                 # Act
                 response = await async_client.post(f"/api/v1/rooms/{room_id}/leave")
 
@@ -207,20 +208,19 @@ class TestAsyncAPIEndpoints:
             ]
         }
 
-        with patch('app.services.room_service.RoomService.send_room_message') as mock_send_message:
+        with patch("app.services.room_service.RoomService.send_room_message") as mock_send_message:
             mock_send_message.return_value = mock_message_response
 
-            with patch('app.services.room_service.RoomService.get_room_by_id') as mock_get_room:
+            with patch("app.services.room_service.RoomService.get_room_by_id") as mock_get_room:
                 mock_get_room.return_value = mock_room
 
-                with patch('app.services.room_service.RoomService.get_room_users') as mock_get_users:
+                with patch("app.services.room_service.RoomService.get_room_users") as mock_get_users:
                     mock_get_users.return_value = mock_room_users
 
-                    with patch('app.core.background_tasks.async_bg_task_manager.add_async_task') as mock_bg_task:
+                    with patch("app.core.background_tasks.async_bg_task_manager.add_async_task") as mock_bg_task:
                         # Act
                         response = await async_client.post(
-                            f"/api/v1/rooms/{room_id}/messages",
-                            json={"content": message_content}
+                            f"/api/v1/rooms/{room_id}/messages", json={"content": message_content}
                         )
 
                         # Assert
@@ -248,7 +248,7 @@ class TestAsyncAPIEndpoints:
             }
         ]
 
-        with patch('app.services.room_service.RoomService.get_room_messages') as mock_get_messages:
+        with patch("app.services.room_service.RoomService.get_room_messages") as mock_get_messages:
             mock_get_messages.return_value = (mock_messages, 1)
 
             # Act
@@ -266,13 +266,11 @@ class TestAsyncAPIEndpoints:
         room_id = 1
         mock_users_response = {
             "room_id": room_id,
-            "users": [
-                {"id": 1, "username": "testuser", "status": "available"}
-            ],
+            "users": [{"id": 1, "username": "testuser", "status": "available"}],
             "user_count": 1,
         }
 
-        with patch('app.services.room_service.RoomService.get_room_users') as mock_get_users:
+        with patch("app.services.room_service.RoomService.get_room_users") as mock_get_users:
             mock_get_users.return_value = mock_users_response
 
             # Act
@@ -293,14 +291,11 @@ class TestAsyncAPIEndpoints:
             "new_status": new_status,
         }
 
-        with patch('app.services.room_service.RoomService.update_user_status') as mock_update_status:
+        with patch("app.services.room_service.RoomService.update_user_status") as mock_update_status:
             mock_update_status.return_value = mock_status_response
 
             # Act
-            response = await async_client.patch(
-                "/api/v1/rooms/users/status",
-                json={"status": new_status}
-            )
+            response = await async_client.patch("/api/v1/rooms/users/status", json={"status": new_status})
 
             # Assert
             assert response.status_code == 200

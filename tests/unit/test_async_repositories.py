@@ -235,11 +235,7 @@ class TestAsyncMessageRepository:
         await message_repo.create(message_data)
 
         # Act
-        messages, count = await message_repo.get_room_messages(
-            room_id=test_room.id,
-            page=1,
-            page_size=10
-        )
+        messages, count = await message_repo.get_room_messages(room_id=test_room.id, page=1, page_size=10)
 
         # Assert
         assert count >= 1
@@ -264,9 +260,7 @@ class TestAsyncMessageRepository:
 
         # Act
         messages, count = await message_repo.get_conversation_messages(
-            conversation_id=conversation_id,
-            page=1,
-            page_size=10
+            conversation_id=conversation_id, page=1, page_size=10
         )
 
         # Assert

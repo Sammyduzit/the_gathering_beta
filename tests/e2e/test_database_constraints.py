@@ -2,18 +2,18 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
-import pytest
 from datetime import datetime
-from sqlalchemy import text, select, delete
+
+import pytest
+from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 
-
-from app.models.user import User, UserStatus
-from app.models.room import Room
+from app.core.auth_utils import hash_password
 from app.models.conversation import Conversation, ConversationType
 from app.models.conversation_participant import ConversationParticipant
 from app.models.message import Message, MessageType
-from app.core.auth_utils import hash_password
+from app.models.room import Room
+from app.models.user import User, UserStatus
 
 
 @pytest.mark.e2e
@@ -24,9 +24,7 @@ class TestDatabaseConstraints:
     async def test_message_xor_constraint(self, async_db_session, created_user, created_room):
         """Test XOR constraint: message must have either room_id OR conversation_id, not both."""
 
-        conversation = Conversation(
-            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
-        )
+        conversation = Conversation(room_id=created_room.id, conversation_type=ConversationType.PRIVATE)
 
         async_db_session.add(conversation)
         await async_db_session.commit()
@@ -129,7 +127,7 @@ class TestDatabaseConstraints:
             invalid_message = Message(
                 sender_id=created_user.id,
                 content="Test message",
-                room_id=9999  # Non-existent room_id should violate FK
+                room_id=9999,  # Non-existent room_id should violate FK
             )
             async_db_session.add(invalid_message)
             await async_db_session.commit()
@@ -138,44 +136,32 @@ class TestDatabaseConstraints:
 
         # Invalid message sender
         with pytest.raises(IntegrityError):
-            invalid_message = Message(
-                sender_id=9999, content="Invalid sender", room_id=created_room.id
-            )
+            invalid_message = Message(sender_id=9999, content="Invalid sender", room_id=created_room.id)
             async_db_session.add(invalid_message)
             await async_db_session.commit()
 
     @pytest.mark.asyncio
-    async def test_conversation_participant_constraints(
-        self, async_db_session, created_user, created_room
-    ):
+    async def test_conversation_participant_constraints(self, async_db_session, created_user, created_room):
         """Test conversation participant unique constraints."""
-        conversation = Conversation(
-            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
-        )
+        conversation = Conversation(room_id=created_room.id, conversation_type=ConversationType.PRIVATE)
 
         async_db_session.add(conversation)
         await async_db_session.commit()
 
-        participant1 = ConversationParticipant(
-            conversation_id=conversation.id, user_id=created_user.id
-        )
+        participant1 = ConversationParticipant(conversation_id=conversation.id, user_id=created_user.id)
         async_db_session.add(participant1)
         await async_db_session.commit()
 
         # Duplicate participant should fail
         with pytest.raises(IntegrityError):
-            participant2 = ConversationParticipant(
-                conversation_id=conversation.id, user_id=created_user.id
-            )
+            participant2 = ConversationParticipant(conversation_id=conversation.id, user_id=created_user.id)
             async_db_session.add(participant2)
             await async_db_session.commit()
 
     @pytest.mark.asyncio
     async def test_enum_validation(self, async_db_session, created_user, created_room):
         """Test enum field validation."""
-        valid_conversation = Conversation(
-            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
-        )
+        valid_conversation = Conversation(room_id=created_room.id, conversation_type=ConversationType.PRIVATE)
         async_db_session.add(valid_conversation)
         await async_db_session.commit()
 
@@ -216,24 +202,18 @@ class TestDatabaseConstraints:
         await async_db_session.rollback()
 
         with pytest.raises(IntegrityError):
-            invalid_message = Message(
-                sender_id=created_user.id, content=None, room_id=created_room.id
-            )
+            invalid_message = Message(sender_id=created_user.id, content=None, room_id=created_room.id)
             async_db_session.add(invalid_message)
             await async_db_session.commit()
 
     @pytest.mark.asyncio
     async def test_cascading_deletes(self, async_db_session, created_user, created_room):
         """Test that deleting conversation removes related data correctly."""
-        conversation = Conversation(
-            room_id=created_room.id, conversation_type=ConversationType.PRIVATE
-        )
+        conversation = Conversation(room_id=created_room.id, conversation_type=ConversationType.PRIVATE)
         async_db_session.add(conversation)
         await async_db_session.commit()
 
-        participant = ConversationParticipant(
-            conversation_id=conversation.id, user_id=created_user.id
-        )
+        participant = ConversationParticipant(conversation_id=conversation.id, user_id=created_user.id)
         message = Message(
             sender_id=created_user.id,
             content="Test message",
@@ -247,26 +227,18 @@ class TestDatabaseConstraints:
 
         # Verify data exists before deletion
         participants_before = (
-            await async_db_session.execute(
-                select(ConversationParticipant).filter_by(conversation_id=conversation_id)
-            )
+            await async_db_session.execute(select(ConversationParticipant).filter_by(conversation_id=conversation_id))
         ).all()
         messages_before = (
-            await async_db_session.execute(
-                select(Message).filter_by(conversation_id=conversation_id)
-            )
+            await async_db_session.execute(select(Message).filter_by(conversation_id=conversation_id))
         ).all()
 
         assert len(participants_before) == 1
         assert len(messages_before) == 1
 
         # Manually delete related data
-        await async_db_session.execute(
-            delete(ConversationParticipant).filter_by(conversation_id=conversation_id)
-        )
-        await async_db_session.execute(
-            delete(Message).filter_by(conversation_id=conversation_id)
-        )
+        await async_db_session.execute(delete(ConversationParticipant).filter_by(conversation_id=conversation_id))
+        await async_db_session.execute(delete(Message).filter_by(conversation_id=conversation_id))
 
         # Delete conversation
         await async_db_session.delete(conversation)
@@ -274,19 +246,13 @@ class TestDatabaseConstraints:
 
         # Verify all related data is gone
         remaining_participants = (
-            await async_db_session.execute(
-                select(ConversationParticipant).filter_by(conversation_id=conversation_id)
-            )
+            await async_db_session.execute(select(ConversationParticipant).filter_by(conversation_id=conversation_id))
         ).all()
         remaining_messages = (
-            await async_db_session.execute(
-                select(Message).filter_by(conversation_id=conversation_id)
-            )
+            await async_db_session.execute(select(Message).filter_by(conversation_id=conversation_id))
         ).all()
         remaining_conversations = (
-            await async_db_session.execute(
-                select(Conversation).filter_by(id=conversation_id)
-            )
+            await async_db_session.execute(select(Conversation).filter_by(id=conversation_id))
         ).all()
 
         assert len(remaining_participants) == 0
@@ -330,6 +296,4 @@ class TestDatabaseConstraints:
 
 
 if __name__ == "__main__":
-    print(
-        "Database Constraints and Schema Validation Tests, tests/e2e/test_database_constraints.py"
-    )
+    print("Database Constraints and Schema Validation Tests, tests/e2e/test_database_constraints.py")

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Index
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -11,21 +11,15 @@ class MessageTranslation(Base):
     __tablename__ = "message_translation"
 
     id = Column(Integer, primary_key=True)
-    message_id = Column(
-        Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False
-    )
+    message_id = Column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False)
     target_language = Column(String(5), nullable=False)
     content = Column(Text, nullable=False)
-    created_at = Column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     message = relationship("Message", back_populates="translations")
 
     __table_args__ = (
-        Index(
-            "idx_message_language_unique", "message_id", "target_language", unique=True
-        ),
+        Index("idx_message_language_unique", "message_id", "target_language", unique=True),
         Index("idx_message_translations", "message_id"),
         Index("idx_language_translations", "target_language"),
     )

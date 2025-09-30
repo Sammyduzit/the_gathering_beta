@@ -1,16 +1,18 @@
+import enum
+
 from sqlalchemy import (
+    CheckConstraint,
     Column,
-    Integer,
-    Enum,
-    Text,
     DateTime,
+    Enum,
     ForeignKey,
     Index,
-    CheckConstraint,
+    Integer,
+    Text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
+
 from app.core.database import Base
 
 
@@ -40,27 +42,19 @@ class Message(Base):
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True)
-    sender_id = Column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=False
-    )
+    sender_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
     content = Column(Text, nullable=False)
     message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
     sent_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
-    room_id = Column(
-        Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True
-    )
-    conversation_id = Column(
-        Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True
-    )
+    room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True)
 
     sender = relationship("User", back_populates="sent_messages")
     room = relationship("Room", back_populates="room_messages")
     conversation = relationship("Conversation", back_populates="messages")
 
-    translations = relationship(
-        "MessageTranslation", back_populates="message", lazy="dynamic"
-    )
+    translations = relationship("MessageTranslation", back_populates="message", lazy="dynamic")
 
     __table_args__ = (
         CheckConstraint(
@@ -77,11 +71,7 @@ class Message(Base):
         String representation of message.
         :return: Formatted message info
         """
-        target = (
-            f"room={self.room_id}"
-            if self.room_id
-            else f"conversation={self.conversation_id}"
-        )
+        target = f"room={self.room_id}" if self.room_id else f"conversation={self.conversation_id}"
         return f"<Message(id={self.id}, {target}, sender={self.sender_id})>"
 
     @property
@@ -110,4 +100,3 @@ class Message(Base):
             return {"type": "room", "id": self.room_id}
         else:
             return {"type": "conversation", "id": self.conversation_id}
-

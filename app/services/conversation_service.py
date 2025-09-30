@@ -1,12 +1,12 @@
 from fastapi import HTTPException, status
 
-from app.models.message import Message
 from app.models.conversation import Conversation
+from app.models.message import Message
 from app.models.user import User
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
-from app.repositories.user_repository import IUserRepository
 from app.repositories.room_repository import IRoomRepository
+from app.repositories.user_repository import IUserRepository
 from app.services.translation_service import TranslationService
 
 
@@ -58,13 +58,9 @@ class ConversationService:
                 detail="Group conversations require at least 1 other participant",
             )
 
-        participant_users = await self._validate_participants(
-            participant_usernames, current_user.current_room_id
-        )
+        participant_users = await self._validate_participants(participant_usernames, current_user.current_room_id)
 
-        all_participant_ids = [current_user.id] + [
-            user.id for user in participant_users
-        ]
+        all_participant_ids = [current_user.id] + [user.id for user in participant_users]
 
         if conversation_type == "private":
             return await self.conversation_repo.create_private_conversation(
@@ -77,9 +73,7 @@ class ConversationService:
                 participant_ids=all_participant_ids,
             )
 
-    async def send_message(
-        self, current_user: User, conversation_id: int, content: str
-    ) -> Message:
+    async def send_message(self, current_user: User, conversation_id: int, content: str) -> Message:
         """
         Send message to conversation with validation.
         :param current_user: User sending the message
@@ -89,9 +83,7 @@ class ConversationService:
         """
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
 
         if not await self.conversation_repo.is_participant(conversation_id, current_user.id):
             raise HTTPException(
@@ -123,11 +115,7 @@ class ConversationService:
             )
 
             if target_languages:
-                source_lang = (
-                    current_user.preferred_language.upper()
-                    if current_user.preferred_language
-                    else None
-                )
+                source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
 
                 await self.translation_service.translate_and_store_message(
                     message_id=message.id,
@@ -239,9 +227,7 @@ class ConversationService:
 
         return participant_users
 
-    async def _validate_conversation_access(
-        self, user_id: int, conversation_id: int
-    ) -> Conversation:
+    async def _validate_conversation_access(self, user_id: int, conversation_id: int) -> Conversation:
         """
         Validate conversation exists and user has access.
         :param user_id: User ID
@@ -250,9 +236,7 @@ class ConversationService:
         """
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
 
         if not await self.conversation_repo.is_participant(conversation_id, user_id):
             raise HTTPException(

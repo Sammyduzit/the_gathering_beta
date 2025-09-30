@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, status, Body
+from fastapi import APIRouter, Body, Depends, status
 
 from app.core.auth_dependencies import get_current_active_user
 from app.models.user import User
-from app.schemas.chat_schemas import ConversationCreate, MessageResponse, MessageCreate
+from app.schemas.chat_schemas import ConversationCreate, MessageCreate, MessageResponse
 from app.services.conversation_service import ConversationService
 from app.services.service_dependencies import get_conversation_service
 
@@ -111,6 +111,4 @@ async def get_conversation_participants(
     :param conversation_service: Service instance handling conversation logic
     :return: List of participant user dictionaries for the given conversation
     """
-    return await conversation_service.get_participants(
-        current_user=current_user, conversation_id=conversation_id
-    )
+    return await conversation_service.get_participants(current_user=current_user, conversation_id=conversation_id)

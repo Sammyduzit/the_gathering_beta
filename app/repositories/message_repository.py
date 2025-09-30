@@ -1,8 +1,9 @@
 import logging
 from abc import abstractmethod
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func, desc
+
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.message import Message, MessageType
 from app.models.user import User
@@ -15,23 +16,17 @@ class IMessageRepository(BaseRepository[Message]):
     """Abstract interface for Message repository."""
 
     @abstractmethod
-    async def create_room_message(
-        self, sender_id: int, room_id: int, content: str
-    ) -> Message:
+    async def create_room_message(self, sender_id: int, room_id: int, content: str) -> Message:
         """Create a room-wide message."""
         pass
 
     @abstractmethod
-    async def create_conversation_message(
-        self, sender_id: int, conversation_id: int, content: str
-    ) -> Message:
+    async def create_conversation_message(self, sender_id: int, conversation_id: int, content: str) -> Message:
         """Create a conversation message (private/group)."""
         pass
 
     @abstractmethod
-    async def get_room_messages(
-        self, room_id: int, page: int = 1, page_size: int = 50
-    ) -> tuple[list[Message], int]:
+    async def get_room_messages(self, room_id: int, page: int = 1, page_size: int = 50) -> tuple[list[Message], int]:
         """Get room messages with pagination."""
         pass
 
@@ -78,9 +73,7 @@ class MessageRepository(IMessageRepository):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def create_room_message(
-        self, sender_id: int, room_id: int, content: str
-    ) -> Message:
+    async def create_room_message(self, sender_id: int, room_id: int, content: str) -> Message:
         """Create a room-wide message."""
         new_message = Message(
             sender_id=sender_id,
@@ -95,9 +88,7 @@ class MessageRepository(IMessageRepository):
         await self.db.refresh(new_message)
         return new_message
 
-    async def create_conversation_message(
-        self, sender_id: int, conversation_id: int, content: str
-    ) -> Message:
+    async def create_conversation_message(self, sender_id: int, conversation_id: int, content: str) -> Message:
         """Create a conversation message (private/group)."""
         new_message = Message(
             sender_id=sender_id,
@@ -189,12 +180,7 @@ class MessageRepository(IMessageRepository):
 
     async def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
         """Get messages sent by a specific user."""
-        query = (
-            select(Message)
-            .where(Message.sender_id == user_id)
-            .order_by(desc(Message.sent_at))
-            .limit(limit)
-        )
+        query = select(Message).where(Message.sender_id == user_id).order_by(desc(Message.sent_at)).limit(limit)
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
@@ -222,21 +208,16 @@ class MessageRepository(IMessageRepository):
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[Message]:
         """Get all messages with pagination."""
-        query = (
-            select(Message).limit(limit).offset(offset).order_by(desc(Message.sent_at))
-        )
+        query = select(Message).limit(limit).offset(offset).order_by(desc(Message.sent_at))
         result = await self.db.execute(query)
         return list(result.scalars().all())
-
 
     async def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
         """Delete old room messages, keeping only the most recent ones"""
         try:
             threshold_query = (
                 select(Message.sent_at)
-                .where(
-                    and_(Message.room_id == room_id, Message.conversation_id.is_(None))
-                )
+                .where(and_(Message.room_id == room_id, Message.conversation_id.is_(None)))
                 .order_by(Message.sent_at.desc())
                 .offset(keep_count - 1)
                 .limit(1)

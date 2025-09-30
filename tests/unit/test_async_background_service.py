@@ -9,8 +9,8 @@ from app.models.message_translation import MessageTranslation
 from tests.async_conftest import (
     async_background_service,
     async_mock_repositories,
-    sample_async_message,
     mock_translation_service,
+    sample_async_message,
 )
 
 
@@ -37,9 +37,7 @@ class TestAsyncBackgroundService:
 
         # Mock store translation
         mock_stored_translation = MessageTranslation(
-            message_id=sample_async_message.id,
-            content="Hallo Welt",
-            target_language="de"
+            message_id=sample_async_message.id, content="Hallo Welt", target_language="de"
         )
         async_mock_repositories["translation_repo"].store_translation.return_value = mock_stored_translation
 
@@ -47,7 +45,7 @@ class TestAsyncBackgroundService:
         result = await async_background_service.process_message_translation_background(
             message=sample_async_message,
             target_languages=target_languages,
-            room_translation_enabled=room_translation_enabled
+            room_translation_enabled=room_translation_enabled,
         )
 
         # Assert
@@ -73,7 +71,7 @@ class TestAsyncBackgroundService:
         result = await async_background_service.process_message_translation_background(
             message=sample_async_message,
             target_languages=target_languages,
-            room_translation_enabled=room_translation_enabled
+            room_translation_enabled=room_translation_enabled,
         )
 
         # Assert
@@ -89,9 +87,7 @@ class TestAsyncBackgroundService:
 
         # Mock existing translation found
         existing_translation = MessageTranslation(
-            message_id=sample_async_message.id,
-            content="Existing Hallo",
-            target_language="de"
+            message_id=sample_async_message.id, content="Existing Hallo", target_language="de"
         )
         async_mock_repositories["translation_repo"].get_by_message_and_language.return_value = existing_translation
 
@@ -102,7 +98,7 @@ class TestAsyncBackgroundService:
         result = await async_background_service.process_message_translation_background(
             message=sample_async_message,
             target_languages=target_languages,
-            room_translation_enabled=room_translation_enabled
+            room_translation_enabled=room_translation_enabled,
         )
 
         # Assert
@@ -124,17 +120,14 @@ class TestAsyncBackgroundService:
 
         # Mock translation service failure for first language, success for second
         mock_translate = AsyncMock()
-        mock_translate.side_effect = [
-            deepl.DeepLException("Translation API error"),
-            {"fr": "Bonjour"}
-        ]
+        mock_translate.side_effect = [deepl.DeepLException("Translation API error"), {"fr": "Bonjour"}]
         async_background_service.translation_service.translate_message_content = mock_translate
 
         # Act
         result = await async_background_service.process_message_translation_background(
             message=sample_async_message,
             target_languages=target_languages,
-            room_translation_enabled=room_translation_enabled
+            room_translation_enabled=room_translation_enabled,
         )
 
         # Assert
@@ -152,9 +145,7 @@ class TestAsyncBackgroundService:
 
         # Act
         result = await async_background_service.log_user_activity_background(
-            user_id=user_id,
-            activity_type=activity_type,
-            details=details
+            user_id=user_id, activity_type=activity_type, details=details
         )
 
         # Assert
@@ -168,8 +159,7 @@ class TestAsyncBackgroundService:
 
         # Act
         result = await async_background_service.log_user_activity_background(
-            user_id=user_id,
-            activity_type=activity_type
+            user_id=user_id, activity_type=activity_type
         )
 
         # Assert
@@ -184,9 +174,7 @@ class TestAsyncBackgroundService:
 
         # Act
         result = await async_background_service.notify_room_users_background(
-            room_id=room_id,
-            message=message,
-            exclude_user_ids=exclude_user_ids
+            room_id=room_id, message=message, exclude_user_ids=exclude_user_ids
         )
 
         # Assert
@@ -199,15 +187,12 @@ class TestAsyncBackgroundService:
         message = "Room announcement"
 
         # Act
-        result = await async_background_service.notify_room_users_background(
-            room_id=room_id,
-            message=message
-        )
+        result = await async_background_service.notify_room_users_background(room_id=room_id, message=message)
 
         # Assert
         assert result is None
 
-    @patch('app.services.background_service.logger')
+    @patch("app.services.background_service.logger")
     async def test_background_task_error_logging(self, mock_logger, async_background_service):
         """Test that background task errors are properly logged."""
         # Arrange
@@ -215,12 +200,11 @@ class TestAsyncBackgroundService:
         activity_type = "error_test"
 
         # Mock an exception in the background task
-        with patch.object(async_background_service, 'log_user_activity_background',
-                          side_effect=Exception("Test error")):
-
+        with patch.object(
+            async_background_service, "log_user_activity_background", side_effect=Exception("Test error")
+        ):
             # Act & Assert
             with pytest.raises(Exception):
                 await async_background_service.log_user_activity_background(
-                    user_id=user_id,
-                    activity_type=activity_type
+                    user_id=user_id, activity_type=activity_type
                 )

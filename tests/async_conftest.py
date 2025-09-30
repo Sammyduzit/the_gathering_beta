@@ -1,38 +1,33 @@
+import asyncio
+from datetime import datetime
+from unittest.mock import AsyncMock, Mock
+
 import pytest
 import pytest_asyncio
-import asyncio
-from unittest.mock import AsyncMock, Mock
-from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
+from app.models.conversation import Conversation, ConversationType
+from app.models.message import Message
+from app.models.room import Room
+from app.models.user import User, UserStatus
+from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService
 from app.services.room_service import RoomService
 from app.services.translation_service import TranslationService
-from app.services.background_service import BackgroundService
-from app.models.user import User, UserStatus
-from app.models.room import Room
-from app.models.conversation import Conversation, ConversationType
-from app.models.message import Message
 
 
 @pytest_asyncio.fixture
 async def async_db_session():
     """Create async database session for testing."""
     # Use in-memory SQLite with aiosqlite driver for async testing
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        poolclass=StaticPool,
-        echo=False
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool, echo=False)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    async_session_local = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session_local = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session_local() as session:
         yield session
@@ -64,6 +59,7 @@ async def mock_translation_service():
     mock.get_all_message_translations.return_value = {}
     mock.delete_message_translations.return_value = 0
     return mock
+
 
 @pytest_asyncio.fixture
 async def async_translation_service(async_mock_repositories):

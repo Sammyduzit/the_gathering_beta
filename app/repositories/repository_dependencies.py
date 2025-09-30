@@ -2,17 +2,17 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.repositories.user_repository import UserRepository, IUserRepository
-from app.repositories.room_repository import RoomRepository, IRoomRepository
-from app.repositories.message_repository import MessageRepository, IMessageRepository
-from app.repositories.message_translation_repository import (
-    MessageTranslationRepository,
-    IMessageTranslationRepository,
-)
 from app.repositories.conversation_repository import (
     ConversationRepository,
     IConversationRepository,
 )
+from app.repositories.message_repository import IMessageRepository, MessageRepository
+from app.repositories.message_translation_repository import (
+    IMessageTranslationRepository,
+    MessageTranslationRepository,
+)
+from app.repositories.room_repository import IRoomRepository, RoomRepository
+from app.repositories.user_repository import IUserRepository, UserRepository
 
 
 def get_user_repository(db: AsyncSession = Depends(get_db)) -> IUserRepository:

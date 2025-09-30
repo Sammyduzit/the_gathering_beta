@@ -1,13 +1,14 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
 import os
-import uvicorn
+from contextlib import asynccontextmanager
 
-from app.core.config import settings
-from app.core.database import create_tables, drop_tables
+import uvicorn
+from fastapi import FastAPI
+
+from app.api.v1.endpoints.auth_router import router as auth_router
 from app.api.v1.endpoints.conversation_router import router as conversation_router
 from app.api.v1.endpoints.room_router import router as rooms_router
-from app.api.v1.endpoints.auth_router import router as auth_router
+from app.core.config import settings
+from app.core.database import create_tables, drop_tables
 from testing_setup import setup_complete_test_environment
 
 

@@ -1,6 +1,7 @@
 from abc import abstractmethod
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 
 from app.models.message_translation import MessageTranslation
 from app.repositories.base_repository import BaseRepository
@@ -10,16 +11,12 @@ class IMessageTranslationRepository(BaseRepository[MessageTranslation]):
     """Abstract interface for MessageTranslation repository."""
 
     @abstractmethod
-    async def create_translation(
-        self, message_id: int, target_language: str, content: str
-    ) -> MessageTranslation:
+    async def create_translation(self, message_id: int, target_language: str, content: str) -> MessageTranslation:
         """Create a new message translation."""
         pass
 
     @abstractmethod
-    async def get_by_message_and_language(
-        self, message_id: int, target_language: str
-    ) -> MessageTranslation | None:
+    async def get_by_message_and_language(self, message_id: int, target_language: str) -> MessageTranslation | None:
         """Get translation for specific message and language."""
         pass
 
@@ -34,9 +31,7 @@ class IMessageTranslationRepository(BaseRepository[MessageTranslation]):
         pass
 
     @abstractmethod
-    async def bulk_create_translations(
-        self, translations: list[MessageTranslation]
-    ) -> list[MessageTranslation]:
+    async def bulk_create_translations(self, translations: list[MessageTranslation]) -> list[MessageTranslation]:
         """Create multiple translations in one transaction."""
         pass
 
@@ -57,9 +52,7 @@ class MessageTranslationRepository(IMessageTranslationRepository):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def create_translation(
-        self, message_id: int, target_language: str, content: str
-    ) -> MessageTranslation:
+    async def create_translation(self, message_id: int, target_language: str, content: str) -> MessageTranslation:
         """Create a new message translation."""
         new_translation = MessageTranslation(
             message_id=message_id,
@@ -72,9 +65,7 @@ class MessageTranslationRepository(IMessageTranslationRepository):
         await self.db.refresh(new_translation)
         return new_translation
 
-    async def get_by_message_and_language(
-        self, message_id: int, target_language: str
-    ) -> MessageTranslation | None:
+    async def get_by_message_and_language(self, message_id: int, target_language: str) -> MessageTranslation | None:
         """Get translation for specific message and language."""
         query = select(MessageTranslation).where(
             and_(
@@ -108,9 +99,7 @@ class MessageTranslationRepository(IMessageTranslationRepository):
 
         return deleted_count
 
-    async def bulk_create_translations(
-        self, translations: list[MessageTranslation]
-    ) -> list[MessageTranslation]:
+    async def bulk_create_translations(self, translations: list[MessageTranslation]) -> list[MessageTranslation]:
         """Create multiple translations in one transaction."""
         if not translations:
             return []
@@ -134,12 +123,7 @@ class MessageTranslationRepository(IMessageTranslationRepository):
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[MessageTranslation]:
         """Get all message translations with pagination."""
-        query = (
-            select(MessageTranslation)
-            .limit(limit)
-            .offset(offset)
-            .order_by(MessageTranslation.created_at.desc())
-        )
+        query = select(MessageTranslation).limit(limit).offset(offset).order_by(MessageTranslation.created_at.desc())
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
