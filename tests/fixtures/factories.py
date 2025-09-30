@@ -189,7 +189,7 @@ class ConversationFactory(BaseFactory):
     ) -> Conversation:
         """Create private conversation between users."""
         private_defaults = {
-            "conversation_type": ConversationType.PRIVATE_CHAT,
+            "conversation_type": ConversationType.PRIVATE,
             "max_participants": 2,
         }
         return await cls.create(session, **private_defaults, **overrides)
@@ -203,7 +203,7 @@ class ConversationFactory(BaseFactory):
     ) -> Conversation:
         """Create group conversation."""
         group_defaults = {
-            "conversation_type": ConversationType.GROUP_CHAT,
+            "conversation_type": ConversationType.GROUP,
             "max_participants": max_participants,
         }
         return await cls.create(session, **group_defaults, **overrides)
