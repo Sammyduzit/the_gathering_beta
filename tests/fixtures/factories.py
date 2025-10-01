@@ -155,12 +155,18 @@ class ConversationFactory(BaseFactory):
 
     @classmethod
     def get_defaults(cls) -> Dict[str, Any]:
-        """Default values for Conversation creation."""
+        """
+        Default values for Conversation creation.
+
+        NOTE: room_id is REQUIRED! Conversations exist within rooms.
+        Use helper methods like create_private_conversation() which handle room creation.
+        """
         return {
             "conversation_type": ConversationType.PRIVATE,
             "max_participants": 2,
             "is_active": True,
             "created_at": datetime.now(),
+            # room_id MUST be provided - conversations are always within a room
         }
 
     @classmethod
@@ -185,10 +191,20 @@ class ConversationFactory(BaseFactory):
     async def create_private_conversation(
         cls,
         session: AsyncSession,
+        room: Optional[Room] = None,
         **overrides
     ) -> Conversation:
-        """Create private conversation between users."""
+        """
+        Create private conversation within a room.
+
+        Conversations are always bound to a room - users have private chats
+        within the context of a room they're both in.
+        """
+        if room is None:
+            room = await RoomFactory.create(session)
+
         private_defaults = {
+            "room_id": room.id,
             "conversation_type": ConversationType.PRIVATE,
             "max_participants": 2,
         }
@@ -198,11 +214,20 @@ class ConversationFactory(BaseFactory):
     async def create_group_conversation(
         cls,
         session: AsyncSession,
+        room: Optional[Room] = None,
         max_participants: int = 5,
         **overrides
     ) -> Conversation:
-        """Create group conversation."""
+        """
+        Create group conversation within a room.
+
+        Group chats are small circles within a room.
+        """
+        if room is None:
+            room = await RoomFactory.create(session)
+
         group_defaults = {
+            "room_id": room.id,
             "conversation_type": ConversationType.GROUP,
             "max_participants": max_participants,
         }
@@ -220,8 +245,6 @@ class MessageFactory(BaseFactory):
         return {
             "content": "Test message content",
             "sent_at": datetime.now(),
-            "is_edited": False,
-            "reply_to_id": None,
         }
 
     @classmethod

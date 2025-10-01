@@ -104,13 +104,12 @@ async def db_session(integration_engine):
     """
     Isolated database session for each integration test.
 
-    Each test gets a fresh transaction that is rolled back after the test,
-    ensuring no test data persists between tests.
+    Each test gets a fresh session. Factories handle their own commits.
+    Session is closed after test completes.
     """
     async with AsyncSession(integration_engine, expire_on_commit=False) as session:
-        async with session.begin():
-            yield session
-            # Rollback happens automatically at context exit
+        yield session
+        # Session cleanup happens automatically at context exit
 
 
 # ============================================================================
