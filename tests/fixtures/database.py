@@ -1,13 +1,17 @@
 """
 Database setup strategies for different test types.
 
+Modernized for pytest-asyncio 1.2.0 (October 2025)
+- No event_loop fixture (removed in 1.x)
+- Uses loop_scope parameter instead
+- Function-scoped as default for maximum isolation
+
 This module provides clean abstractions for database configuration across
 unit, integration, and E2E tests with proper isolation and cleanup.
 """
 
 import os
 from enum import Enum
-from typing import AsyncGenerator
 
 import pytest_asyncio
 from sqlalchemy import event
@@ -103,66 +107,9 @@ def create_test_engine(strategy: DatabaseStrategy) -> AsyncEngine:
     return engine
 
 
-@pytest_asyncio.fixture(scope="session")
-async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
-    """
-    Create test database engine for the entire test session.
-
-    This fixture automatically selects the appropriate database strategy
-    based on environment variables and test type.
-    """
-    strategy = DatabaseStrategy.from_env()
-    engine = create_test_engine(strategy)
-
-    try:
-        yield engine
-    finally:
-        await engine.dispose()
-
-
-@pytest_asyncio.fixture(scope="session")
-async def test_schema(test_engine: AsyncEngine) -> AsyncGenerator[None, None]:
-    """
-    Create database schema once per test session.
-
-    For SQLite: Creates schema for each engine (in-memory)
-    For PostgreSQL: Creates schema once and cleans up after session
-    """
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    yield
-
-    # Only drop tables for PostgreSQL (SQLite is in-memory)
-    strategy = DatabaseStrategy.from_env()
-    if strategy.is_postgresql:
-        async with test_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session(test_engine: AsyncEngine, test_schema) -> AsyncGenerator[AsyncSession, None]:
-    """
-    Create isolated database session for each test with automatic cleanup.
-
-    This fixture provides transaction isolation - each test gets a fresh
-    transaction that is automatically rolled back after the test completes.
-    """
-    session_maker = async_sessionmaker(
-        test_engine,
-        class_=AsyncSession,
-        expire_on_commit=False
-    )
-
-    async with session_maker() as session:
-        # Start a transaction for test isolation
-        transaction = await session.begin()
-
-        try:
-            yield session
-        finally:
-            # Always rollback to ensure clean state
-            await transaction.rollback()
+# NOTE: These generic fixtures are no longer used
+# Each test type (unit/integration/e2e) defines its own fixtures in conftest.py
+# This provides better Separation of Concerns and clarity
 
 
 def create_test_session(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

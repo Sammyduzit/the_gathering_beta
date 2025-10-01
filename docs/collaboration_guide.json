@@ -102,6 +102,17 @@
       ]
     },
 
+    "token_usage_transparency": {
+      "importance": "Critical - Sam wants visibility into token consumption",
+      "best_practices": [
+        "Report token usage at major checkpoints (e.g., 'Token usage: 92k/200k')",
+        "Give heads-up when approaching 100k+ tokens",
+        "Mention token count before committing large changes",
+        "Help Sam track conversation cost and progress"
+      ],
+      "rationale": "Allows Sam to make informed decisions about when to commit and start new sessions"
+    },
+
     "documentation": {
       "code_comments": "Explain complex logic and business rules",
       "docstrings": "All public functions and classes",
@@ -150,7 +161,8 @@
       "progress_communication": "Regular todo list updates provide good visibility",
       "quality_checks": "Testing syntax in venv before proceeding prevents issues",
       "decision_points": "Sam appreciates being asked about architectural approaches rather than assumptions",
-      "documentation": "Comprehensive roadmaps and progress tracking are valued"
+      "documentation": "Comprehensive roadmaps and progress tracking are valued",
+      "token_transparency": "Sam appreciates knowing token usage - helps him decide when to commit/continue"
     },
 
     "lessons_learned": {

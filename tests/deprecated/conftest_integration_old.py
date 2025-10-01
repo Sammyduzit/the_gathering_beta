@@ -1,30 +1,31 @@
 """
 Integration test fixtures with PostgreSQL and real services.
 
-Modernized for pytest-asyncio 1.2.0 (October 2025):
-- No event_loop fixture (removed in 1.x)
-- Uses loop_scope="function" for all fixtures
-- NullPool for PostgreSQL (prevents asyncpg event loop binding issues)
-
 Integration tests verify:
 - Real database operations with PostgreSQL
-- Database constraints and transactions
 - Real service interactions
-- NO HTTP layer (use E2E tests for that)
+- Database constraints and transactions
+- NO HTTP layer (use e2e tests for that)
 
-Scope Strategy:
-- All fixtures: function-scoped (maximum isolation)
-- Engine: NullPool (no connection pooling, prevents asyncpg issues)
-- Session: Transaction rollback (test isolation)
+Architecture (Learned from asyncpg + pytest-asyncio issues):
+- event_loop: function-scoped (pytest-asyncio creates new loop per test anyway)
+- engine: function-scoped with NullPool (prevents asyncpg event loop binding errors)
+- db_session: function-scoped with transaction rollback (test isolation)
+
+Why NullPool?
+- asyncpg connection pools bind to a specific event loop
+- pytest-asyncio creates a new loop per test (even with session-scoped fixtures)
+- NullPool = no pooling = fresh connection per test = no event loop conflicts
+- Performance is acceptable for integration tests (< 30s total)
 """
 
 import os
 from concurrent.futures import ThreadPoolExecutor
+from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.config import settings
 from app.core.database import Base
@@ -39,10 +40,12 @@ from app.services.conversation_service import ConversationService
 from app.services.room_service import RoomService
 from app.services.translation_service import TranslationService
 from tests.fixtures import (
-    ConversationFactory,
-    MessageFactory,
-    RoomFactory,
     UserFactory,
+    RoomFactory,
+    MessageFactory,
+    ConversationFactory,
+    DatabaseStrategy,
+    create_test_engine,
 )
 
 # Force integration test environment
@@ -50,42 +53,19 @@ os.environ["TEST_TYPE"] = "integration"
 
 
 # ============================================================================
-# Database Fixtures (PostgreSQL with NullPool)
+# Database Fixtures
 # ============================================================================
 
-
-@pytest_asyncio.fixture(loop_scope="function")
-async def integration_engine():
+@pytest_asyncio.fixture(scope="function")
+async def integration_engine() -> AsyncGenerator[AsyncEngine, None]:
     """
-    PostgreSQL engine for integration tests.
+    PostgreSQL engine for each integration test.
 
     Uses NullPool to prevent asyncpg event loop binding issues.
     Schema is created/dropped per test for complete isolation.
     """
-    # Validate PostgreSQL is configured
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    if not DATABASE_URL:
-        pytest.skip(
-            "Integration tests require DATABASE_URL environment variable.\n"
-            "Set DATABASE_URL in .env.test or environment:\n"
-            "  DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/the_gathering_test"
-        )
-
-    if not DATABASE_URL.startswith(("postgresql://", "postgresql+asyncpg://")):
-        pytest.skip(
-            f"Integration tests require PostgreSQL, got: {DATABASE_URL}\n"
-            "Unit tests use SQLite, Integration tests need PostgreSQL for production parity."
-        )
-
-    # Convert postgresql:// to postgresql+asyncpg:// if needed
-    if DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+asyncpg://"):
-        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-
-    engine = create_async_engine(
-        DATABASE_URL,
-        poolclass=NullPool,  # Essential for pytest + asyncpg
-        echo=False,
-    )
+    strategy = DatabaseStrategy.INTEGRATION
+    engine = create_test_engine(strategy)  # Uses NullPool from database.py
 
     # Create schema
     async with engine.begin() as conn:
@@ -99,24 +79,33 @@ async def integration_engine():
     await engine.dispose()
 
 
-@pytest_asyncio.fixture
-async def db_session(integration_engine):
+@pytest_asyncio.fixture(scope="function")
+async def db_session(integration_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
     """
-    Isolated database session for each integration test.
+    Isolated database session with automatic transaction rollback.
 
     Each test gets a fresh transaction that is rolled back after the test,
     ensuring no test data persists between tests.
     """
-    async with AsyncSession(integration_engine, expire_on_commit=False) as session:
-        async with session.begin():
+    session_maker = async_sessionmaker(
+        integration_engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+
+    async with session_maker() as session:
+        transaction = await session.begin()
+        try:
             yield session
-            # Rollback happens automatically at context exit
+        finally:
+            # Rollback if transaction is still active
+            if transaction.is_active:
+                await transaction.rollback()
 
 
 # ============================================================================
 # Repository Fixtures (Real Implementations)
 # ============================================================================
-
 
 @pytest_asyncio.fixture
 async def user_repo(db_session):
@@ -152,7 +141,6 @@ async def message_translation_repo(db_session):
 # Service Fixtures (Real Implementations)
 # ============================================================================
 
-
 @pytest_asyncio.fixture
 async def deepl_translator():
     """
@@ -183,14 +171,7 @@ async def translation_service(deepl_translator, message_repo, message_translatio
 
 
 @pytest_asyncio.fixture
-async def room_service(
-    room_repo,
-    user_repo,
-    message_repo,
-    conversation_repo,
-    message_translation_repo,
-    translation_service,
-):
+async def room_service(room_repo, user_repo, message_repo, conversation_repo, message_translation_repo, translation_service):
     """Real RoomService with all real dependencies."""
     return RoomService(
         room_repo=room_repo,
@@ -227,26 +208,25 @@ async def background_service(translation_service, message_translation_repo):
 # Factory Fixtures
 # ============================================================================
 
-
-@pytest.fixture
-def user_factory():
+@pytest_asyncio.fixture
+async def user_factory():
     """User factory for creating test users in PostgreSQL."""
     return UserFactory
 
 
-@pytest.fixture
-def room_factory():
+@pytest_asyncio.fixture
+async def room_factory():
     """Room factory for creating test rooms in PostgreSQL."""
     return RoomFactory
 
 
-@pytest.fixture
-def message_factory():
+@pytest_asyncio.fixture
+async def message_factory():
     """Message factory for creating test messages in PostgreSQL."""
     return MessageFactory
 
 
-@pytest.fixture
-def conversation_factory():
+@pytest_asyncio.fixture
+async def conversation_factory():
     """Conversation factory for creating test conversations in PostgreSQL."""
     return ConversationFactory
