@@ -20,7 +20,7 @@ class TestRoomWorkflows:
         """Test admin successfully creates a room."""
         # Act
         response = await async_client.post(
-            "/api/v1/rooms",
+            "/api/v1/rooms/",
             headers=authenticated_admin_headers,
             json={
                 "name": "Test Room",
@@ -30,12 +30,11 @@ class TestRoomWorkflows:
         )
 
         # Assert
-        assert response.status_code in [201, 307]  # Created or redirect
-        if response.status_code == 201:
-            data = response.json()
-            assert data["name"] == "Test Room"
-            assert data["max_users"] == 10
-            assert "id" in data
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "Test Room"
+        assert data["max_users"] == 10
+        assert "id" in data
 
     async def test_regular_user_cannot_create_room(
         self, async_client, authenticated_user_headers
@@ -43,7 +42,7 @@ class TestRoomWorkflows:
         """Test regular user cannot create rooms."""
         # Act
         response = await async_client.post(
-            "/api/v1/rooms",
+            "/api/v1/rooms/",
             headers=authenticated_user_headers,
             json={
                 "name": "Unauthorized Room",
@@ -52,27 +51,25 @@ class TestRoomWorkflows:
             },
         )
 
-        # Assert - Should be forbidden or redirected
-        assert response.status_code in [403, 307]
+        # Assert - Should be forbidden
+        assert response.status_code == 403
 
     async def test_get_all_rooms(self, async_client, authenticated_user_headers, created_room):
         """Test getting list of all rooms."""
         # Act
         response = await async_client.get(
-            "/api/v1/rooms",
+            "/api/v1/rooms/",
             headers=authenticated_user_headers,
-            follow_redirects=False,
         )
 
         # Assert
-        assert response.status_code in [200, 307]  # OK or redirect
-        if response.status_code == 200:
-            rooms = response.json()
-            assert isinstance(rooms, list)
-            assert len(rooms) >= 1
-            # Verify created_room is in list
-            room_names = [r["name"] for r in rooms]
-            assert "Test Room" in room_names
+        assert response.status_code == 200
+        rooms = response.json()
+        assert isinstance(rooms, list)
+        assert len(rooms) >= 1
+        # Verify created_room is in list
+        room_names = [r["name"] for r in rooms]
+        assert "Test Room" in room_names
 
     async def test_get_room_by_id(self, async_client, authenticated_user_headers, created_room):
         """Test getting specific room by ID."""
@@ -201,7 +198,7 @@ class TestRoomWorkflows:
         """Test complete room workflow: create -> join -> message -> leave."""
         # Step 1: Admin creates room
         create_response = await async_client.post(
-            "/api/v1/rooms",
+            "/api/v1/rooms/",
             headers=authenticated_admin_headers,
             json={
                 "name": "Workflow Room",
@@ -209,8 +206,6 @@ class TestRoomWorkflows:
                 "max_users": 5,
             },
         )
-        if create_response.status_code == 307:
-            pytest.skip("Room creation redirects - implementation detail")
 
         assert create_response.status_code == 201
         room_id = create_response.json()["id"]

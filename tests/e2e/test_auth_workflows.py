@@ -158,47 +158,39 @@ class TestAuthWorkflows:
         detail = response.json()["detail"].lower()
         assert "authent" in detail  # Matches "authenticated" or "authentication"
 
-    async def test_get_current_user_invalid_token(self, async_client):
-        """Test getting current user with invalid token fails."""
-        # Skip this test - JWT library raises exceptions for malformed tokens
-        # This is implementation detail, not critical E2E behavior
-        pytest.skip("JWT library raises DecodeError for malformed tokens - not critical for E2E")
-
     async def test_admin_permission_required(
         self, async_client, authenticated_user_headers, authenticated_admin_headers
     ):
         """Test that admin-only endpoints reject regular users."""
         # Act - Regular user tries to create room (admin-only)
         response = await async_client.post(
-            "/api/v1/rooms",
+            "/api/v1/rooms/",
             headers=authenticated_user_headers,
             json={
                 "name": "New Room",
                 "description": "Test room",
                 "max_users": 10,
             },
-            follow_redirects=False,
         )
 
-        # Assert - Regular user should be forbidden (403) or redirected (307)
-        assert response.status_code in [403, 307]
-        if response.status_code == 403:
-            assert "permission" in response.json()["detail"].lower()
+        # Assert - Regular user should be forbidden
+        assert response.status_code == 403
+        detail = response.json()["detail"].lower()
+        assert "admin" in detail or "permission" in detail
 
         # Act - Admin creates room
         admin_response = await async_client.post(
-            "/api/v1/rooms",
+            "/api/v1/rooms/",
             headers=authenticated_admin_headers,
             json={
                 "name": "Admin Room",
                 "description": "Admin-created room",
                 "max_users": 10,
             },
-            follow_redirects=False,
         )
 
-        # Assert - Admin should succeed (201) or redirect (307)
-        assert admin_response.status_code in [201, 307]
+        # Assert - Admin should succeed
+        assert admin_response.status_code == 201
 
     async def test_token_expiration_workflow(self, async_client, created_user):
         """Test complete authentication flow with token usage."""
