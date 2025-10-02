@@ -36,9 +36,7 @@ class TestRoomWorkflows:
         assert data["max_users"] == 10
         assert "id" in data
 
-    async def test_regular_user_cannot_create_room(
-        self, async_client, authenticated_user_headers
-    ):
+    async def test_regular_user_cannot_create_room(self, async_client, authenticated_user_headers):
         """Test regular user cannot create rooms."""
         # Act
         response = await async_client.post(
@@ -125,9 +123,7 @@ class TestRoomWorkflows:
         # Assert
         assert response.status_code in [200, 204]
 
-    async def test_send_message_to_room(
-        self, async_client, authenticated_user_headers, created_room
-    ):
+    async def test_send_message_to_room(self, async_client, authenticated_user_headers, created_room):
         """Test sending a message to a room."""
         # First join the room
         await async_client.post(
@@ -150,9 +146,7 @@ class TestRoomWorkflows:
         assert data["content"] == "Hello everyone in the room!"
         assert data["room_id"] == created_room.id
 
-    async def test_get_room_messages(
-        self, async_client, authenticated_user_headers, created_room
-    ):
+    async def test_get_room_messages(self, async_client, authenticated_user_headers, created_room):
         """Test getting messages from a room."""
         # Join room and send a message
         await async_client.post(
@@ -176,9 +170,7 @@ class TestRoomWorkflows:
         data = response.json()
         assert "messages" in data or isinstance(data, list)
 
-    async def test_send_message_without_joining_room(
-        self, async_client, authenticated_user_headers, created_room
-    ):
+    async def test_send_message_without_joining_room(self, async_client, authenticated_user_headers, created_room):
         """Test that user cannot send message without joining room."""
         # Act - Try to send message without joining
         response = await async_client.post(
@@ -192,9 +184,7 @@ class TestRoomWorkflows:
         # Assert - Should fail with 403 or 400
         assert response.status_code in [400, 403]
 
-    async def test_complete_room_workflow(
-        self, async_client, authenticated_admin_headers, authenticated_user_headers
-    ):
+    async def test_complete_room_workflow(self, async_client, authenticated_admin_headers, authenticated_user_headers):
         """Test complete room workflow: create -> join -> message -> leave."""
         # Step 1: Admin creates room
         create_response = await async_client.post(

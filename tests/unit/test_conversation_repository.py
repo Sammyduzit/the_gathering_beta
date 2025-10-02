@@ -7,17 +7,15 @@ and conversation queries using SQLite in-memory database.
 
 import pytest
 
-from app.repositories.conversation_repository import ConversationRepository
 from app.models.conversation import ConversationType
+from app.repositories.conversation_repository import ConversationRepository
 
 
 @pytest.mark.unit
 class TestConversationRepository:
     """Unit tests for ConversationRepository operations."""
 
-    async def test_create_private_conversation_success(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_create_private_conversation_success(self, db_session, user_factory, room_factory):
         """Test successful private conversation creation."""
         # Arrange
         repo = ConversationRepository(db_session)
@@ -26,9 +24,7 @@ class TestConversationRepository:
         user2 = await user_factory.create(db_session, username="user2")
 
         # Act
-        conversation = await repo.create_private_conversation(
-            room_id=room.id, participant_ids=[user1.id, user2.id]
-        )
+        conversation = await repo.create_private_conversation(room_id=room.id, participant_ids=[user1.id, user2.id])
 
         # Assert
         assert conversation.id is not None
@@ -37,9 +33,7 @@ class TestConversationRepository:
         assert conversation.max_participants == 2
         assert conversation.is_active is True
 
-    async def test_create_private_conversation_invalid_participant_count(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_create_private_conversation_invalid_participant_count(self, db_session, user_factory, room_factory):
         """Test private conversation creation with wrong number of participants."""
         # Arrange
         repo = ConversationRepository(db_session)
@@ -50,9 +44,7 @@ class TestConversationRepository:
         with pytest.raises(ValueError, match="exactly 2 participants"):
             await repo.create_private_conversation(room_id=room.id, participant_ids=[user.id])
 
-    async def test_create_group_conversation_success(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_create_group_conversation_success(self, db_session, user_factory, room_factory):
         """Test successful group conversation creation."""
         # Arrange
         repo = ConversationRepository(db_session)
@@ -73,9 +65,7 @@ class TestConversationRepository:
         assert conversation.max_participants is None
         assert conversation.is_active is True
 
-    async def test_create_group_conversation_invalid_participant_count(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_create_group_conversation_invalid_participant_count(self, db_session, user_factory, room_factory):
         """Test group conversation creation with too few participants."""
         # Arrange
         repo = ConversationRepository(db_session)
@@ -91,9 +81,7 @@ class TestConversationRepository:
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act
         found_conversation = await repo.get_by_id(conversation.id)
@@ -103,16 +91,12 @@ class TestConversationRepository:
         assert found_conversation.id == conversation.id
         assert found_conversation.room_id == room.id
 
-    async def test_get_by_id_inactive_conversation(
-        self, db_session, room_factory, conversation_factory
-    ):
+    async def test_get_by_id_inactive_conversation(self, db_session, room_factory, conversation_factory):
         """Test that inactive conversations are not returned by get_by_id."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room, is_active=False
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room, is_active=False)
 
         # Act
         found_conversation = await repo.get_by_id(conversation.id)
@@ -120,16 +104,12 @@ class TestConversationRepository:
         # Assert
         assert found_conversation is None
 
-    async def test_add_participant_success(
-        self, db_session, user_factory, room_factory, conversation_factory
-    ):
+    async def test_add_participant_success(self, db_session, user_factory, room_factory, conversation_factory):
         """Test adding participant to conversation."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_group_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_group_conversation(db_session, room=room)
         new_user = await user_factory.create(db_session, username="newuser")
 
         # Act
@@ -141,34 +121,26 @@ class TestConversationRepository:
         assert participant.user_id == new_user.id
         assert participant.left_at is None
 
-    async def test_add_participant_duplicate(
-        self, db_session, user_factory, room_factory, conversation_factory
-    ):
+    async def test_add_participant_duplicate(self, db_session, user_factory, room_factory, conversation_factory):
         """Test adding duplicate participant raises error."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
         user = await user_factory.create(db_session)
-        conversation = await conversation_factory.create_group_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_group_conversation(db_session, room=room)
         await repo.add_participant(conversation.id, user.id)
 
         # Act & Assert
         with pytest.raises(ValueError, match="already a participant"):
             await repo.add_participant(conversation.id, user.id)
 
-    async def test_remove_participant_success(
-        self, db_session, user_factory, room_factory, conversation_factory
-    ):
+    async def test_remove_participant_success(self, db_session, user_factory, room_factory, conversation_factory):
         """Test removing participant from conversation."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
         user = await user_factory.create(db_session)
-        conversation = await conversation_factory.create_group_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_group_conversation(db_session, room=room)
         await repo.add_participant(conversation.id, user.id)
 
         # Act
@@ -186,9 +158,7 @@ class TestConversationRepository:
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act
         result = await repo.remove_participant(conversation.id, 99999)
@@ -196,17 +166,13 @@ class TestConversationRepository:
         # Assert
         assert result is False
 
-    async def test_is_participant_true(
-        self, db_session, user_factory, room_factory, conversation_factory
-    ):
+    async def test_is_participant_true(self, db_session, user_factory, room_factory, conversation_factory):
         """Test participant check when user is participant."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
         user = await user_factory.create(db_session)
-        conversation = await conversation_factory.create_group_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_group_conversation(db_session, room=room)
         await repo.add_participant(conversation.id, user.id)
 
         # Act
@@ -220,9 +186,7 @@ class TestConversationRepository:
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act
         is_participant = await repo.is_participant(conversation.id, 99999)
@@ -230,18 +194,14 @@ class TestConversationRepository:
         # Assert
         assert is_participant is False
 
-    async def test_get_participants(
-        self, db_session, user_factory, room_factory, conversation_factory
-    ):
+    async def test_get_participants(self, db_session, user_factory, room_factory, conversation_factory):
         """Test retrieving all participants in conversation."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
         user1 = await user_factory.create(db_session, username="user1")
         user2 = await user_factory.create(db_session, username="user2")
-        conversation = await conversation_factory.create_group_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_group_conversation(db_session, room=room)
         await repo.add_participant(conversation.id, user1.id)
         await repo.add_participant(conversation.id, user2.id)
 
@@ -254,9 +214,7 @@ class TestConversationRepository:
         assert user1.id in participant_ids
         assert user2.id in participant_ids
 
-    async def test_get_user_conversations(
-        self, db_session, user_factory, room_factory, conversation_factory
-    ):
+    async def test_get_user_conversations(self, db_session, user_factory, room_factory, conversation_factory):
         """Test retrieving all conversations for a user."""
         # Arrange
         repo = ConversationRepository(db_session)
@@ -280,9 +238,7 @@ class TestConversationRepository:
         assert conv1.id in conversation_ids
         assert conv2.id in conversation_ids
 
-    async def test_get_room_conversations(
-        self, db_session, room_factory, conversation_factory
-    ):
+    async def test_get_room_conversations(self, db_session, room_factory, conversation_factory):
         """Test retrieving all conversations in a room."""
         # Arrange
         repo = ConversationRepository(db_session)
@@ -303,16 +259,12 @@ class TestConversationRepository:
         assert conv1.id in conversation_ids
         assert conv2.id in conversation_ids
 
-    async def test_update_conversation_success(
-        self, db_session, room_factory, conversation_factory
-    ):
+    async def test_update_conversation_success(self, db_session, room_factory, conversation_factory):
         """Test successful conversation update."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_group_conversation(
-            db_session, room=room, max_participants=5
-        )
+        conversation = await conversation_factory.create_group_conversation(db_session, room=room, max_participants=5)
 
         # Act
         conversation.max_participants = 10
@@ -325,16 +277,12 @@ class TestConversationRepository:
         found_conversation = await repo.get_by_id(conversation.id)
         assert found_conversation.max_participants == 10
 
-    async def test_soft_delete_conversation_success(
-        self, db_session, room_factory, conversation_factory
-    ):
+    async def test_soft_delete_conversation_success(self, db_session, room_factory, conversation_factory):
         """Test successful conversation soft deletion."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
         conversation_id = conversation.id
 
         # Act
@@ -347,16 +295,12 @@ class TestConversationRepository:
         found_conversation = await repo.get_by_id(conversation_id)
         assert found_conversation is None
 
-    async def test_exists_conversation_true(
-        self, db_session, room_factory, conversation_factory
-    ):
+    async def test_exists_conversation_true(self, db_session, room_factory, conversation_factory):
         """Test conversation existence check when conversation exists."""
         # Arrange
         repo = ConversationRepository(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act
         exists = await repo.exists(conversation.id)

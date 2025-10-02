@@ -134,9 +134,7 @@ class TestAuthWorkflows:
         detail = response.json()["detail"].lower()
         assert "invalid" in detail or "incorrect" in detail
 
-    async def test_get_current_user_authenticated(
-        self, async_client, authenticated_user_headers, created_user
-    ):
+    async def test_get_current_user_authenticated(self, async_client, authenticated_user_headers, created_user):
         """Test getting current user with valid token."""
         # Act
         response = await async_client.get("/api/v1/auth/me", headers=authenticated_user_headers)

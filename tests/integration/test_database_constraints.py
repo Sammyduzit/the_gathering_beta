@@ -51,9 +51,7 @@ class TestDatabaseConstraints:
         # Arrange
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act & Assert - both set violates XOR constraint
         message = Message(
@@ -69,9 +67,7 @@ class TestDatabaseConstraints:
 
         await db_session.rollback()
 
-    async def test_message_xor_constraint_room_only_succeeds(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_message_xor_constraint_room_only_succeeds(self, db_session, user_factory, room_factory):
         """Test XOR constraint succeeds with room_id set, conversation_id NULL."""
         # Arrange
         user = await user_factory.create(db_session)
@@ -99,9 +95,7 @@ class TestDatabaseConstraints:
         # Arrange
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act
         message = Message(
@@ -169,9 +163,7 @@ class TestDatabaseConstraints:
 
         await db_session.rollback()
 
-    async def test_foreign_key_constraint_invalid_conversation_id(
-        self, db_session, user_factory
-    ):
+    async def test_foreign_key_constraint_invalid_conversation_id(self, db_session, user_factory):
         """Test foreign key constraint fails with invalid conversation_id."""
         # Arrange
         user = await user_factory.create(db_session)
@@ -196,9 +188,7 @@ class TestDatabaseConstraints:
         # Arrange
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Create messages using factory to ensure proper commit
         message1 = await message_factory.create_conversation_message(
@@ -214,22 +204,16 @@ class TestDatabaseConstraints:
         # Act - Delete conversation (CASCADE should delete messages)
         # Use raw SQL to delete conversation to trigger CASCADE
         from sqlalchemy import text
-        await db_session.execute(
-            text("DELETE FROM conversations WHERE id = :conv_id"),
-            {"conv_id": conversation.id}
-        )
+
+        await db_session.execute(text("DELETE FROM conversations WHERE id = :conv_id"), {"conv_id": conversation.id})
         await db_session.commit()
 
         # Assert - Messages should be deleted due to CASCADE
-        result = await db_session.execute(
-            select(Message).where(Message.id.in_([message1_id, message2_id]))
-        )
+        result = await db_session.execute(select(Message).where(Message.id.in_([message1_id, message2_id])))
         deleted_messages = result.scalars().all()
         assert len(deleted_messages) == 0
 
-    async def test_set_null_on_delete_room_message(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_set_null_on_delete_room_message(self, db_session, user_factory, room_factory):
         """Test SET NULL: deleting room sets message.room_id to NULL (but keeps message)."""
         # Arrange
         user = await user_factory.create(db_session)
@@ -242,7 +226,6 @@ class TestDatabaseConstraints:
         )
         db_session.add(message)
         await db_session.commit()
-        message_id = message.id
 
         # Act - Delete room (SET NULL should keep message but set room_id to NULL)
         await db_session.delete(room)

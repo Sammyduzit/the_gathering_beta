@@ -34,9 +34,7 @@ class TestTransactions:
         await db_session.commit()
 
         # Assert - verify user persisted
-        result = await db_session.execute(
-            select(User).where(User.username == "testuser")
-        )
+        result = await db_session.execute(select(User).where(User.username == "testuser"))
         persisted_user = result.scalar_one_or_none()
         assert persisted_user is not None
         assert persisted_user.email == "test@example.com"
@@ -58,22 +56,16 @@ class TestTransactions:
         await db_session.rollback()
 
         # Assert - second user should NOT exist
-        result = await db_session.execute(
-            select(User).where(User.email == "different@example.com")
-        )
+        result = await db_session.execute(select(User).where(User.email == "different@example.com"))
         failed_user = result.scalar_one_or_none()
         assert failed_user is None
 
         # Original user should still exist
-        result = await db_session.execute(
-            select(User).where(User.username == "user1")
-        )
+        result = await db_session.execute(select(User).where(User.username == "user1"))
         original_user = result.scalar_one_or_none()
         assert original_user is not None
 
-    async def test_transaction_isolation_read_uncommitted(
-        self, integration_engine, user_factory
-    ):
+    async def test_transaction_isolation_read_uncommitted(self, integration_engine, user_factory):
         """Test that uncommitted changes are not visible in other sessions."""
         from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -85,9 +77,7 @@ class TestTransactions:
 
             # Session 2: Try to read uncommitted user
             async with AsyncSession(integration_engine) as session2:
-                result = await session2.execute(
-                    select(User).where(User.username == "pending")
-                )
+                result = await session2.execute(select(User).where(User.username == "pending"))
                 uncommitted_user = result.scalar_one_or_none()
 
                 # Should NOT see uncommitted changes (READ COMMITTED isolation)
@@ -113,18 +103,14 @@ class TestTransactions:
         await db_session.commit()
 
         # Assert - All messages should exist
-        result = await db_session.execute(
-            select(Message).where(Message.room_id == room.id)
-        )
+        result = await db_session.execute(select(Message).where(Message.room_id == room.id))
         messages = result.scalars().all()
         assert len(messages) == 3
 
-    async def test_transaction_partial_rollback(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_transaction_partial_rollback(self, db_session, user_factory, room_factory):
         """Test rollback only affects uncommitted changes."""
         # Arrange - Create and commit first user
-        user1 = await user_factory.create(db_session, username="committed_user")
+        await user_factory.create(db_session, username="committed_user")
 
         # Act - Create second user but rollback
         user2 = user_factory.build(username="rolled_back_user")
@@ -132,16 +118,12 @@ class TestTransactions:
         await db_session.rollback()
 
         # Assert - First user still exists
-        result = await db_session.execute(
-            select(User).where(User.username == "committed_user")
-        )
+        result = await db_session.execute(select(User).where(User.username == "committed_user"))
         committed_user = result.scalar_one_or_none()
         assert committed_user is not None
 
         # Second user should NOT exist
-        result = await db_session.execute(
-            select(User).where(User.username == "rolled_back_user")
-        )
+        result = await db_session.execute(select(User).where(User.username == "rolled_back_user"))
         rolled_back_user = result.scalar_one_or_none()
         assert rolled_back_user is None
 
@@ -161,9 +143,7 @@ class TestTransactions:
         await db_session.rollback()
 
         # Assert - User should NOT persist
-        result = await db_session.execute(
-            select(User).where(User.username == "flushed")
-        )
+        result = await db_session.execute(select(User).where(User.username == "flushed"))
         flushed_user = result.scalar_one_or_none()
         assert flushed_user is None
 
@@ -193,9 +173,7 @@ class TestTransactions:
         result = await db_session.execute(select(User).where(User.username == "user2"))
         assert result.scalar_one_or_none() is None
 
-    async def test_concurrent_insert_same_unique_field(
-        self, integration_engine, user_factory
-    ):
+    async def test_concurrent_insert_same_unique_field(self, integration_engine, user_factory):
         """Test concurrent inserts with unique constraint."""
         from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -213,26 +191,19 @@ class TestTransactions:
 
         # Act - Try to create same username concurrently
         import asyncio
-        results = await asyncio.gather(
-            create_user("concurrent"),
-            create_user("concurrent"),
-            return_exceptions=True
-        )
+
+        results = await asyncio.gather(create_user("concurrent"), create_user("concurrent"), return_exceptions=True)
 
         # Assert - Only one should succeed
         successes = sum(1 for r in results if r is True)
         assert successes == 1
 
-    async def test_transaction_delete_with_cascade(
-        self, db_session, user_factory, room_factory, conversation_factory
-    ):
+    async def test_transaction_delete_with_cascade(self, db_session, user_factory, room_factory, conversation_factory):
         """Test transaction with CASCADE delete behavior."""
         # Arrange
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Create messages
         message1 = Message(sender_id=user.id, conversation_id=conversation.id, content="Msg 1")
@@ -244,22 +215,16 @@ class TestTransactions:
 
         # Act - Delete conversation in transaction
         from sqlalchemy import text
-        await db_session.execute(
-            text("DELETE FROM conversations WHERE id = :id"),
-            {"id": conversation_id}
-        )
+
+        await db_session.execute(text("DELETE FROM conversations WHERE id = :id"), {"id": conversation_id})
         await db_session.commit()
 
         # Assert - Messages CASCADE deleted
-        result = await db_session.execute(
-            select(Message).where(Message.conversation_id == conversation_id)
-        )
+        result = await db_session.execute(select(Message).where(Message.conversation_id == conversation_id))
         messages = result.scalars().all()
         assert len(messages) == 0
 
-    async def test_transaction_isolation_dirty_read_prevented(
-        self, integration_engine, user_factory
-    ):
+    async def test_transaction_isolation_dirty_read_prevented(self, integration_engine, user_factory):
         """Test that dirty reads are prevented (READ COMMITTED isolation)."""
         from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -271,9 +236,7 @@ class TestTransactions:
 
         # Session 1: Update user but don't commit
         async with AsyncSession(integration_engine) as session1:
-            result = await session1.execute(
-                select(User).where(User.username == "dirty_read_test")
-            )
+            result = await session1.execute(select(User).where(User.username == "dirty_read_test"))
             user = result.scalar_one()
             original_email = user.email
 
@@ -282,9 +245,7 @@ class TestTransactions:
 
             # Session 2: Read same user
             async with AsyncSession(integration_engine) as session2:
-                result = await session2.execute(
-                    select(User).where(User.username == "dirty_read_test")
-                )
+                result = await session2.execute(select(User).where(User.username == "dirty_read_test"))
                 user_read = result.scalar_one()
 
                 # Should see original value, not uncommitted change
@@ -294,13 +255,8 @@ class TestTransactions:
             # Rollback session1
             await session1.rollback()
 
-    async def test_transaction_bulk_operations_atomic(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_transaction_bulk_operations_atomic(self, db_session, user_factory, room_factory):
         """Test bulk operations are atomic within transaction."""
-        # Arrange
-        room = await room_factory.create(db_session)
-
         # Act - Bulk create 10 users
         users = []
         for i in range(10):
@@ -311,15 +267,11 @@ class TestTransactions:
         await db_session.commit()
 
         # Assert - All 10 users should exist
-        result = await db_session.execute(
-            select(User).where(User.username.like("bulk_user_%"))
-        )
+        result = await db_session.execute(select(User).where(User.username.like("bulk_user_%")))
         created_users = result.scalars().all()
         assert len(created_users) == 10
 
-    async def test_transaction_rollback_resets_session_state(
-        self, db_session, user_factory
-    ):
+    async def test_transaction_rollback_resets_session_state(self, db_session, user_factory):
         """Test rollback resets session to clean state."""
         # Arrange
         user1 = user_factory.build(username="user1", email="user1@example.com")

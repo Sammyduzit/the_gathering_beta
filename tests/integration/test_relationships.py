@@ -12,7 +12,7 @@ These tests require PostgreSQL and test real ORM behavior.
 """
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.models.conversation import Conversation
@@ -26,9 +26,7 @@ from app.repositories.conversation_repository import ConversationRepository
 class TestRelationships:
     """Integration tests for SQLAlchemy relationships with PostgreSQL."""
 
-    async def test_user_sent_messages_relationship(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_user_sent_messages_relationship(self, db_session, user_factory, room_factory, message_factory):
         """Test User -> Messages (sent_messages) one-to-many relationship with dynamic lazy loading."""
         # Arrange
         user = await user_factory.create(db_session)
@@ -39,24 +37,13 @@ class TestRelationships:
         await message_factory.create_room_message(db_session, sender=user, room=room, content="Msg 2")
         await message_factory.create_room_message(db_session, sender=user, room=room, content="Msg 3")
 
-        # Act - Query via dynamic relationship (lazy="dynamic")
-        from sqlalchemy import func
-        result = await db_session.execute(
-            select(User).where(User.id == user.id)
-        )
-        user_loaded = result.scalar_one()
-
-        # Dynamic relationships return query object - count via SQL
-        messages_count = await db_session.scalar(
-            select(func.count(Message.id)).where(Message.sender_id == user.id)
-        )
+        # Act - Count messages via SQL (testing dynamic relationship behavior)
+        messages_count = await db_session.scalar(select(func.count(Message.id)).where(Message.sender_id == user.id))
 
         # Assert
         assert messages_count == 3
 
-    async def test_room_messages_relationship(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_room_messages_relationship(self, db_session, user_factory, room_factory, message_factory):
         """Test Room -> Messages (room_messages) one-to-many relationship with dynamic lazy loading."""
         # Arrange
         user = await user_factory.create(db_session)
@@ -68,9 +55,8 @@ class TestRelationships:
 
         # Act - Query messages count (lazy="dynamic" doesn't support eager loading)
         from sqlalchemy import func
-        messages_count = await db_session.scalar(
-            select(func.count(Message.id)).where(Message.room_id == room.id)
-        )
+
+        messages_count = await db_session.scalar(select(func.count(Message.id)).where(Message.room_id == room.id))
 
         # Assert
         assert messages_count == 2
@@ -82,9 +68,7 @@ class TestRelationships:
         # Arrange
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Create messages in conversation
         await message_factory.create_conversation_message(
@@ -96,6 +80,7 @@ class TestRelationships:
 
         # Act - Query messages count (lazy="dynamic")
         from sqlalchemy import func
+
         messages_count = await db_session.scalar(
             select(func.count(Message.id)).where(Message.conversation_id == conversation.id)
         )
@@ -103,16 +88,12 @@ class TestRelationships:
         # Assert
         assert messages_count == 2
 
-    async def test_message_sender_backref(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_message_sender_backref(self, db_session, user_factory, room_factory, message_factory):
         """Test Message -> User (sender) back-populates relationship."""
         # Arrange
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
-        message = await message_factory.create_room_message(
-            db_session, sender=user, room=room, content="Test message"
-        )
+        message = await message_factory.create_room_message(db_session, sender=user, room=room, content="Test message")
 
         # Act - Access sender through message
         result = await db_session.execute(
@@ -125,9 +106,7 @@ class TestRelationships:
         assert message_with_sender.sender.id == user.id
         assert message_with_sender.sender.username == user.username
 
-    async def test_user_current_room_relationship(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_user_current_room_relationship(self, db_session, user_factory, room_factory):
         """Test User -> Room (current_room) relationship."""
         # Arrange
         room = await room_factory.create(db_session, name="Test Room")
@@ -144,20 +123,16 @@ class TestRelationships:
         assert user_with_room.current_room.id == room.id
         assert user_with_room.current_room.name == "Test Room"
 
-    async def test_room_users_relationship(
-        self, db_session, user_factory, room_factory
-    ):
+    async def test_room_users_relationship(self, db_session, user_factory, room_factory):
         """Test Room -> Users (users) one-to-many relationship."""
         # Arrange
         room = await room_factory.create(db_session)
-        user1 = await user_factory.create(db_session, username="user1", current_room_id=room.id)
-        user2 = await user_factory.create(db_session, username="user2", current_room_id=room.id)
-        user3 = await user_factory.create(db_session, username="user3", current_room_id=room.id)
+        await user_factory.create(db_session, username="user1", current_room_id=room.id)
+        await user_factory.create(db_session, username="user2", current_room_id=room.id)
+        await user_factory.create(db_session, username="user3", current_room_id=room.id)
 
         # Act - Eager load room with users
-        result = await db_session.execute(
-            select(Room).where(Room.id == room.id).options(selectinload(Room.users))
-        )
+        result = await db_session.execute(select(Room).where(Room.id == room.id).options(selectinload(Room.users)))
         room_with_users = result.scalar_one()
 
         # Assert
@@ -179,9 +154,7 @@ class TestRelationships:
         user3 = await user_factory.create(db_session, username="user3")
 
         # Create group conversation
-        conversation = await conversation_factory.create_group_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_group_conversation(db_session, room=room)
 
         # Add participants
         await repo.add_participant(conversation.id, user1.id)
@@ -198,20 +171,16 @@ class TestRelationships:
         assert "user2" in participant_usernames
         assert "user3" in participant_usernames
 
-    async def test_conversation_room_relationship(
-        self, db_session, room_factory, conversation_factory
-    ):
+    async def test_conversation_room_relationship(self, db_session, room_factory, conversation_factory):
         """Test Conversation -> Room relationship (conversations within rooms)."""
         # Arrange
         room = await room_factory.create(db_session, name="Test Room")
-        conv1 = await conversation_factory.create_private_conversation(db_session, room=room)
-        conv2 = await conversation_factory.create_group_conversation(db_session, room=room)
+        await conversation_factory.create_private_conversation(db_session, room=room)
+        await conversation_factory.create_group_conversation(db_session, room=room)
 
         # Act - Load conversations with room eager loaded
         result = await db_session.execute(
-            select(Conversation)
-            .where(Conversation.room_id == room.id)
-            .options(selectinload(Conversation.room))
+            select(Conversation).where(Conversation.room_id == room.id).options(selectinload(Conversation.room))
         )
         conversations = result.scalars().all()
 
@@ -220,9 +189,7 @@ class TestRelationships:
         assert all(c.room.id == room.id for c in conversations)
         assert all(c.room.name == "Test Room" for c in conversations)
 
-    async def test_room_conversations_relationship(
-        self, db_session, room_factory, conversation_factory
-    ):
+    async def test_room_conversations_relationship(self, db_session, room_factory, conversation_factory):
         """Test Room -> Conversations one-to-many relationship."""
         # Arrange
         room = await room_factory.create(db_session)
@@ -231,9 +198,7 @@ class TestRelationships:
 
         # Act
         result = await db_session.execute(
-            select(Room)
-            .where(Room.id == room.id)
-            .options(selectinload(Room.conversations))
+            select(Room).where(Room.id == room.id).options(selectinload(Room.conversations))
         )
         room_with_conversations = result.scalar_one()
 
@@ -241,9 +206,7 @@ class TestRelationships:
         assert len(room_with_conversations.conversations) == 2
         assert all(c.room_id == room.id for c in room_with_conversations.conversations)
 
-    async def test_relationship_filter_by_related_field(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_relationship_filter_by_related_field(self, db_session, user_factory, room_factory, message_factory):
         """Test filtering messages by related user field."""
         # Arrange
         user1 = await user_factory.create(db_session, username="alice")
@@ -256,11 +219,9 @@ class TestRelationships:
 
         # Act - Query messages by sender username
         from sqlalchemy.orm import joinedload
+
         result = await db_session.execute(
-            select(Message)
-            .join(Message.sender)
-            .where(User.username == "alice")
-            .options(joinedload(Message.sender))
+            select(Message).join(Message.sender).where(User.username == "alice").options(joinedload(Message.sender))
         )
         alice_messages = result.scalars().all()
 
@@ -268,9 +229,7 @@ class TestRelationships:
         assert len(alice_messages) == 2
         assert all(msg.sender.username == "alice" for msg in alice_messages)
 
-    async def test_relationship_count_aggregation(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_relationship_count_aggregation(self, db_session, user_factory, room_factory, message_factory):
         """Test counting related entities using relationship."""
         # Arrange
         user = await user_factory.create(db_session)
@@ -278,15 +237,12 @@ class TestRelationships:
 
         # Create 5 messages
         for i in range(5):
-            await message_factory.create_room_message(
-                db_session, sender=user, room=room, content=f"Message {i}"
-            )
+            await message_factory.create_room_message(db_session, sender=user, room=room, content=f"Message {i}")
 
         # Act - Count messages via relationship
         from sqlalchemy import func
-        result = await db_session.execute(
-            select(func.count(Message.id)).where(Message.sender_id == user.id)
-        )
+
+        result = await db_session.execute(select(func.count(Message.id)).where(Message.sender_id == user.id))
         message_count = result.scalar()
 
         # Assert
@@ -299,9 +255,7 @@ class TestRelationships:
         # Arrange
         user = await user_factory.create(db_session, username="original_name")
         room = await room_factory.create(db_session)
-        message = await message_factory.create_room_message(
-            db_session, sender=user, room=room, content="Test"
-        )
+        message = await message_factory.create_room_message(db_session, sender=user, room=room, content="Test")
 
         original_message_id = message.id
 
@@ -310,9 +264,7 @@ class TestRelationships:
         await db_session.commit()
 
         # Assert - Message still exists and references same user
-        result = await db_session.execute(
-            select(Message).where(Message.id == original_message_id)
-        )
+        result = await db_session.execute(select(Message).where(Message.id == original_message_id))
         updated_message = result.scalar_one()
         assert updated_message.sender_id == user.id
 
@@ -340,22 +292,16 @@ class TestRelationships:
         # Arrange
         room = await room_factory.create(db_session, name="Shared Room")
         user = await user_factory.create(db_session, current_room_id=room.id)
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act - Load both relationships
         result = await db_session.execute(
-            select(User)
-            .where(User.id == user.id)
-            .options(selectinload(User.current_room))
+            select(User).where(User.id == user.id).options(selectinload(User.current_room))
         )
         user_with_room = result.scalar_one()
 
         result = await db_session.execute(
-            select(Conversation)
-            .where(Conversation.id == conversation.id)
-            .options(selectinload(Conversation.room))
+            select(Conversation).where(Conversation.id == conversation.id).options(selectinload(Conversation.room))
         )
         conv_with_room = result.scalar_one()
 

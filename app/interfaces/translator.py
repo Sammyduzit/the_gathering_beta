@@ -13,12 +13,7 @@ class TranslatorInterface(ABC):
     """Abstract interface for text translation services."""
 
     @abstractmethod
-    async def translate_text(
-        self,
-        text: str,
-        target_language: str,
-        source_language: str | None = None
-    ) -> str:
+    async def translate_text(self, text: str, target_language: str, source_language: str | None = None) -> str:
         """
         Translate text to target language.
 
@@ -37,10 +32,7 @@ class TranslatorInterface(ABC):
 
     @abstractmethod
     async def translate_to_multiple_languages(
-        self,
-        text: str,
-        target_languages: list[str],
-        source_language: str | None = None
+        self, text: str, target_languages: list[str], source_language: str | None = None
     ) -> dict[str, str]:
         """
         Translate text to multiple target languages.

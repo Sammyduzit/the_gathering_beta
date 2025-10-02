@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import deepl
 
-from app.interfaces.translator import TranslatorInterface, TranslationError
+from app.interfaces.translator import TranslationError, TranslatorInterface
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +34,7 @@ class DeepLTranslator(TranslatorInterface):
         self.executor = executor
         self._supported_languages: list[str] | None = None
 
-    async def translate_text(
-        self,
-        text: str,
-        target_language: str,
-        source_language: str | None = None
-    ) -> str:
+    async def translate_text(self, text: str, target_language: str, source_language: str | None = None) -> str:
         """Translate text using DeepL API."""
         if not text.strip():
             return ""
@@ -48,11 +43,7 @@ class DeepLTranslator(TranslatorInterface):
             # Run DeepL API call in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(
-                self.executor,
-                self._sync_translate_text,
-                text,
-                target_language,
-                source_language
+                self.executor, self._sync_translate_text, text, target_language, source_language
             )
             return result.text
         except Exception as e:
@@ -60,23 +51,15 @@ class DeepLTranslator(TranslatorInterface):
             raise TranslationError(f"Translation failed: {str(e)}", e)
 
     def _sync_translate_text(
-        self,
-        text: str,
-        target_language: str,
-        source_language: str | None = None
+        self, text: str, target_language: str, source_language: str | None = None
     ) -> deepl.TextResult:
         """Synchronous wrapper for DeepL translate_text call."""
         return self.client.translate_text(
-            text,
-            target_lang=target_language.upper(),
-            source_lang=source_language.upper() if source_language else None
+            text, target_lang=target_language.upper(), source_lang=source_language.upper() if source_language else None
         )
 
     async def translate_to_multiple_languages(
-        self,
-        text: str,
-        target_languages: list[str],
-        source_language: str | None = None
+        self, text: str, target_languages: list[str], source_language: str | None = None
     ) -> dict[str, str]:
         """Translate text to multiple languages concurrently."""
         if not text.strip():
@@ -118,11 +101,7 @@ class DeepLTranslator(TranslatorInterface):
 
         try:
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                self.executor,
-                self._sync_detect_language,
-                text
-            )
+            result = await loop.run_in_executor(self.executor, self._sync_detect_language, text)
             return result.lower()
         except Exception as e:
             logger.error(f"Language detection failed: {e}")
@@ -162,10 +141,7 @@ class DeepLTranslator(TranslatorInterface):
         """Check if DeepL service is available."""
         try:
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                self.executor,
-                self._sync_check_availability
-            )
+            await loop.run_in_executor(self.executor, self._sync_check_availability)
             return True
         except Exception as e:
             logger.warning(f"DeepL availability check failed: {e}")

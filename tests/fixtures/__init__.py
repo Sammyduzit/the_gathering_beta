@@ -9,7 +9,7 @@ This module provides a clean, consistent foundation for all test types:
 Architecture follows the test pyramid with clear separation of concerns.
 """
 
-from .factories import UserFactory, RoomFactory, MessageFactory, ConversationFactory
+from .factories import ConversationFactory, MessageFactory, RoomFactory, UserFactory
 
 __all__ = [
     "UserFactory",

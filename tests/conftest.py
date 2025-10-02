@@ -12,10 +12,10 @@ Test-specific fixtures are located in their respective conftest.py files:
 
 import pytest
 
-
 # ============================================================================
 # Sample Data Fixtures (No Database Dependencies)
 # ============================================================================
+
 
 @pytest.fixture
 def sample_user_data():
@@ -40,33 +40,25 @@ def sample_admin_data():
 @pytest.fixture
 def sample_room_data():
     """Standard room creation data for all test types."""
-    return {
-        "name": "Test Room",
-        "description": "A test room for testing purposes",
-        "max_users": 10
-    }
+    return {"name": "Test Room", "description": "A test room for testing purposes", "max_users": 10}
 
 
 @pytest.fixture
 def sample_message_data():
     """Standard message data for all test types."""
-    return {
-        "content": "Test message content for testing purposes"
-    }
+    return {"content": "Test message content for testing purposes"}
 
 
 @pytest.fixture
 def sample_conversation_data():
     """Standard conversation data for all test types."""
-    return {
-        "conversation_type": "PRIVATE",
-        "max_participants": 2
-    }
+    return {"conversation_type": "PRIVATE", "max_participants": 2}
 
 
 # ============================================================================
 # Global Test Configuration
 # ============================================================================
+
 
 @pytest.fixture(scope="session")
 def test_config():
@@ -83,6 +75,7 @@ def test_config():
 # Pytest Hooks
 # ============================================================================
 
+
 def pytest_configure(config):
     """
     Configure pytest with custom markers.
@@ -92,26 +85,11 @@ def pytest_configure(config):
     """
     # Markers are already defined in pytest.ini, but we register them
     # here programmatically for IDE support and documentation
-    config.addinivalue_line(
-        "markers",
-        "unit: Unit tests with mocked dependencies (fast)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "integration: Integration tests with real database (medium)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "e2e: End-to-end tests with full API (slow)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "slow: Tests that take longer to run"
-    )
-    config.addinivalue_line(
-        "markers",
-        "ci: Tests for CI environment"
-    )
+    config.addinivalue_line("markers", "unit: Unit tests with mocked dependencies (fast)")
+    config.addinivalue_line("markers", "integration: Integration tests with real database (medium)")
+    config.addinivalue_line("markers", "e2e: End-to-end tests with full API (slow)")
+    config.addinivalue_line("markers", "slow: Tests that take longer to run")
+    config.addinivalue_line("markers", "ci: Tests for CI environment")
 
 
 def pytest_collection_modifyitems(config, items):

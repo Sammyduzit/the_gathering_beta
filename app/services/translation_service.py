@@ -1,6 +1,6 @@
 import logging
 
-from app.interfaces.translator import TranslatorInterface, TranslationError
+from app.interfaces.translator import TranslationError, TranslatorInterface
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import (
@@ -50,9 +50,7 @@ class TranslationService:
 
         try:
             return await self.translator.translate_to_multiple_languages(
-                text=content,
-                target_languages=target_languages,
-                source_language=source_language
+                text=content, target_languages=target_languages, source_language=source_language
             )
         except Exception as e:
             logger.error(f"Translation failed: {e}")

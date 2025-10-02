@@ -90,18 +90,6 @@ async def db_session(unit_engine):
 
 
 @pytest_asyncio.fixture
-async def mock_repositories():
-    """Mocked repositories for unit testing - no real database operations."""
-    return MockRepositories()
-
-
-@pytest_asyncio.fixture
-async def mock_services():
-    """Mocked services for unit testing - no external dependencies."""
-    return MockServices()
-
-
-@pytest_asyncio.fixture
 async def mock_translator():
     """Mock translator implementing TranslatorInterface."""
     return AsyncMock(spec=TranslatorInterface)

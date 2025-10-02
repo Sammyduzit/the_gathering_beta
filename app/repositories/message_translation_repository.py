@@ -169,9 +169,7 @@ class MessageTranslationRepository(IMessageTranslationRepository):
 
         cutoff_date = datetime.now() - timedelta(days=days_old)
 
-        query = select(MessageTranslation).where(
-            MessageTranslation.created_at < cutoff_date
-        )
+        query = select(MessageTranslation).where(MessageTranslation.created_at < cutoff_date)
         result = await self.db.execute(query)
         old_translations = list(result.scalars().all())
 

@@ -21,9 +21,7 @@ class TestMessageRepository:
         room = await room_factory.create(db_session)
 
         # Act
-        message = await repo.create_room_message(
-            sender_id=user.id, room_id=room.id, content="Hello room!"
-        )
+        message = await repo.create_room_message(sender_id=user.id, room_id=room.id, content="Hello room!")
 
         # Assert
         assert message.id is not None
@@ -41,9 +39,7 @@ class TestMessageRepository:
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
         # Create private conversation within the room
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act
         message = await repo.create_conversation_message(
@@ -84,9 +80,7 @@ class TestMessageRepository:
         # Assert
         assert found_message is None
 
-    async def test_get_room_messages_with_pagination(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_get_room_messages_with_pagination(self, db_session, user_factory, room_factory, message_factory):
         """Test retrieving room messages with pagination."""
         # Arrange
         repo = MessageRepository(db_session)
@@ -95,9 +89,7 @@ class TestMessageRepository:
 
         # Create 5 messages
         for i in range(5):
-            await message_factory.create_room_message(
-                db_session, sender=user, room=room, content=f"Message {i}"
-            )
+            await message_factory.create_room_message(db_session, sender=user, room=room, content=f"Message {i}")
 
         # Act
         messages, total = await repo.get_room_messages(room.id, page=1, page_size=3)
@@ -128,9 +120,7 @@ class TestMessageRepository:
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
         # Create conversation within room
-        conversation = await conversation_factory.create_private_conversation(
-            db_session, room=room
-        )
+        conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Create 4 messages
         for i in range(4):
@@ -139,9 +129,7 @@ class TestMessageRepository:
             )
 
         # Act
-        messages, total = await repo.get_conversation_messages(
-            conversation.id, page=1, page_size=2
-        )
+        messages, total = await repo.get_conversation_messages(conversation.id, page=1, page_size=2)
 
         # Assert
         assert len(messages) == 2
@@ -168,9 +156,7 @@ class TestMessageRepository:
         assert len(user1_messages) == 3
         assert all(msg.sender_id == user1.id for msg in user1_messages)
 
-    async def test_get_latest_room_messages(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_get_latest_room_messages(self, db_session, user_factory, room_factory, message_factory):
         """Test retrieving latest messages from a room."""
         # Arrange
         repo = MessageRepository(db_session)
@@ -179,9 +165,7 @@ class TestMessageRepository:
 
         # Create 15 messages
         for i in range(15):
-            await message_factory.create_room_message(
-                db_session, sender=user, room=room, content=f"Message {i}"
-            )
+            await message_factory.create_room_message(db_session, sender=user, room=room, content=f"Message {i}")
 
         # Act
         latest_messages = await repo.get_latest_room_messages(room.id, limit=5)
@@ -190,17 +174,13 @@ class TestMessageRepository:
         assert len(latest_messages) == 5
         # Latest messages should be returned (descending order)
 
-    async def test_update_message_success(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_update_message_success(self, db_session, user_factory, room_factory, message_factory):
         """Test successful message update."""
         # Arrange
         repo = MessageRepository(db_session)
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
-        message = await message_factory.create_room_message(
-            db_session, sender=user, room=room, content="Original"
-        )
+        message = await message_factory.create_room_message(db_session, sender=user, room=room, content="Original")
 
         # Act
         message.content = "Updated"
@@ -213,9 +193,7 @@ class TestMessageRepository:
         found_message = await repo.get_by_id(message.id)
         assert found_message.content == "Updated"
 
-    async def test_delete_message_success(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_delete_message_success(self, db_session, user_factory, room_factory, message_factory):
         """Test successful message deletion."""
         # Arrange
         repo = MessageRepository(db_session)
@@ -234,9 +212,7 @@ class TestMessageRepository:
         found_message = await repo.get_by_id(message_id)
         assert found_message is None
 
-    async def test_exists_message_true(
-        self, db_session, user_factory, room_factory, message_factory
-    ):
+    async def test_exists_message_true(self, db_session, user_factory, room_factory, message_factory):
         """Test message existence check when message exists."""
         # Arrange
         repo = MessageRepository(db_session)

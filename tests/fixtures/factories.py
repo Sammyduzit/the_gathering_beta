@@ -8,7 +8,7 @@ for clean, readable test setup.
 
 import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -77,12 +77,7 @@ class UserFactory(BaseFactory):
         return await cls.create(session, **admin_defaults, **overrides)
 
     @classmethod
-    async def create_user_with_room(
-        cls,
-        session: AsyncSession,
-        room: Optional[Room] = None,
-        **overrides
-    ) -> User:
+    async def create_user_with_room(cls, session: AsyncSession, room: Optional[Room] = None, **overrides) -> User:
         """Create user assigned to a room."""
         if room is None:
             room = await RoomFactory.create(session)
@@ -97,11 +92,7 @@ class UserFactory(BaseFactory):
         """Build multiple user instances with unique usernames/emails."""
         users = []
         for i in range(count):
-            overrides = {
-                "email": f"user{i}@example.com",
-                "username": f"user{i}",
-                **base_overrides
-            }
+            overrides = {"email": f"user{i}@example.com", "username": f"user{i}", **base_overrides}
             users.append(cls.build(**overrides))
         return users
 
@@ -125,12 +116,7 @@ class RoomFactory(BaseFactory):
         }
 
     @classmethod
-    async def create_with_admin(
-        cls,
-        session: AsyncSession,
-        admin: Optional[User] = None,
-        **overrides
-    ) -> Room:
+    async def create_with_admin(cls, session: AsyncSession, admin: Optional[User] = None, **overrides) -> Room:
         """Create room with an admin user."""
         if admin is None:
             admin = await UserFactory.create_admin(session)
@@ -171,10 +157,7 @@ class ConversationFactory(BaseFactory):
 
     @classmethod
     async def create_room_conversation(
-        cls,
-        session: AsyncSession,
-        room: Optional[Room] = None,
-        **overrides
+        cls, session: AsyncSession, room: Optional[Room] = None, **overrides
     ) -> Conversation:
         """Create conversation linked to a room."""
         if room is None:
@@ -189,10 +172,7 @@ class ConversationFactory(BaseFactory):
 
     @classmethod
     async def create_private_conversation(
-        cls,
-        session: AsyncSession,
-        room: Optional[Room] = None,
-        **overrides
+        cls, session: AsyncSession, room: Optional[Room] = None, **overrides
     ) -> Conversation:
         """
         Create private conversation within a room.
@@ -212,11 +192,7 @@ class ConversationFactory(BaseFactory):
 
     @classmethod
     async def create_group_conversation(
-        cls,
-        session: AsyncSession,
-        room: Optional[Room] = None,
-        max_participants: int = 5,
-        **overrides
+        cls, session: AsyncSession, room: Optional[Room] = None, max_participants: int = 5, **overrides
     ) -> Conversation:
         """
         Create group conversation within a room.
@@ -249,11 +225,7 @@ class MessageFactory(BaseFactory):
 
     @classmethod
     async def create_room_message(
-        cls,
-        session: AsyncSession,
-        sender: Optional[User] = None,
-        room: Optional[Room] = None,
-        **overrides
+        cls, session: AsyncSession, sender: Optional[User] = None, room: Optional[Room] = None, **overrides
     ) -> Message:
         """Create message in a room."""
         if sender is None:
@@ -273,7 +245,7 @@ class MessageFactory(BaseFactory):
         session: AsyncSession,
         sender: Optional[User] = None,
         conversation: Optional[Conversation] = None,
-        **overrides
+        **overrides,
     ) -> Message:
         """Create message in a conversation."""
         if sender is None:
@@ -289,11 +261,7 @@ class MessageFactory(BaseFactory):
 
     @classmethod
     async def create_reply(
-        cls,
-        session: AsyncSession,
-        reply_to: Message,
-        sender: Optional[User] = None,
-        **overrides
+        cls, session: AsyncSession, reply_to: Message, sender: Optional[User] = None, **overrides
     ) -> Message:
         """Create reply to existing message."""
         if sender is None:
@@ -320,24 +288,19 @@ class MessageFactory(BaseFactory):
         count: int = 3,
         sender: Optional[User] = None,
         room: Optional[Room] = None,
-        **overrides
+        **overrides,
     ) -> list[Message]:
         """Create a thread of messages."""
         messages = []
 
         # Create first message
-        first_message = await cls.create_room_message(
-            session, sender=sender, room=room, **overrides
-        )
+        first_message = await cls.create_room_message(session, sender=sender, room=room, **overrides)
         messages.append(first_message)
 
         # Create replies
         for i in range(1, count):
             reply = await cls.create_reply(
-                session,
-                reply_to=first_message,
-                sender=sender,
-                content=f"Reply {i} to original message"
+                session, reply_to=first_message, sender=sender, content=f"Reply {i} to original message"
             )
             messages.append(reply)
 
@@ -350,9 +313,7 @@ async def create_test_scenario_basic(session: AsyncSession) -> Dict[str, Any]:
     admin = await UserFactory.create_admin(session)
     room = await RoomFactory.create_with_admin(session, admin=admin)
     user = await UserFactory.create_user_with_room(session, room=room)
-    message = await MessageFactory.create_room_message(
-        session, sender=user, room=room
-    )
+    message = await MessageFactory.create_room_message(session, sender=user, room=room)
 
     return {
         "admin": admin,
@@ -367,9 +328,7 @@ async def create_test_scenario_conversation(session: AsyncSession) -> Dict[str, 
     user1 = await UserFactory.create(session, username="user1", email="user1@example.com")
     user2 = await UserFactory.create(session, username="user2", email="user2@example.com")
     conversation = await ConversationFactory.create_private_conversation(session)
-    message = await MessageFactory.create_conversation_message(
-        session, sender=user1, conversation=conversation
-    )
+    message = await MessageFactory.create_conversation_message(session, sender=user1, conversation=conversation)
 
     return {
         "user1": user1,
@@ -385,11 +344,7 @@ async def create_test_scenario_complex(session: AsyncSession) -> Dict[str, Any]:
     admin = await UserFactory.create_admin(session)
     users = []
     for i in range(3):
-        user = await UserFactory.create(
-            session,
-            username=f"user{i}",
-            email=f"user{i}@example.com"
-        )
+        user = await UserFactory.create(session, username=f"user{i}", email=f"user{i}@example.com")
         users.append(user)
 
     # Rooms
@@ -401,12 +356,8 @@ async def create_test_scenario_complex(session: AsyncSession) -> Dict[str, Any]:
     group_conv = await ConversationFactory.create_group_conversation(session)
 
     # Messages
-    room_messages = await MessageFactory.create_message_thread(
-        session, count=3, sender=users[0], room=room1
-    )
-    conv_message = await MessageFactory.create_conversation_message(
-        session, sender=users[1], conversation=private_conv
-    )
+    room_messages = await MessageFactory.create_message_thread(session, count=3, sender=users[0], room=room1)
+    conv_message = await MessageFactory.create_conversation_message(session, sender=users[1], conversation=private_conv)
 
     return {
         "admin": admin,
