@@ -290,7 +290,7 @@ class RoomService:
                     target_languages=target_languages,
                 )
 
-        # Old message cleanup
+        # Periodic cleanup: Remove oldest messages when room messages exceed limit
         try:
             if message.id % MESSAGE_CLEANUP_FREQUENCY == 0:
                 await self.message_repo.cleanup_old_room_messages(room_id, MAX_ROOM_MESSAGES)

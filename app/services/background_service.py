@@ -88,11 +88,9 @@ class BackgroundService:
         logger.info(f"Starting cleanup of translations older than {days_old} days")
 
         try:
-            # This would need to be implemented in the repository
-            # cleaned_count = await self.message_translation_repo.cleanup_old_translations(days_old)
-            # For now, just log the intention
-            logger.info("Translation cleanup completed (placeholder)")
-            return 0
+            cleaned_count = await self.message_translation_repo.cleanup_old_translations(days_old)
+            logger.info(f"Translation cleanup completed: {cleaned_count} translations removed")
+            return cleaned_count
         except SQLAlchemyError as e:
             logger.error(f"Translation cleanup failed: {e}")
             raise
@@ -110,7 +108,7 @@ class BackgroundService:
         logger.info(f"Logging activity for user {user_id}: {activity_type}")
 
         try:
-            # This could be extended to store in database or external service
+            # TODO: Store activity in database or external analytics service
             activity_details = details or {}
             logger.info(f"User {user_id} activity: {activity_type} - {activity_details}")
         except (OSError, ValueError) as e:
@@ -131,8 +129,7 @@ class BackgroundService:
         logger.info(f"Sending notifications to room {room_id} users (excluding {len(exclude_user_ids)} users)")
 
         try:
-            # This would integrate with a notification service
-            # For now, just log the intention
+            # TODO: Integrate with notification service (WebSocket, Push, Email)
             logger.info(f"Room {room_id} notification: {message}")
         except (OSError, ValueError) as e:
             logger.error(f"Failed to send room notifications: {e}")

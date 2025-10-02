@@ -35,6 +35,11 @@ class IMessageTranslationRepository(BaseRepository[MessageTranslation]):
         """Create multiple translations in one transaction."""
         pass
 
+    @abstractmethod
+    async def cleanup_old_translations(self, days_old: int) -> int:
+        """Delete translations older than specified days."""
+        pass
+
 
 class MessageTranslationRepository(IMessageTranslationRepository):
     """SQLAlchemy implementation of MessageTranslation repository."""
@@ -153,3 +158,29 @@ class MessageTranslationRepository(IMessageTranslationRepository):
         """Check if message translation exists by ID."""
         translation = await self.get_by_id(id)
         return translation is not None
+
+    async def cleanup_old_translations(self, days_old: int) -> int:
+        """
+        Delete translations older than specified days.
+        :param days_old: Remove translations older than this many days
+        :return: Number of deleted translations
+        """
+        from datetime import datetime, timedelta
+
+        cutoff_date = datetime.now() - timedelta(days=days_old)
+
+        query = select(MessageTranslation).where(
+            MessageTranslation.created_at < cutoff_date
+        )
+        result = await self.db.execute(query)
+        old_translations = list(result.scalars().all())
+
+        deleted_count = len(old_translations)
+
+        for translation in old_translations:
+            self.db.delete(translation)
+
+        if deleted_count > 0:
+            await self.db.commit()
+
+        return deleted_count

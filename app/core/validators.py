@@ -18,7 +18,7 @@ def get_language_name(language_code: str) -> str:
 
 def sanitize_html_content(content: str | None) -> str | None:
     """
-    Sanitize HTML content by
+    Sanitize HTML content by escaping special characters.
     :param content: Raw user input
     :return: Sanitized content
     """
