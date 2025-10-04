@@ -1,9 +1,14 @@
 import logging
 
-from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.constants import MAX_ROOM_MESSAGES, MESSAGE_CLEANUP_FREQUENCY
+from app.core.exceptions import (
+    DuplicateResourceException,
+    InvalidOperationException,
+    RoomNotFoundException,
+    UserNotInRoomException,
+)
 from app.models.message import Message
 from app.models.room import Room
 from app.models.user import User, UserStatus
@@ -55,10 +60,7 @@ class RoomService:
         :return: Created room
         """
         if await self.room_repo.name_exists(name):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room name '{name}' already exists",
-            )
+            raise DuplicateResourceException("Room", name)
 
         new_room = Room(
             name=name,
@@ -88,10 +90,7 @@ class RoomService:
         room = await self._get_room_or_404(room_id)
 
         if name != room.name and await self.room_repo.name_exists(name, room_id):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room name '{name}' already exists",
-            )
+            raise DuplicateResourceException("Room", name)
 
         room.name = name
         room.description = description
@@ -158,10 +157,7 @@ class RoomService:
 
         current_user_count = await self.room_repo.get_user_count(room_id)
         if room.max_users and current_user_count >= room.max_users:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room '{room.name}' is full (max {room.max_users} users)",
-            )
+            raise InvalidOperationException(f"Room '{room.name}' is full (max {room.max_users} users)")
 
         current_user.current_room_id = room_id
         current_user.status = UserStatus.AVAILABLE
@@ -186,10 +182,7 @@ class RoomService:
         room = await self._get_room_or_404(room_id)
 
         if current_user.current_room_id != room_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"User is not in room '{room.name}'",
-            )
+            raise InvalidOperationException(f"User is not in room '{room.name}'")
 
         current_user.current_room_id = None
         current_user.status = UserStatus.AWAY
@@ -255,10 +248,7 @@ class RoomService:
         room = await self._get_room_or_404(room_id)
 
         if current_user.current_room_id != room_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User must be in room '{room.name}' to send messages",
-            )
+            raise UserNotInRoomException(f"User must be in room '{room.name}' to send messages")
 
         message = await self.message_repo.create_room_message(
             room_id=room_id, content=content, sender_user_id=current_user.id
@@ -269,15 +259,13 @@ class RoomService:
             room_users = await self.room_repo.get_users_in_room(room_id)
 
             target_languages = list(
-                set(
-                    [
-                        user.preferred_language.upper()
-                        for user in room_users
-                        if user.preferred_language
-                        and user.preferred_language != current_user.preferred_language
-                        and user.id != current_user.id
-                    ]
-                )
+                {
+                    user.preferred_language.upper()
+                    for user in room_users
+                    if user.preferred_language
+                    and user.preferred_language != current_user.preferred_language
+                    and user.id != current_user.id
+                }
             )
 
             if target_languages:
@@ -314,10 +302,7 @@ class RoomService:
         await self._get_room_or_404(room_id)
 
         if current_user.current_room_id != room_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User must join the room before viewing messages",
-            )
+            raise UserNotInRoomException("User must join the room before viewing messages")
 
         messages, total_count = await self.message_repo.get_room_messages(
             room_id=room_id,
@@ -363,11 +348,8 @@ class RoomService:
         return messages
 
     async def _get_room_or_404(self, room_id: int) -> Room:
-        """Get room by ID or raise 404."""
+        """Get room by ID or raise NotFoundException."""
         room = await self.room_repo.get_by_id(room_id)
         if not room:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Room with id {room_id} not found",
-            )
+            raise RoomNotFoundException(room_id)
         return room

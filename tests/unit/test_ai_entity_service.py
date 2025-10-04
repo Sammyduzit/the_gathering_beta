@@ -3,8 +3,14 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from fastapi import HTTPException
 
+from app.core.exceptions import (
+    AIEntityNotFoundException,
+    AIEntityOfflineException,
+    ConversationNotFoundException,
+    DuplicateResourceException,
+    InvalidOperationException,
+)
 from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.models.conversation import Conversation, ConversationType
 from app.services.ai_entity_service import AIEntityService
@@ -85,16 +91,16 @@ class TestAIEntityService:
         mock_ai_repo.get_by_id.assert_called_once_with(1)
 
     async def test_get_entity_by_id_not_found(self, service, mock_ai_repo):
-        """Test getting AI entity by ID raises 404 when not found."""
+        """Test getting AI entity by ID raises AIEntityNotFoundException when not found."""
         # Arrange
         mock_ai_repo.get_by_id.return_value = None
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AIEntityNotFoundException) as exc_info:
             await service.get_entity_by_id(999)
 
-        assert exc_info.value.status_code == 404
-        assert "not found" in exc_info.value.detail
+        assert "999" in str(exc_info.value)
+        assert exc_info.value.error_code == "AI_ENTITY_NOT_FOUND"
 
     async def test_create_entity_success(self, service, mock_ai_repo):
         """Test creating AI entity successfully."""
@@ -117,12 +123,12 @@ class TestAIEntityService:
         mock_ai_repo.create.assert_called_once()
 
     async def test_create_entity_duplicate_name(self, service, mock_ai_repo):
-        """Test creating AI entity with duplicate name raises 409."""
+        """Test creating AI entity with duplicate name raises DuplicateResourceException."""
         # Arrange
         mock_ai_repo.name_exists.return_value = True
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(DuplicateResourceException) as exc_info:
             await service.create_entity(
                 name="existing_ai",
                 display_name="Existing AI",
@@ -130,8 +136,8 @@ class TestAIEntityService:
                 model_name="gpt-4",
             )
 
-        assert exc_info.value.status_code == 409
-        assert "already exists" in exc_info.value.detail
+        assert exc_info.value.error_code == "DUPLICATE_RESOURCE"
+        assert "existing_ai" in str(exc_info.value)
 
     async def test_update_entity_success(self, service, mock_ai_repo):
         """Test updating AI entity successfully."""
@@ -229,11 +235,11 @@ class TestAIEntityService:
         mock_ai_repo.get_by_id.return_value = mock_entity
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(AIEntityOfflineException) as exc_info:
             await service.invite_to_conversation(conversation_id=1, ai_entity_id=1)
 
-        assert exc_info.value.status_code == 400
-        assert "not online" in exc_info.value.detail
+        assert exc_info.value.error_code == "AI_ENTITY_OFFLINE"
+        assert "AI 1" in str(exc_info.value)
 
     async def test_invite_to_conversation_not_found(self, service, mock_ai_repo, mock_conversation_repo):
         """Test inviting AI to non-existent conversation raises 404."""
@@ -250,11 +256,11 @@ class TestAIEntityService:
         mock_conversation_repo.get_by_id.return_value = None
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ConversationNotFoundException) as exc_info:
             await service.invite_to_conversation(conversation_id=999, ai_entity_id=1)
 
-        assert exc_info.value.status_code == 404
-        assert "Conversation" in exc_info.value.detail
+        assert exc_info.value.error_code == "CONVERSATION_NOT_FOUND"
+        assert "999" in str(exc_info.value)
 
     async def test_invite_to_conversation_ai_already_present(self, service, mock_ai_repo, mock_conversation_repo):
         """Test inviting AI to conversation where AI already exists raises 409."""
@@ -284,11 +290,11 @@ class TestAIEntityService:
         mock_ai_repo.get_ai_in_conversation.return_value = existing_ai
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(InvalidOperationException) as exc_info:
             await service.invite_to_conversation(conversation_id=1, ai_entity_id=1)
 
-        assert exc_info.value.status_code == 409
-        assert "already in this conversation" in exc_info.value.detail
+        assert exc_info.value.error_code == "INVALID_OPERATION"
+        assert "already in this conversation" in str(exc_info.value)
 
     async def test_remove_from_conversation_success(self, service, mock_ai_repo, mock_conversation_repo):
         """Test removing AI from conversation successfully."""

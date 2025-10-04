@@ -1,7 +1,12 @@
 import logging
 
-from fastapi import HTTPException, status
-
+from app.core.exceptions import (
+    AIEntityNotFoundException,
+    AIEntityOfflineException,
+    ConversationNotFoundException,
+    DuplicateResourceException,
+    InvalidOperationException,
+)
 from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.repositories.ai_entity_repository import IAIEntityRepository
 from app.repositories.conversation_repository import IConversationRepository
@@ -32,10 +37,7 @@ class AIEntityService:
         """Get AI entity by ID with validation."""
         entity = await self.ai_entity_repo.get_by_id(entity_id)
         if not entity:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"AI entity with id {entity_id} not found",
-            )
+            raise AIEntityNotFoundException(entity_id)
         return entity
 
     async def create_entity(
@@ -50,10 +52,7 @@ class AIEntityService:
     ) -> AIEntity:
         """Create new AI entity with validation."""
         if await self.ai_entity_repo.name_exists(name):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"AI entity with name '{name}' already exists",
-            )
+            raise DuplicateResourceException("AI entity", name)
 
         new_entity = AIEntity(
             name=name,
@@ -116,35 +115,25 @@ class AIEntityService:
         # Validate AI entity exists and is active
         entity = await self.get_entity_by_id(ai_entity_id)
         if entity.status != AIEntityStatus.ONLINE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"AI entity '{entity.display_name}' is not online",
-            )
+            raise AIEntityOfflineException(entity.display_name)
 
         # Validate conversation exists
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Conversation with id {conversation_id} not found",
-            )
+            raise ConversationNotFoundException(conversation_id)
 
         # Check if AI is already in this conversation
         existing_ai = await self.ai_entity_repo.get_ai_in_conversation(conversation_id)
         if existing_ai:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"AI entity '{existing_ai.display_name}' is already in this conversation",
+            raise InvalidOperationException(
+                f"AI entity '{existing_ai.display_name}' is already in this conversation"
             )
 
         # Add AI to conversation
         try:
             await self.conversation_repo.add_ai_participant(conversation_id, ai_entity_id)
         except ValueError as e:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=str(e),
-            )
+            raise InvalidOperationException(str(e))
 
         return {
             "message": f"AI entity '{entity.display_name}' invited to conversation",
@@ -160,10 +149,7 @@ class AIEntityService:
         # Validate conversation exists
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Conversation with id {conversation_id} not found",
-            )
+            raise ConversationNotFoundException(conversation_id)
 
         # Remove AI from conversation
         await self.conversation_repo.remove_ai_participant(conversation_id, ai_entity_id)

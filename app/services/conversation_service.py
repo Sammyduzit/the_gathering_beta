@@ -1,5 +1,10 @@
-from fastapi import HTTPException, status
-
+from app.core.exceptions import (
+    ConversationNotFoundException,
+    ConversationValidationException,
+    NotConversationParticipantException,
+    UserNotFoundException,
+    UserNotInRoomException,
+)
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
@@ -41,22 +46,13 @@ class ConversationService:
         :return: Created conversation
         """
         if not current_user.current_room_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User must be in a room to create conversations",
-            )
+            raise UserNotInRoomException("User must be in a room to create conversations")
 
         if conversation_type == "private" and len(participant_usernames) != 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Private conversations require exactly 1 other participant",
-            )
+            raise ConversationValidationException("Private conversations require exactly 1 other participant")
 
         if conversation_type == "group" and len(participant_usernames) < 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Group conversations require at least 1 other participant",
-            )
+            raise ConversationValidationException("Group conversations require at least 1 other participant")
 
         participant_users = await self._validate_participants(participant_usernames, current_user.current_room_id)
 
@@ -83,13 +79,10 @@ class ConversationService:
         """
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+            raise ConversationNotFoundException(conversation_id)
 
         if not await self.conversation_repo.is_participant(conversation_id, current_user.id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User is not a participant in this conversation",
-            )
+            raise NotConversationParticipantException()
 
         message = await self.message_repo.create_conversation_message(
             conversation_id=conversation_id, content=content, sender_user_id=current_user.id
@@ -103,16 +96,14 @@ class ConversationService:
         if room and room.is_translation_enabled:
             participants = await self.conversation_repo.get_participants(conversation_id)
             target_languages = list(
-                set(
-                    [
-                        participant.user.preferred_language.upper()
-                        for participant in participants
-                        if participant.user_id  # Only user participants, not AI
-                        and participant.user.preferred_language
-                        and participant.user.preferred_language != current_user.preferred_language
-                        and participant.user_id != current_user.id
-                    ]
-                )
+                {
+                    participant.user.preferred_language.upper()
+                    for participant in participants
+                    if participant.user_id  # Only user participants, not AI
+                    and participant.user.preferred_language
+                    and participant.user.preferred_language != current_user.preferred_language
+                    and participant.user_id != current_user.id
+                }
             )
 
             if target_languages:
@@ -220,20 +211,11 @@ class ConversationService:
         for username in usernames:
             user = await self.user_repo.get_by_username(username)
             if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"User '{username}' not found",
-                )
+                raise UserNotFoundException(username)
             if not user.is_active:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"User '{username}' is not active",
-                )
+                raise ConversationValidationException(f"User '{username}' is not active")
             if user.current_room_id != room_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"User '{username}' is not in the same room",
-                )
+                raise ConversationValidationException(f"User '{username}' is not in the same room")
             participant_users.append(user)
 
         return participant_users
@@ -247,12 +229,9 @@ class ConversationService:
         """
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
+            raise ConversationNotFoundException(conversation_id)
 
         if not await self.conversation_repo.is_participant(conversation_id, user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User is not a participant in this conversation",
-            )
+            raise NotConversationParticipantException()
 
         return conversation
