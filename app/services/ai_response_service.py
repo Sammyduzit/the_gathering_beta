@@ -9,8 +9,7 @@ This service coordinates:
 
 import logging
 
-from app.core.exceptions import AIProviderError
-from app.interfaces.ai_provider import IAIProvider
+from app.interfaces.ai_provider import AIProviderError, IAIProvider
 from app.models.ai_entity import AIEntity
 from app.models.message import Message
 from app.repositories.message_repository import IMessageRepository
@@ -142,7 +141,7 @@ class AIResponseService:
             )
 
             logger.info(
-                f"AI '{ai_entity.name}' generated response in room {room_id}: " f"{len(response_content)} chars"
+                f"AI '{ai_entity.name}' generated response in room {room_id}: {len(response_content)} chars"
             )
 
             return message

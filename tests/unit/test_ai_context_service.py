@@ -1,13 +1,9 @@
 """Unit tests for AIContextService."""
 
-from unittest.mock import AsyncMock
-
 import pytest
 
-from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.models.ai_memory import AIMemory
 from app.models.message import Message
-from app.models.user import User
 from app.services.ai_context_service import AIContextService
 
 
@@ -16,39 +12,11 @@ class TestAIContextService:
     """Unit tests for AI context service."""
 
     @pytest.fixture
-    def mock_message_repo(self):
-        """Create mock message repository."""
-        return AsyncMock()
-
-    @pytest.fixture
-    def mock_memory_repo(self):
-        """Create mock AI memory repository."""
-        return AsyncMock()
-
-    @pytest.fixture
     def service(self, mock_message_repo, mock_memory_repo):
-        """Create service instance with mocked dependencies."""
+        """Create service instance with mocked dependencies from conftest."""
         return AIContextService(
             message_repo=mock_message_repo,
             memory_repo=mock_memory_repo,
-        )
-
-    @pytest.fixture
-    def sample_ai_entity(self, sample_ai_entity_data):
-        """Create sample AI entity using global fixture data."""
-        return AIEntity(
-            id=1,
-            **sample_ai_entity_data,
-            status=AIEntityStatus.ONLINE,
-        )
-
-    @pytest.fixture
-    def sample_user(self, sample_user_data):
-        """Create sample user using global fixture data."""
-        return User(
-            id=2,
-            username=sample_user_data["username"],
-            email=sample_user_data["email"],
         )
 
     async def test_build_conversation_context(self, service, mock_message_repo, sample_ai_entity, sample_user):

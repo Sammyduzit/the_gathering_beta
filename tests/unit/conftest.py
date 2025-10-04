@@ -23,6 +23,8 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base
 from app.interfaces.translator import TranslatorInterface
+from app.models.ai_entity import AIEntity, AIEntityStatus
+from app.models.user import User
 from tests.fixtures import (
     ConversationFactory,
     MessageFactory,
@@ -32,6 +34,57 @@ from tests.fixtures import (
 
 # Force unit test environment
 os.environ["TEST_TYPE"] = "unit"
+
+
+# ============================================================================
+# AI-Specific Fixtures for Unit Tests
+# ============================================================================
+
+
+@pytest.fixture
+def sample_ai_entity(sample_ai_entity_data):
+    """Create sample AI entity for unit tests."""
+    return AIEntity(
+        id=1,
+        **sample_ai_entity_data,
+        status=AIEntityStatus.ONLINE,
+        temperature=0.7,
+        max_tokens=1024,
+    )
+
+
+@pytest.fixture
+def sample_user(sample_user_data):
+    """Create sample user for unit tests."""
+    return User(
+        id=2,
+        username=sample_user_data["username"],
+        email=sample_user_data["email"],
+    )
+
+
+@pytest.fixture
+def mock_ai_provider():
+    """Create mock AI provider for testing."""
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_context_service():
+    """Create mock AI context service for testing."""
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_message_repo():
+    """Create mock message repository for testing."""
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_memory_repo():
+    """Create mock AI memory repository for testing."""
+    return AsyncMock()
 
 
 # ============================================================================
