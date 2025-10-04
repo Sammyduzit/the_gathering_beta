@@ -29,18 +29,18 @@ async def get_all_ai_entities(
     return await ai_service.get_all_entities()
 
 
-@router.get("/entities/active", response_model=list[AIEntityResponse])
-async def get_active_ai_entities(
+@router.get("/entities/available", response_model=list[AIEntityResponse])
+async def get_available_ai_entities(
     current_user: User = Depends(get_current_active_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
 ) -> list[AIEntityResponse]:
     """
-    Get all active AI entities.
+    Get all available AI entities (online and not deleted).
     :param current_user: Current authenticated user
     :param ai_service: AI entity service instance
-    :return: List of active AI entities
+    :return: List of available AI entities
     """
-    return await ai_service.get_active_entities()
+    return await ai_service.get_available_entities()
 
 
 @router.get("/entities/{entity_id}", response_model=AIEntityResponse)
@@ -79,7 +79,7 @@ async def create_ai_entity(
         model_name=entity_data.model_name,
         temperature=entity_data.temperature,
         max_tokens=entity_data.max_tokens,
-        langchain_config=entity_data.langchain_config,
+        config=entity_data.config,
     )
 
 
@@ -105,7 +105,7 @@ async def update_ai_entity(
         model_name=entity_data.model_name,
         temperature=entity_data.temperature,
         max_tokens=entity_data.max_tokens,
-        langchain_config=entity_data.langchain_config,
+        config=entity_data.config,
     )
 
 

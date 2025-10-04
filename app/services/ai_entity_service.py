@@ -24,9 +24,9 @@ class AIEntityService:
         """Get all AI entities."""
         return await self.ai_entity_repo.get_all()
 
-    async def get_active_entities(self) -> list[AIEntity]:
-        """Get all active AI entities."""
-        return await self.ai_entity_repo.get_active_entities()
+    async def get_available_entities(self) -> list[AIEntity]:
+        """Get all available AI entities (online and not deleted)."""
+        return await self.ai_entity_repo.get_available_entities()
 
     async def get_entity_by_id(self, entity_id: int) -> AIEntity:
         """Get AI entity by ID with validation."""
@@ -46,7 +46,7 @@ class AIEntityService:
         model_name: str,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        langchain_config: dict | None = None,
+        config: dict | None = None,
     ) -> AIEntity:
         """Create new AI entity with validation."""
         if await self.ai_entity_repo.name_exists(name):
@@ -62,7 +62,7 @@ class AIEntityService:
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
-            langchain_config=langchain_config,
+            config=config,
             status=AIEntityStatus.OFFLINE,
         )
 
@@ -76,7 +76,7 @@ class AIEntityService:
         model_name: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        langchain_config: dict | None = None,
+        config: dict | None = None,
     ) -> AIEntity:
         """Update AI entity with validation."""
         entity = await self.get_entity_by_id(entity_id)
@@ -91,16 +91,16 @@ class AIEntityService:
             entity.temperature = temperature
         if max_tokens is not None:
             entity.max_tokens = max_tokens
-        if langchain_config is not None:
-            entity.langchain_config = langchain_config
+        if config is not None:
+            entity.config = config
 
         return await self.ai_entity_repo.update(entity)
 
     async def delete_entity(self, entity_id: int) -> dict:
-        """Soft delete AI entity."""
+        """Soft delete AI entity (set to OFFLINE)."""
         entity = await self.get_entity_by_id(entity_id)
 
-        await self.ai_entity_repo.soft_delete(entity_id)
+        await self.ai_entity_repo.delete(entity_id)
 
         return {
             "message": f"AI entity '{entity.display_name}' has been deleted",
@@ -115,10 +115,10 @@ class AIEntityService:
         """Invite AI entity to a conversation."""
         # Validate AI entity exists and is active
         entity = await self.get_entity_by_id(ai_entity_id)
-        if entity.status != AIEntityStatus.ACTIVE:
+        if entity.status != AIEntityStatus.ONLINE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"AI entity '{entity.display_name}' is not active",
+                detail=f"AI entity '{entity.display_name}' is not online",
             )
 
         # Validate conversation exists

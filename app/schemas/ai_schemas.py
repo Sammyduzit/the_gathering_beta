@@ -14,7 +14,7 @@ class AIEntityCreate(BaseModel):
     model_name: SanitizedString = Field(min_length=1, max_length=100, description="LLM model name")
     temperature: float | None = Field(None, ge=0.0, le=2.0, description="LLM temperature")
     max_tokens: int | None = Field(None, ge=1, le=32000, description="Max response tokens")
-    langchain_config: dict | None = Field(None, description="Langchain configuration")
+    config: dict | None = Field(None, description="Additional LangChain configuration")
 
 
 class AIEntityUpdate(BaseModel):
@@ -25,7 +25,7 @@ class AIEntityUpdate(BaseModel):
     model_name: SanitizedString | None = Field(None, min_length=1, max_length=100)
     temperature: float | None = Field(None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(None, ge=1, le=32000)
-    langchain_config: dict | None = None
+    config: dict | None = None
 
 
 class AIEntityResponse(BaseModel):
@@ -38,11 +38,11 @@ class AIEntityResponse(BaseModel):
     model_name: str
     temperature: float | None
     max_tokens: int | None
-    langchain_config: dict | None
+    config: dict | None
     status: str
     current_room_id: int | None
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
 

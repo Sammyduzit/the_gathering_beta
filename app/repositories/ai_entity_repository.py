@@ -17,8 +17,8 @@ class IAIEntityRepository(BaseRepository[AIEntity]):
         pass
 
     @abstractmethod
-    async def get_active_entities(self) -> list[AIEntity]:
-        """Get all active AI entities."""
+    async def get_available_entities(self) -> list[AIEntity]:
+        """Get all available AI entities (online and not deleted)."""
         pass
 
     @abstractmethod
@@ -44,22 +44,25 @@ class AIEntityRepository(IAIEntityRepository):
         super().__init__(db)
 
     async def get_by_id(self, id: int) -> AIEntity | None:
-        query = select(AIEntity).where(AIEntity.id == id)
+        query = select(AIEntity).where(AIEntity.id == id, AIEntity.is_active)
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_by_name(self, name: str) -> AIEntity | None:
-        query = select(AIEntity).where(AIEntity.name == name)
+        query = select(AIEntity).where(AIEntity.name == name, AIEntity.is_active)
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[AIEntity]:
-        query = select(AIEntity).limit(limit).offset(offset)
+        query = select(AIEntity).where(AIEntity.is_active).limit(limit).offset(offset)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def get_active_entities(self) -> list[AIEntity]:
-        query = select(AIEntity).where(AIEntity.status == AIEntityStatus.ACTIVE)
+    async def get_available_entities(self) -> list[AIEntity]:
+        """Get all available AI entities (online and not deleted)."""
+        query = select(AIEntity).where(
+            AIEntity.status == AIEntityStatus.ONLINE, AIEntity.is_active
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
@@ -75,10 +78,23 @@ class AIEntityRepository(IAIEntityRepository):
         return entity
 
     async def delete(self, id: int) -> bool:
-        """Soft delete - set offline."""
+        """Soft delete - set is_active to False and status to OFFLINE."""
+        query = select(AIEntity).where(AIEntity.id == id)
+        result = await self.db.execute(query)
+        entity = result.scalar_one_or_none()
+
+        if entity:
+            entity.is_active = False
+            entity.status = AIEntityStatus.OFFLINE
+            await self.db.commit()
+            return True
+        return False
+
+    async def set_status(self, id: int, status: AIEntityStatus) -> bool:
+        """Change AI entity status (ONLINE/OFFLINE)."""
         entity = await self.get_by_id(id)
         if entity:
-            entity.status = AIEntityStatus.OFFLINE
+            entity.status = status
             await self.db.commit()
             return True
         return False
@@ -115,7 +131,8 @@ class AIEntityRepository(IAIEntityRepository):
             .where(
                 and_(
                     AIEntity.current_room_id == room_id,
-                    AIEntity.status == AIEntityStatus.ACTIVE,
+                    AIEntity.status == AIEntityStatus.ONLINE,
+                    AIEntity.is_active,
                     ConversationParticipant.id.is_(None),
                 )
             )

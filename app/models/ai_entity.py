@@ -6,7 +6,7 @@ Follows User model pattern with configuration for OpenAI/LangChain integration.
 
 import enum
 
-from sqlalchemy import JSON, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -15,9 +15,9 @@ from app.core.database import Base
 
 
 class AIEntityStatus(enum.Enum):
-    """AI entity status."""
+    """AI entity online status."""
 
-    ACTIVE = "active"
+    ONLINE = "online"
     OFFLINE = "offline"
 
 
@@ -46,6 +46,7 @@ class AIEntity(Base):
         default=AIEntityStatus.OFFLINE,
         index=True,
     )
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
