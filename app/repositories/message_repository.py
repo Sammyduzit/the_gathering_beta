@@ -127,10 +127,12 @@ class MessageRepository(IMessageRepository):
         result = await self.db.execute(count_query)
         total_count = result.scalar() or 0
 
+        from sqlalchemy.orm import selectinload
+
         offset = (page - 1) * page_size
         messages_query = (
-            select(Message, User.username)
-            .join(User, Message.sender_id == User.id)
+            select(Message)
+            .options(selectinload(Message.sender_user), selectinload(Message.sender_ai))
             .where(and_(Message.room_id == room_id, Message.conversation_id.is_(None)))
             .order_by(desc(Message.sent_at))
             .offset(offset)
@@ -138,13 +140,7 @@ class MessageRepository(IMessageRepository):
         )
 
         result = await self.db.execute(messages_query)
-        message_rows = result.all()
-
-        # Add sender_username to message objects
-        messages = []
-        for message_object, username in message_rows:
-            message_object.sender_username = username
-            messages.append(message_object)
+        messages = list(result.scalars().all())
 
         return messages, total_count
 
@@ -163,9 +159,11 @@ class MessageRepository(IMessageRepository):
         total_count = result.scalar() or 0
 
         offset = (page - 1) * page_size
+        from sqlalchemy.orm import selectinload
+
         messages_query = (
-            select(Message, User.username)
-            .join(User, Message.sender_id == User.id)
+            select(Message)
+            .options(selectinload(Message.sender_user), selectinload(Message.sender_ai))
             .where(
                 and_(
                     Message.conversation_id == conversation_id,
@@ -178,43 +176,39 @@ class MessageRepository(IMessageRepository):
         )
 
         result = await self.db.execute(messages_query)
-        message_rows = result.all()
-
-        # Add sender_username to message objects
-        messages = []
-        for message_object, username in message_rows:
-            message_object.sender_username = username
-            messages.append(message_object)
+        messages = list(result.scalars().all())
 
         return messages, total_count
 
     async def get_user_messages(self, user_id: int, limit: int = 50) -> list[Message]:
         """Get messages sent by a specific user."""
-        query = select(Message).where(Message.sender_id == user_id).order_by(desc(Message.sent_at)).limit(limit)
+        from sqlalchemy.orm import selectinload
+
+        query = (
+            select(Message)
+            .options(selectinload(Message.sender_user), selectinload(Message.sender_ai))
+            .where(Message.sender_user_id == user_id)
+            .order_by(desc(Message.sent_at))
+            .limit(limit)
+        )
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
     async def get_latest_room_messages(self, room_id: int, limit: int = 10) -> list[Message]:
         """Get latest messages from a room."""
+        from sqlalchemy.orm import selectinload
+
         query = (
-            select(Message, User.username)
-            .join(User, Message.sender_id == User.id)
+            select(Message)
+            .options(selectinload(Message.sender_user), selectinload(Message.sender_ai))
             .where(and_(Message.room_id == room_id, Message.conversation_id.is_(None)))
             .order_by(desc(Message.sent_at))
             .limit(limit)
         )
 
         result = await self.db.execute(query)
-        message_rows = result.all()
-
-        # Add sender_username to message objects
-        messages = []
-        for message_object, username in message_rows:
-            message_object.sender_username = username
-            messages.append(message_object)
-
-        return messages
+        return list(result.scalars().all())
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[Message]:
         """Get all messages with pagination."""
