@@ -58,12 +58,12 @@ class TestAIEntityEndpoints:
         # Assert
         assert response.status_code == 403
 
-    async def test_get_all_ai_entities(self, async_client, authenticated_user_headers):
+    async def test_get_all_ai_entities(self, async_client, authenticated_user_headers, authenticated_admin_headers):
         """Test getting all AI entities."""
         # Arrange - Create AI entity first
         await async_client.post(
             "/api/v1/ai/entities",
-            headers=await self._get_admin_headers(async_client),
+            headers=authenticated_admin_headers,
             json={
                 "name": "test_ai_1",
                 "display_name": "Test AI 1",
@@ -168,7 +168,9 @@ class TestAIEntityEndpoints:
         assert response.status_code == 200
         assert "deleted" in response.json()["message"].lower()
 
-    async def test_get_available_ai_in_room(self, async_client, authenticated_admin_headers, authenticated_user_headers):
+    async def test_get_available_ai_in_room(
+        self, async_client, authenticated_admin_headers, authenticated_user_headers
+    ):
         """Test getting available AI entities in a room."""
         # Arrange - Create room
         room_response = await async_client.post(
@@ -193,9 +195,7 @@ class TestAIEntityEndpoints:
         data = response.json()
         assert isinstance(data, list)
 
-    async def test_complete_ai_workflow(
-        self, async_client, authenticated_admin_headers, authenticated_user_headers
-    ):
+    async def test_complete_ai_workflow(self, async_client, authenticated_admin_headers, authenticated_user_headers):
         """Test complete AI workflow: create, list, update, delete."""
         # Step 1: Create AI entity
         create_response = await async_client.post(
@@ -243,15 +243,3 @@ class TestAIEntityEndpoints:
             headers=authenticated_admin_headers,
         )
         assert delete_response.status_code == 200
-
-    async def _get_admin_headers(self, async_client):
-        """Helper to get admin auth headers."""
-        login_response = await async_client.post(
-            "/api/v1/auth/login",
-            json={
-                "email": "admin@test.com",
-                "password": "admin123456",
-            },
-        )
-        token = login_response.json()["access_token"]
-        return {"Authorization": f"Bearer {token}"}
