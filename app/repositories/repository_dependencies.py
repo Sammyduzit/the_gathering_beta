@@ -2,6 +2,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.repositories.ai_entity_repository import AIEntityRepository, IAIEntityRepository
 from app.repositories.conversation_repository import (
     ConversationRepository,
     IConversationRepository,
@@ -62,3 +63,12 @@ def get_message_translation_repository(
     :return: MessageTranslationRepository instance
     """
     return MessageTranslationRepository(db)
+
+
+def get_ai_entity_repository(db: AsyncSession = Depends(get_db)) -> IAIEntityRepository:
+    """
+    Create AIEntityRepository instance with async database session.
+    :param db: Async database session from get_db dependency
+    :return: AIEntityRepository instance
+    """
+    return AIEntityRepository(db)

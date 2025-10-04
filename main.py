@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
+from app.api.v1.endpoints.ai_router import router as ai_router
 from app.api.v1.endpoints.auth_router import router as auth_router
 from app.api.v1.endpoints.conversation_router import router as conversation_router
 from app.api.v1.endpoints.room_router import router as rooms_router
@@ -41,6 +42,7 @@ app = FastAPI(
 app.include_router(rooms_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(conversation_router, prefix="/api/v1")
+app.include_router(ai_router, prefix="/api/v1")
 
 
 @app.get("/")

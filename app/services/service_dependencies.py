@@ -3,12 +3,14 @@ from fastapi import Depends
 from app.core.config import settings
 from app.implementations.deepl_translator import DeepLTranslator
 from app.interfaces.translator import TranslatorInterface
+from app.repositories.ai_entity_repository import IAIEntityRepository
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import (
     IMessageTranslationRepository,
 )
 from app.repositories.repository_dependencies import (
+    get_ai_entity_repository,
     get_conversation_repository,
     get_message_repository,
     get_message_translation_repository,
@@ -17,6 +19,7 @@ from app.repositories.repository_dependencies import (
 )
 from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
+from app.services.ai_entity_service import AIEntityService
 from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService
 from app.services.room_service import RoomService
@@ -116,4 +119,20 @@ def get_background_service(
     return BackgroundService(
         translation_service=translation_service,
         message_translation_repo=message_translation_repo,
+    )
+
+
+def get_ai_entity_service(
+    ai_entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
+    conversation_repo: IConversationRepository = Depends(get_conversation_repository),
+) -> AIEntityService:
+    """
+    Create AIEntityService instance with repository dependencies.
+    :param ai_entity_repo: AI entity repository instance
+    :param conversation_repo: Conversation repository instance
+    :return: AIEntityService instance
+    """
+    return AIEntityService(
+        ai_entity_repo=ai_entity_repo,
+        conversation_repo=conversation_repo,
     )
