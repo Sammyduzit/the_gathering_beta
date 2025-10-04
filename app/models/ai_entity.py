@@ -4,12 +4,21 @@ AI Entity model for LangChain-powered chat agents.
 Follows User model pattern with configuration for OpenAI/LangChain integration.
 """
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, Integer, String, Text
+import enum
+
+from sqlalchemy import JSON, Boolean, Column, DateTime, Enum, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+
+class AIEntityStatus(enum.Enum):
+    """AI entity status."""
+
+    ACTIVE = "active"  # Can be invited to conversations
+    OFFLINE = "offline"  # Admin deactivated
 
 
 class AIEntity(Base):
@@ -44,8 +53,8 @@ class AIEntity(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships (same pattern as User.sent_messages)
-    memories = relationship("AIMemory", back_populates="entity", lazy="dynamic")
+    # Relationships (async-safe: lazy="raise" prevents accidental lazy loading in async context)
+    memories = relationship("AIMemory", back_populates="entity", lazy="raise")
 
     def __repr__(self):
         return f"<AIEntity(id={self.id}, name='{self.name}')>"

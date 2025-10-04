@@ -1,6 +1,6 @@
 from app.core.database import Base
 
-from .ai_entity import AIEntity
+from .ai_entity import AIEntity, AIEntityStatus
 from .ai_memory import AIMemory
 from .conversation import Conversation, ConversationType
 from .conversation_participant import ConversationParticipant
@@ -22,4 +22,5 @@ __all__ = [
     "UserStatus",
     "ConversationType",
     "MessageType",
+    "AIEntityStatus",
 ]
