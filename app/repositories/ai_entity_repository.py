@@ -3,7 +3,7 @@ from abc import abstractmethod
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.ai_entity import AIEntity
+from app.models.ai_entity import AIEntity, AIEntityStatus
 
 from .base_repository import BaseRepository
 
@@ -49,7 +49,7 @@ class AIEntityRepository(IAIEntityRepository):
         return list(result.scalars().all())
 
     async def get_active_entities(self) -> list[AIEntity]:
-        query = select(AIEntity).where(AIEntity.is_active.is_(True))
+        query = select(AIEntity).where(AIEntity.status == AIEntityStatus.ACTIVE)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
@@ -65,10 +65,10 @@ class AIEntityRepository(IAIEntityRepository):
         return entity
 
     async def delete(self, id: int) -> bool:
-        """Soft delete - set inactive."""
+        """Soft delete - set offline."""
         entity = await self.get_by_id(id)
         if entity:
-            entity.is_active = False
+            entity.status = AIEntityStatus.OFFLINE
             await self.db.commit()
             return True
         return False

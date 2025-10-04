@@ -6,7 +6,7 @@ Tests focus on CRUD operations and query methods using SQLite in-memory database
 
 import pytest
 
-from app.models.ai_entity import AIEntity
+from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.repositories.ai_entity_repository import AIEntityRepository
 
 
@@ -29,7 +29,7 @@ class TestAIEntityRepository:
         assert created_entity.id is not None
         assert created_entity.name == "assistant"
         assert created_entity.display_name == "AI Assistant"
-        assert created_entity.is_active is True
+        assert created_entity.status == AIEntityStatus.OFFLINE
 
     async def test_get_by_id_success(self, db_session):
         """Test successful entity retrieval by ID."""
@@ -76,9 +76,15 @@ class TestAIEntityRepository:
         """Test retrieval of active entities only."""
         repo = AIEntityRepository(db_session)
 
-        active_entity = AIEntity(name="active", display_name="Active Bot", system_prompt="Active", model_name="gpt-4")
+        active_entity = AIEntity(
+            name="active", display_name="Active Bot", system_prompt="Active", model_name="gpt-4", status=AIEntityStatus.ACTIVE
+        )
         inactive_entity = AIEntity(
-            name="inactive", display_name="Inactive Bot", system_prompt="Inactive", model_name="gpt-4", is_active=False
+            name="inactive",
+            display_name="Inactive Bot",
+            system_prompt="Inactive",
+            model_name="gpt-4",
+            status=AIEntityStatus.OFFLINE,
         )
 
         await repo.create(active_entity)
@@ -132,7 +138,7 @@ class TestAIEntityRepository:
         found_entity = await repo.get_by_id(created.id)
 
         assert deleted is True
-        assert found_entity.is_active is False
+        assert found_entity.status == AIEntityStatus.OFFLINE
 
     async def test_delete_nonexistent_entity(self, db_session):
         """Test delete returns False for nonexistent entity."""
