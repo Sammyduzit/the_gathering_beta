@@ -325,6 +325,13 @@ class RoomService:
             page_size=page_size,
         )
 
+        # Set sender_username for each message
+        for message in messages:
+            if message.sender_user_id:
+                message.sender_username = message.sender_user.username
+            elif message.sender_ai_id:
+                message.sender_username = message.sender_ai.display_name
+
         # Apply translations if user has preferred language
         if current_user.preferred_language:
             messages = await self._apply_translations_to_messages(messages, current_user.preferred_language)

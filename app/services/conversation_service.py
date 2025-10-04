@@ -145,12 +145,21 @@ class ConversationService:
         """
         await self._validate_conversation_access(current_user.id, conversation_id)
 
-        return await self.message_repo.get_conversation_messages(
+        messages, total_count = await self.message_repo.get_conversation_messages(
             conversation_id=conversation_id,
             page=page,
             page_size=page_size,
             user_language=current_user.preferred_language,
         )
+
+        # Set sender_username for each message
+        for message in messages:
+            if message.sender_user_id:
+                message.sender_username = message.sender_user.username
+            elif message.sender_ai_id:
+                message.sender_username = message.sender_ai.display_name
+
+        return messages, total_count
 
     async def get_user_conversations(self, user_id: int) -> list[dict]:
         """

@@ -11,7 +11,7 @@ Tests verify:
 import pytest
 from sqlalchemy import select
 
-from app.models.ai_entity import AIEntity
+from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.models.ai_memory import AIMemory
 from app.repositories.ai_entity_repository import AIEntityRepository
 from app.repositories.ai_memory_repository import AIMemoryRepository
@@ -40,7 +40,7 @@ class TestAIEntityE2E:
         assert created.id is not None
         assert created.name == "assistant"
         assert created.model_name == "gpt-4"
-        assert created.is_active is True
+        assert created.status == AIEntityStatus.OFFLINE
 
     async def test_ai_entity_unique_name_constraint(self, db_session):
         """Test unique constraint on AI entity name."""

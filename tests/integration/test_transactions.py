@@ -95,9 +95,9 @@ class TestTransactions:
         room = await room_factory.create(db_session)
 
         # Act - Create 3 messages in one transaction
-        message1 = Message(sender_id=user.id, room_id=room.id, content="Message 1")
-        message2 = Message(sender_id=user.id, room_id=room.id, content="Message 2")
-        message3 = Message(sender_id=user.id, room_id=room.id, content="Message 3")
+        message1 = Message(sender_user_id=user.id, room_id=room.id, content="Message 1")
+        message2 = Message(sender_user_id=user.id, room_id=room.id, content="Message 2")
+        message3 = Message(sender_user_id=user.id, room_id=room.id, content="Message 3")
 
         db_session.add_all([message1, message2, message3])
         await db_session.commit()
@@ -206,8 +206,8 @@ class TestTransactions:
         conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Create messages
-        message1 = Message(sender_id=user.id, conversation_id=conversation.id, content="Msg 1")
-        message2 = Message(sender_id=user.id, conversation_id=conversation.id, content="Msg 2")
+        message1 = Message(sender_user_id=user.id, conversation_id=conversation.id, content="Msg 1")
+        message2 = Message(sender_user_id=user.id, conversation_id=conversation.id, content="Msg 2")
         db_session.add_all([message1, message2])
         await db_session.commit()
 
