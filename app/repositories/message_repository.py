@@ -16,13 +16,17 @@ class IMessageRepository(BaseRepository[Message]):
     """Abstract interface for Message repository."""
 
     @abstractmethod
-    async def create_room_message(self, sender_id: int, room_id: int, content: str) -> Message:
-        """Create a room-wide message."""
+    async def create_room_message(
+        self, room_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+    ) -> Message:
+        """Create a room-wide message (polymorphic sender)."""
         pass
 
     @abstractmethod
-    async def create_conversation_message(self, sender_id: int, conversation_id: int, content: str) -> Message:
-        """Create a conversation message (private/group)."""
+    async def create_conversation_message(
+        self, conversation_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+    ) -> Message:
+        """Create a conversation message (polymorphic sender)."""
         pass
 
     @abstractmethod
@@ -73,10 +77,13 @@ class MessageRepository(IMessageRepository):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def create_room_message(self, sender_id: int, room_id: int, content: str) -> Message:
-        """Create a room-wide message."""
+    async def create_room_message(
+        self, room_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+    ) -> Message:
+        """Create a room-wide message (polymorphic sender)."""
         new_message = Message(
-            sender_id=sender_id,
+            sender_user_id=sender_user_id,
+            sender_ai_id=sender_ai_id,
             content=content,
             message_type=MessageType.TEXT,
             room_id=room_id,
@@ -88,10 +95,13 @@ class MessageRepository(IMessageRepository):
         await self.db.refresh(new_message)
         return new_message
 
-    async def create_conversation_message(self, sender_id: int, conversation_id: int, content: str) -> Message:
-        """Create a conversation message (private/group)."""
+    async def create_conversation_message(
+        self, conversation_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+    ) -> Message:
+        """Create a conversation message (polymorphic sender)."""
         new_message = Message(
-            sender_id=sender_id,
+            sender_user_id=sender_user_id,
+            sender_ai_id=sender_ai_id,
             content=content,
             message_type=MessageType.TEXT,
             room_id=None,

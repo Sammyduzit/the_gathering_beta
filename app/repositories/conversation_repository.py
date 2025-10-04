@@ -38,8 +38,18 @@ class IConversationRepository(BaseRepository[Conversation]):
         pass
 
     @abstractmethod
-    async def get_participants(self, conversation_id: int) -> list[User]:
-        """Get all active participants in conversation."""
+    async def get_participants(self, conversation_id: int) -> list[ConversationParticipant]:
+        """Get all active participants in conversation (polymorphic: User + AI)."""
+        pass
+
+    @abstractmethod
+    async def add_ai_participant(self, conversation_id: int, ai_entity_id: int) -> ConversationParticipant:
+        """Add AI to conversation."""
+        pass
+
+    @abstractmethod
+    async def remove_ai_participant(self, conversation_id: int, ai_entity_id: int) -> bool:
+        """Remove AI from conversation (soft delete)."""
         pass
 
     @abstractmethod
@@ -160,23 +170,52 @@ class ConversationRepository(IConversationRepository):
         participant = result.scalar_one_or_none()
         return participant is not None
 
-    async def get_participants(self, conversation_id: int) -> list[User]:
-        """Get all active participants in conversation."""
-        participants_query = (
-            select(User)
-            .join(
-                ConversationParticipant,
-                and_(
-                    ConversationParticipant.user_id == User.id,
-                    ConversationParticipant.conversation_id == conversation_id,
-                    ConversationParticipant.left_at.is_(None),
-                ),
+    async def get_participants(self, conversation_id: int) -> list[ConversationParticipant]:
+        """Get all active participants in conversation (polymorphic: User + AI)."""
+        participants_query = select(ConversationParticipant).where(
+            and_(
+                ConversationParticipant.conversation_id == conversation_id,
+                ConversationParticipant.left_at.is_(None),
             )
-            .where(User.is_active.is_(True))
         )
 
         result = await self.db.execute(participants_query)
         return list(result.scalars().all())
+
+    async def add_ai_participant(self, conversation_id: int, ai_entity_id: int) -> ConversationParticipant:
+        """Add AI to conversation."""
+        from sqlalchemy.exc import IntegrityError
+
+        participant = ConversationParticipant(conversation_id=conversation_id, ai_entity_id=ai_entity_id)
+
+        self.db.add(participant)
+        try:
+            await self.db.commit()
+            await self.db.refresh(participant)
+            return participant
+        except IntegrityError:
+            await self.db.rollback()
+            raise ValueError("AI is already in this conversation or 1-AI limit reached")
+
+    async def remove_ai_participant(self, conversation_id: int, ai_entity_id: int) -> bool:
+        """Remove AI from conversation (soft delete)."""
+        from datetime import datetime
+
+        participant_query = select(ConversationParticipant).where(
+            and_(
+                ConversationParticipant.conversation_id == conversation_id,
+                ConversationParticipant.ai_entity_id == ai_entity_id,
+                ConversationParticipant.left_at.is_(None),
+            )
+        )
+        result = await self.db.execute(participant_query)
+        participant = result.scalar_one_or_none()
+
+        if participant:
+            participant.left_at = datetime.now()
+            await self.db.commit()
+            return True
+        return False
 
     async def get_user_conversations(self, user_id: int) -> list[Conversation]:
         """Get all active conversations for a user."""

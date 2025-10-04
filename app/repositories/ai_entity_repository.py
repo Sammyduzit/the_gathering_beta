@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_entity import AIEntity, AIEntityStatus
@@ -24,6 +24,16 @@ class IAIEntityRepository(BaseRepository[AIEntity]):
     @abstractmethod
     async def name_exists(self, name: str, exclude_id: int | None = None) -> bool:
         """Check if name exists (for validation)."""
+        pass
+
+    @abstractmethod
+    async def get_available_in_room(self, room_id: int) -> list[AIEntity]:
+        """Get available AIs in specific room (optimized with JOIN)."""
+        pass
+
+    @abstractmethod
+    async def get_ai_in_conversation(self, conversation_id: int) -> AIEntity | None:
+        """Get AI entity in specific conversation (optimized with JOIN)."""
         pass
 
 
@@ -83,3 +93,56 @@ class AIEntityRepository(IAIEntityRepository):
             query = query.where(AIEntity.id != exclude_id)
         result = await self.db.execute(query)
         return result.scalar_one_or_none() is not None
+
+    async def get_available_in_room(self, room_id: int) -> list[AIEntity]:
+        """
+        Get available AIs in specific room.
+
+        Available = ACTIVE status + not in any active conversation + in this room
+        Uses LEFT JOIN to check conversation participation efficiently.
+        """
+        from app.models.conversation_participant import ConversationParticipant
+
+        query = (
+            select(AIEntity)
+            .outerjoin(
+                ConversationParticipant,
+                and_(
+                    ConversationParticipant.ai_entity_id == AIEntity.id,
+                    ConversationParticipant.left_at.is_(None),
+                ),
+            )
+            .where(
+                and_(
+                    AIEntity.current_room_id == room_id,
+                    AIEntity.status == AIEntityStatus.ACTIVE,
+                    ConversationParticipant.id.is_(None),
+                )
+            )
+        )
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_ai_in_conversation(self, conversation_id: int) -> AIEntity | None:
+        """
+        Get AI entity in specific conversation (optimized with JOIN).
+
+        Returns None if no AI in conversation.
+        """
+        from app.models.conversation_participant import ConversationParticipant
+
+        query = (
+            select(AIEntity)
+            .join(
+                ConversationParticipant,
+                ConversationParticipant.ai_entity_id == AIEntity.id,
+            )
+            .where(
+                and_(
+                    ConversationParticipant.conversation_id == conversation_id,
+                    ConversationParticipant.left_at.is_(None),
+                )
+            )
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
