@@ -92,7 +92,7 @@ class ConversationService:
             )
 
         message = await self.message_repo.create_conversation_message(
-            sender_id=current_user.id, conversation_id=conversation_id, content=content
+            conversation_id=conversation_id, content=content, sender_user_id=current_user.id
         )
 
         # Load room async to check translation settings (avoid lazy loading)
@@ -105,11 +105,12 @@ class ConversationService:
             target_languages = list(
                 set(
                     [
-                        user.preferred_language.upper()
-                        for user in participants
-                        if user.preferred_language
-                        and user.preferred_language != current_user.preferred_language
-                        and user.id != current_user.id
+                        participant.user.preferred_language.upper()
+                        for participant in participants
+                        if participant.user_id  # Only user participants, not AI
+                        and participant.user.preferred_language
+                        and participant.user.preferred_language != current_user.preferred_language
+                        and participant.user_id != current_user.id
                     ]
                 )
             )
@@ -162,7 +163,9 @@ class ConversationService:
         conversation_list = []
         for conv in conversations:
             participants = await self.conversation_repo.get_participants(conv.id)
-            participant_names = [p.username for p in participants if p.id != user_id]
+            participant_names = [
+                p.participant_name for p in participants if p.user_id and p.user_id != user_id
+            ]
 
             conversation_list.append(
                 {
@@ -190,12 +193,13 @@ class ConversationService:
 
         return [
             {
-                "id": user.id,
-                "username": user.username,
-                "status": user.status.value,
-                "avatar_url": user.avatar_url,
+                "id": participant.user_id if participant.user_id else participant.ai_entity_id,
+                "username": participant.participant_name,
+                "status": participant.user.status.value if participant.user_id else "active",
+                "avatar_url": participant.user.avatar_url if participant.user_id else None,
+                "is_ai": participant.is_ai,
             }
-            for user in participants
+            for participant in participants
         ]
 
     async def _validate_participants(self, usernames: list[str], room_id: int) -> list[User]:

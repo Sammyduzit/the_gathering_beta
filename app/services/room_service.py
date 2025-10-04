@@ -261,7 +261,7 @@ class RoomService:
             )
 
         message = await self.message_repo.create_room_message(
-            sender_id=current_user.id, room_id=room_id, content=content
+            room_id=room_id, content=content, sender_user_id=current_user.id
         )
 
         # Translation logic
