@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.conversation import Conversation, ConversationType
 from app.models.conversation_participant import ConversationParticipant
-from app.models.user import User
 from app.repositories.base_repository import BaseRepository
 
 

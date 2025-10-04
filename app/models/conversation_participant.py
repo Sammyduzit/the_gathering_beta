@@ -79,4 +79,6 @@ class ConversationParticipant(Base):
 
     def __repr__(self):
         participant_type = "ai" if self.is_ai else "user"
-        return f"<ConversationParticipant(conversation={self.conversation_id}, {participant_type}={self.participant_id})>"
+        return (
+            f"<ConversationParticipant(conversation={self.conversation_id}, {participant_type}={self.participant_id})>"
+        )

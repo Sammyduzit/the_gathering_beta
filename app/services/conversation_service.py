@@ -172,9 +172,7 @@ class ConversationService:
         conversation_list = []
         for conv in conversations:
             participants = await self.conversation_repo.get_participants(conv.id)
-            participant_names = [
-                p.participant_name for p in participants if p.user_id and p.user_id != user_id
-            ]
+            participant_names = [p.participant_name for p in participants if p.user_id and p.user_id != user_id]
 
             conversation_list.append(
                 {

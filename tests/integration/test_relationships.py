@@ -38,7 +38,9 @@ class TestRelationships:
         await message_factory.create_room_message(db_session, sender=user, room=room, content="Msg 3")
 
         # Act - Count messages via SQL (testing dynamic relationship behavior)
-        messages_count = await db_session.scalar(select(func.count(Message.id)).where(Message.sender_user_id == user.id))
+        messages_count = await db_session.scalar(
+            select(func.count(Message.id)).where(Message.sender_user_id == user.id)
+        )
 
         # Assert
         assert messages_count == 3
@@ -221,7 +223,10 @@ class TestRelationships:
         from sqlalchemy.orm import joinedload
 
         result = await db_session.execute(
-            select(Message).join(Message.sender_user).where(User.username == "alice").options(joinedload(Message.sender_user))
+            select(Message)
+            .join(Message.sender_user)
+            .where(User.username == "alice")
+            .options(joinedload(Message.sender_user))
         )
         alice_messages = result.scalars().all()
 

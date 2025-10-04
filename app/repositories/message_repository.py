@@ -6,7 +6,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.message import Message, MessageType
-from app.models.user import User
 from app.repositories.base_repository import BaseRepository
 
 logger = logging.getLogger(__name__)

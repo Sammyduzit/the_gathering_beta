@@ -77,7 +77,11 @@ class TestAIEntityRepository:
         repo = AIEntityRepository(db_session)
 
         active_entity = AIEntity(
-            name="active", display_name="Active Bot", system_prompt="Active", model_name="gpt-4", status=AIEntityStatus.ACTIVE
+            name="active",
+            display_name="Active Bot",
+            system_prompt="Active",
+            model_name="gpt-4",
+            status=AIEntityStatus.ACTIVE,
         )
         inactive_entity = AIEntity(
             name="inactive",
