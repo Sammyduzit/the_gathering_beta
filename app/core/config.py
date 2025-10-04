@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     debug: bool
 
     deepl_api_key: str
+    openai_api_key: str | None = None  # Optional for AI features
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
 
