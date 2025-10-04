@@ -20,6 +20,7 @@ class Room(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     users = relationship("User", back_populates="current_room")
+    ai_entities = relationship("AIEntity", back_populates="current_room", lazy="raise")
     conversations = relationship("Conversation", back_populates="room")
     room_messages = relationship("Message", back_populates="room", lazy="dynamic")
 

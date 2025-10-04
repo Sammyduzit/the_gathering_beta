@@ -29,20 +29,28 @@ class Message(Base):
 
     Business Rules:
     - XOR Constraint: Message belongs to EITHER room OR conversation (never both)
+    - XOR Constraint: Sender is EITHER user OR AI entity (never both)
     - Room messages: Public, all room members can see
     - Conversation messages: Private/group, only participants can see
     - System messages: Automated notifications (join/leave events)
-
-    Routing Logic:
-    - room_id set, conversation_id NULL → Room-wide chat
-    - conversation_id set, room_id NULL → Private/group chat
-    - Both set or both NULL → Constraint violation
     """
 
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True)
-    sender_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
+
+    # Polymorphic sender (User XOR AI)
+    sender_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    sender_ai_id = Column(
+        Integer,
+        ForeignKey("ai_entities.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     content = Column(Text, nullable=False)
     message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
     sent_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -50,10 +58,22 @@ class Message(Base):
     room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True)
 
-    sender = relationship("User", back_populates="sent_messages")
+    # Polymorphic relationships
+    sender_user = relationship(
+        "User",
+        back_populates="sent_messages",
+        foreign_keys=[sender_user_id],
+        lazy="raise",
+    )
+    sender_ai = relationship(
+        "AIEntity",
+        back_populates="sent_messages",
+        foreign_keys=[sender_ai_id],
+        lazy="raise",
+    )
+
     room = relationship("Room", back_populates="room_messages")
     conversation = relationship("Conversation", back_populates="messages")
-
     translations = relationship("MessageTranslation", back_populates="message", lazy="dynamic")
 
     __table_args__ = (
@@ -61,42 +81,51 @@ class Message(Base):
             "(room_id is NULL) != (conversation_id IS NULL)",
             name="message_xor_room_conversation",
         ),
+        CheckConstraint(
+            "(sender_user_id IS NULL) != (sender_ai_id IS NULL)",
+            name="message_xor_sender_user_ai",
+        ),
         Index("idx_conversation_messages", "conversation_id", "sent_at"),
         Index("idx_room_messages", "room_id", "sent_at"),
-        Index("idx_user_messages", "sender_id", "sent_at"),
+        Index("idx_user_messages", "sender_user_id", "sent_at"),
+        Index("idx_ai_messages", "sender_ai_id", "sent_at"),
     )
 
-    def __repr__(self):
-        """
-        String representation of message.
-        :return: Formatted message info
-        """
-        target = f"room={self.room_id}" if self.room_id else f"conversation={self.conversation_id}"
-        return f"<Message(id={self.id}, {target}, sender={self.sender_id})>"
+    @property
+    def sender_id(self) -> int:
+        """Get sender ID regardless of type (User or AI)."""
+        return self.sender_user_id if self.sender_user_id else self.sender_ai_id
+
+    @property
+    def sender_name(self) -> str:
+        """Get sender display name regardless of type."""
+        if self.sender_user_id:
+            return self.sender_user.username
+        return self.sender_ai.display_name
+
+    @property
+    def is_from_ai(self) -> bool:
+        """Check if message is from AI entity."""
+        return self.sender_ai_id is not None
 
     @property
     def is_room_message(self):
-        """
-        Check if message is for room-wide chat.
-        :return: True if room message, False if conversation message
-        """
+        """Check if message is for room-wide chat."""
         return self.room_id is not None
 
     @property
     def is_conversation_message(self):
-        """
-        Check if message is for private/group conversation.
-        :return: True if conversation message, False if room message
-        """
+        """Check if message is for private/group conversation."""
         return self.conversation_id is not None
 
     @property
     def chat_target(self):
-        """
-        Get the target of this message (room or conversation ID).
-        :return: Dictionary with target type and ID
-        """
+        """Get the target of this message (room or conversation ID)."""
         if self.is_room_message:
             return {"type": "room", "id": self.room_id}
-        else:
-            return {"type": "conversation", "id": self.conversation_id}
+        return {"type": "conversation", "id": self.conversation_id}
+
+    def __repr__(self):
+        target = f"room={self.room_id}" if self.room_id else f"conversation={self.conversation_id}"
+        sender_type = "ai" if self.is_from_ai else "user"
+        return f"<Message(id={self.id}, {target}, sender={sender_type}:{self.sender_id})>"
