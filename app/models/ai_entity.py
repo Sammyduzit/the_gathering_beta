@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+from app.core.constants import DEFAULT_AI_MAX_TOKENS, DEFAULT_AI_MODEL, DEFAULT_AI_TEMPERATURE
 from app.core.database import Base
 
 
@@ -33,9 +34,9 @@ class AIEntity(Base):
 
     # LangChain/OpenAI Configuration
     system_prompt = Column(Text, nullable=False)
-    model_name = Column(String(100), nullable=False, default="gpt-4")
-    temperature = Column(Float, nullable=False, default=0.7)
-    max_tokens = Column(Integer, nullable=False, default=1024)
+    model_name = Column(String(100), nullable=False, default=DEFAULT_AI_MODEL)
+    temperature = Column(Float, nullable=False, default=DEFAULT_AI_TEMPERATURE)
+    max_tokens = Column(Integer, nullable=False, default=DEFAULT_AI_MAX_TOKENS)
 
     # Flexible config storage (JSONB for additional LangChain parameters)
     config = Column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"), nullable=True)

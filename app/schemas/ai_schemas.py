@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.constants import MAX_AI_MAX_TOKENS, MAX_AI_TEMPERATURE, MIN_AI_MAX_TOKENS, MIN_AI_TEMPERATURE
 from app.core.validators import SanitizedString
 
 
@@ -12,8 +13,8 @@ class AIEntityCreate(BaseModel):
     display_name: SanitizedString = Field(min_length=1, max_length=100, description="Display name for users")
     system_prompt: str = Field(min_length=1, max_length=5000, description="AI system prompt/instructions")
     model_name: SanitizedString = Field(min_length=1, max_length=100, description="LLM model name")
-    temperature: float | None = Field(None, ge=0.0, le=2.0, description="LLM temperature")
-    max_tokens: int | None = Field(None, ge=1, le=32000, description="Max response tokens")
+    temperature: float | None = Field(None, ge=MIN_AI_TEMPERATURE, le=MAX_AI_TEMPERATURE, description="LLM temperature")
+    max_tokens: int | None = Field(None, ge=MIN_AI_MAX_TOKENS, le=MAX_AI_MAX_TOKENS, description="Max response tokens")
     config: dict | None = Field(None, description="Additional LangChain configuration")
 
 
@@ -23,8 +24,8 @@ class AIEntityUpdate(BaseModel):
     display_name: SanitizedString | None = Field(None, min_length=1, max_length=100)
     system_prompt: str | None = Field(None, min_length=1, max_length=5000)
     model_name: SanitizedString | None = Field(None, min_length=1, max_length=100)
-    temperature: float | None = Field(None, ge=0.0, le=2.0)
-    max_tokens: int | None = Field(None, ge=1, le=32000)
+    temperature: float | None = Field(None, ge=MIN_AI_TEMPERATURE, le=MAX_AI_TEMPERATURE)
+    max_tokens: int | None = Field(None, ge=MIN_AI_MAX_TOKENS, le=MAX_AI_MAX_TOKENS)
     config: dict | None = None
 
 

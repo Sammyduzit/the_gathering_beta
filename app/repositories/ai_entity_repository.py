@@ -60,9 +60,7 @@ class AIEntityRepository(IAIEntityRepository):
 
     async def get_available_entities(self) -> list[AIEntity]:
         """Get all available AI entities (online and not deleted)."""
-        query = select(AIEntity).where(
-            AIEntity.status == AIEntityStatus.ONLINE, AIEntity.is_active
-        )
+        query = select(AIEntity).where(AIEntity.status == AIEntityStatus.ONLINE, AIEntity.is_active)
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
