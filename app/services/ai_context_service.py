@@ -150,14 +150,14 @@ class AIContextService:
         # Format memories as context
         memory_lines = ["# Previous Memories:"]
         for memory in memories:
-            importance_marker = "!" * memory.importance  # Visual importance indicator
-            memory_lines.append(f"{importance_marker} {memory.content}")
+            importance_marker = "!" * int(memory.importance_score)  # Visual importance indicator
+            memory_lines.append(f"{importance_marker} {memory.summary}")
 
         memory_context = "\n".join(memory_lines)
 
         logger.info(
             f"Retrieved {len(memories)} memories for AI entity {ai_entity_id} "
-            f"(importance range: {[m.importance for m in memories]})"
+            f"(importance scores: {[m.importance_score for m in memories]})"
         )
 
         return memory_context

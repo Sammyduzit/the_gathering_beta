@@ -55,6 +55,27 @@ def sample_conversation_data():
     return {"conversation_type": "PRIVATE", "max_participants": 2}
 
 
+@pytest.fixture
+def sample_ai_entity_data():
+    """Standard AI entity data for all test types."""
+    return {
+        "name": "test_ai",
+        "display_name": "Test AI",
+        "system_prompt": "You are a test AI assistant",
+        "model_name": "gpt-4",
+    }
+
+
+@pytest.fixture
+def sample_ai_memory_data():
+    """Standard AI memory data for all test types."""
+    return {
+        "content": "Test memory content",
+        "importance": 2,
+        "memory_type": "conversation",
+    }
+
+
 # ============================================================================
 # Global Test Configuration
 # ============================================================================
