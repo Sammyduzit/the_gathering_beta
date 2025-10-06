@@ -69,12 +69,19 @@ class ConversationService:
                 participant_ids=all_participant_ids,
             )
 
-    async def send_message(self, current_user: User, conversation_id: int, content: str) -> Message:
+    async def send_message(
+        self,
+        current_user: User,
+        conversation_id: int,
+        content: str,
+        in_reply_to_message_id: int | None = None,
+    ) -> Message:
         """
         Send message to conversation with validation.
         :param current_user: User sending the message
         :param conversation_id: Target conversation ID
         :param content: Message content
+        :param in_reply_to_message_id: Optional message to reply to
         :return: Created message
         """
         conversation = await self.conversation_repo.get_by_id(conversation_id)
@@ -85,7 +92,10 @@ class ConversationService:
             raise NotConversationParticipantException()
 
         message = await self.message_repo.create_conversation_message(
-            conversation_id=conversation_id, content=content, sender_user_id=current_user.id
+            conversation_id=conversation_id,
+            content=content,
+            sender_user_id=current_user.id,
+            in_reply_to_message_id=in_reply_to_message_id,
         )
 
         # Load room async to check translation settings (avoid lazy loading)

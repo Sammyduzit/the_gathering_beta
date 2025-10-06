@@ -204,3 +204,74 @@ async def test_room(db_session, room_factory):
 async def test_message(db_session, message_factory, test_user, test_room):
     """Quick access to a test message for simple unit tests."""
     return await message_factory.create_room_message(db_session, sender=test_user, room=test_room)
+
+
+# ============================================================================
+# AI Cooldown Test Fixtures
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def async_db_session(unit_engine):
+    """Alias for db_session for AI cooldown tests."""
+    async with AsyncSession(unit_engine, expire_on_commit=False) as session:
+        yield session
+
+
+@pytest_asyncio.fixture
+async def created_ai_entity(async_db_session, sample_ai_entity_data):
+    """Create AI entity for cooldown tests."""
+    from sqlalchemy import select
+
+    ai_entity = AIEntity(
+        **sample_ai_entity_data,
+        status=AIEntityStatus.ONLINE,
+        temperature=0.7,
+        max_tokens=1024,
+    )
+    async_db_session.add(ai_entity)
+    await async_db_session.commit()
+
+    ai_entity = await async_db_session.scalar(
+        select(AIEntity).where(AIEntity.id == ai_entity.id)
+    )
+    async_db_session.expunge(ai_entity)
+    return ai_entity
+
+
+@pytest_asyncio.fixture
+async def created_room(async_db_session, sample_room_data):
+    """Create room for cooldown tests."""
+    from app.models.room import Room
+    from sqlalchemy import select
+
+    room = Room(**sample_room_data)
+    async_db_session.add(room)
+    await async_db_session.commit()
+
+    room = await async_db_session.scalar(
+        select(Room).where(Room.id == room.id)
+    )
+    async_db_session.expunge(room)
+    return room
+
+
+@pytest_asyncio.fixture
+async def created_conversation(async_db_session, created_room, test_user):
+    """Create conversation for cooldown tests."""
+    from app.models.conversation import Conversation, ConversationType
+    from sqlalchemy import select
+
+    conversation = Conversation(
+        room_id=created_room.id,
+        conversation_type=ConversationType.PRIVATE,
+        max_participants=2,
+    )
+    async_db_session.add(conversation)
+    await async_db_session.commit()
+
+    conversation = await async_db_session.scalar(
+        select(Conversation).where(Conversation.id == conversation.id)
+    )
+    async_db_session.expunge(conversation)
+    return conversation

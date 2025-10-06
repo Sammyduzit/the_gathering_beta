@@ -3,6 +3,7 @@ from fastapi import Depends
 from app.core.config import settings
 from app.implementations.deepl_translator import DeepLTranslator
 from app.interfaces.translator import TranslatorInterface
+from app.repositories.ai_cooldown_repository import IAICooldownRepository
 from app.repositories.ai_entity_repository import IAIEntityRepository
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
@@ -10,6 +11,7 @@ from app.repositories.message_translation_repository import (
     IMessageTranslationRepository,
 )
 from app.repositories.repository_dependencies import (
+    get_ai_cooldown_repository,
     get_ai_entity_repository,
     get_conversation_repository,
     get_message_repository,
@@ -125,14 +127,17 @@ def get_background_service(
 def get_ai_entity_service(
     ai_entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),
+    cooldown_repo: IAICooldownRepository = Depends(get_ai_cooldown_repository),
 ) -> AIEntityService:
     """
     Create AIEntityService instance with repository dependencies.
     :param ai_entity_repo: AI entity repository instance
     :param conversation_repo: Conversation repository instance
+    :param cooldown_repo: AI cooldown repository instance
     :return: AIEntityService instance
     """
     return AIEntityService(
         ai_entity_repo=ai_entity_repo,
         conversation_repo=conversation_repo,
+        cooldown_repo=cooldown_repo,
     )

@@ -8,7 +8,7 @@ import enum
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy.sql import func
 
 from app.core.constants import DEFAULT_AI_MAX_TOKENS, DEFAULT_AI_MODEL, DEFAULT_AI_TEMPERATURE
@@ -20,6 +20,17 @@ class AIEntityStatus(enum.Enum):
 
     ONLINE = "online"
     OFFLINE = "offline"
+
+
+class AIResponseStrategy(str, enum.Enum):
+    """AI response behavior strategies."""
+
+    ROOM_MENTION_ONLY = "room_mention_only"
+    ROOM_PROBABILISTIC = "room_probabilistic"
+    ROOM_ACTIVE = "room_active"
+    CONV_EVERY_MESSAGE = "conv_every_message"
+    CONV_ON_QUESTIONS = "conv_on_questions"
+    CONV_SMART = "conv_smart"
 
 
 class AIEntity(Base):
@@ -37,6 +48,25 @@ class AIEntity(Base):
     model_name = Column(String(100), nullable=False, default=DEFAULT_AI_MODEL)
     temperature = Column(Float, nullable=False, default=DEFAULT_AI_TEMPERATURE)
     max_tokens = Column(Integer, nullable=False, default=DEFAULT_AI_MAX_TOKENS)
+
+    # Response Strategies
+    room_response_strategy = Column(
+        Enum(AIResponseStrategy),
+        nullable=False,
+        default=AIResponseStrategy.ROOM_MENTION_ONLY,
+        index=True,
+    )
+    conversation_response_strategy = Column(
+        Enum(AIResponseStrategy),
+        nullable=False,
+        default=AIResponseStrategy.CONV_ON_QUESTIONS,
+        index=True,
+    )
+    response_probability = Column(
+        Float,
+        nullable=False,
+        default=0.3,
+    )
 
     # Flexible config storage (JSONB for additional LangChain parameters)
     config = Column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"), nullable=True)
@@ -74,6 +104,26 @@ class AIEntity(Base):
         foreign_keys="ConversationParticipant.ai_entity_id",
         lazy="raise",
     )
+
+    # Cooldown Tracking
+    cooldowns = relationship(
+        "AICooldown",
+        back_populates="ai_entity",
+        lazy="raise",
+        cascade="all, delete-orphan",
+    )
+
+    @validates("response_probability")
+    def validate_probability(self, key, value):
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"response_probability must be 0.0-1.0, got {value}")
+        return value
+
+    @validates("temperature")
+    def validate_temperature(self, key, value):
+        if value is not None and not 0.0 <= value <= 2.0:
+            raise ValueError(f"temperature must be 0.0-2.0, got {value}")
+        return value
 
     def __repr__(self):
         return f"<AIEntity(id={self.id}, name='{self.name}')>"

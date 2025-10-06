@@ -7,7 +7,7 @@ This service coordinates:
 3. Message persistence
 """
 
-import logging
+import structlog
 
 from app.interfaces.ai_provider import AIProviderError, IAIProvider
 from app.models.ai_entity import AIEntity
@@ -15,7 +15,7 @@ from app.models.message import Message
 from app.repositories.message_repository import IMessageRepository
 from app.services.ai_context_service import AIContextService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class AIResponseService:
@@ -36,6 +36,7 @@ class AIResponseService:
         conversation_id: int,
         ai_entity: AIEntity,
         include_memories: bool = True,
+        in_reply_to_message_id: int | None = None,
     ) -> Message:
         """
         Generate AI response for a conversation message.
@@ -78,6 +79,7 @@ class AIResponseService:
                 conversation_id=conversation_id,
                 content=response_content,
                 sender_ai_id=ai_entity.id,
+                in_reply_to_message_id=in_reply_to_message_id,
             )
 
             logger.info(
@@ -96,6 +98,7 @@ class AIResponseService:
         room_id: int,
         ai_entity: AIEntity,
         include_memories: bool = True,
+        in_reply_to_message_id: int | None = None,
     ) -> Message:
         """
         Generate AI response for a room message.
@@ -138,6 +141,7 @@ class AIResponseService:
                 room_id=room_id,
                 content=response_content,
                 sender_ai_id=ai_entity.id,
+                in_reply_to_message_id=in_reply_to_message_id,
             )
 
             logger.info(

@@ -22,7 +22,7 @@ MESSAGE_CLEANUP_FREQUENCY = 10
 
 
 # AI Entity Configuration
-DEFAULT_AI_MODEL = "gpt-4"
+DEFAULT_AI_MODEL = "gpt-4o-mini"  # Cost optimization: 200x cheaper than gpt-4
 DEFAULT_AI_TEMPERATURE = 0.7
 DEFAULT_AI_MAX_TOKENS = 1024
 
@@ -36,7 +36,7 @@ MAX_AI_MAX_TOKENS = 32000
 # Use get_prompt_template() to retrieve predefined prompt templates
 
 # AI Provider Configuration
-DEFAULT_PROVIDER_MODEL = "gpt-4"
+DEFAULT_PROVIDER_MODEL = "gpt-4o-mini"  # Cost optimization: 200x cheaper than gpt-4
 DEFAULT_PROVIDER_TEMPERATURE = 0.7
 DEFAULT_PROVIDER_MAX_TOKENS = 1024
 

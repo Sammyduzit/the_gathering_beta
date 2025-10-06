@@ -66,6 +66,7 @@ class TestAIResponseService:
             conversation_id=1,
             content="Hi testuser! How can I help?",
             sender_ai_id=1,
+            in_reply_to_message_id=None,
         )
 
     async def test_generate_conversation_response_no_memories(
@@ -145,6 +146,7 @@ class TestAIResponseService:
             room_id=1,
             content="Hello everyone!",
             sender_ai_id=1,
+            in_reply_to_message_id=None,
         )
 
     async def test_should_ai_respond_mentioned_by_name(self, service, sample_ai_entity):

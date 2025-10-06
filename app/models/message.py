@@ -58,6 +58,14 @@ class Message(Base):
     room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True)
 
+    # Threading Support (Reply-To)
+    in_reply_to_message_id = Column(
+        Integer,
+        ForeignKey("messages.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+
     # Polymorphic relationships
     sender_user = relationship(
         "User",
@@ -76,6 +84,14 @@ class Message(Base):
     conversation = relationship("Conversation", back_populates="messages")
     translations = relationship("MessageTranslation", back_populates="message", lazy="dynamic")
 
+    # Self-Referential Relationship for Threading
+    in_reply_to = relationship(
+        "Message",
+        remote_side=[id],
+        backref="replies",
+        lazy="raise",
+    )
+
     __table_args__ = (
         CheckConstraint(
             "(room_id is NULL) != (conversation_id IS NULL)",
@@ -89,6 +105,7 @@ class Message(Base):
         Index("idx_room_messages", "room_id", "sent_at"),
         Index("idx_user_messages", "sender_user_id", "sent_at"),
         Index("idx_ai_messages", "sender_ai_id", "sent_at"),
+        Index("idx_reply_to_message", "in_reply_to_message_id"),
     )
 
     @property

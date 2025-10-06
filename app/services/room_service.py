@@ -1,5 +1,4 @@
-import logging
-
+import structlog
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.constants import MAX_ROOM_MESSAGES, MESSAGE_CLEANUP_FREQUENCY
@@ -19,7 +18,7 @@ from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
 from app.services.translation_service import TranslationService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RoomService:
@@ -237,12 +236,19 @@ class RoomService:
             "user": current_user.username,
         }
 
-    async def send_room_message(self, current_user: User, room_id: int, content: str) -> Message:
+    async def send_room_message(
+        self,
+        current_user: User,
+        room_id: int,
+        content: str,
+        in_reply_to_message_id: int | None = None,
+    ) -> Message:
         """
         Send message to room with validation.
         :param current_user: User sending message
         :param room_id: Target room ID
         :param content: Message content
+        :param in_reply_to_message_id: Optional message to reply to
         :return: Created message
         """
         room = await self._get_room_or_404(room_id)
@@ -251,7 +257,10 @@ class RoomService:
             raise UserNotInRoomException(f"User must be in room '{room.name}' to send messages")
 
         message = await self.message_repo.create_room_message(
-            room_id=room_id, content=content, sender_user_id=current_user.id
+            room_id=room_id,
+            content=content,
+            sender_user_id=current_user.id,
+            in_reply_to_message_id=in_reply_to_message_id,
         )
 
         # Translation logic

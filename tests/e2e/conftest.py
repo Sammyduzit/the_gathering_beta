@@ -257,3 +257,58 @@ def user_factory():
 def room_factory():
     """Room factory for creating test rooms."""
     return RoomFactory
+
+
+# ============================================================================
+# AI Entity Fixtures for ARQ Worker Tests
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def created_ai_entity(db_session):
+    """Create AI entity for ARQ worker tests."""
+    from app.models.ai_entity import AIEntity, AIEntityStatus
+
+    ai_entity = AIEntity(
+        name="test_ai",
+        display_name="Test AI",
+        system_prompt="You are a test AI assistant",
+        model_name="gpt-4o-mini",
+        status=AIEntityStatus.ONLINE,
+        temperature=0.7,
+        max_tokens=1024,
+    )
+    db_session.add(ai_entity)
+    await db_session.commit()
+
+    ai_entity = await db_session.scalar(
+        select(AIEntity).where(AIEntity.id == ai_entity.id)
+    )
+    db_session.expunge(ai_entity)
+    return ai_entity
+
+
+@pytest_asyncio.fixture
+async def created_conversation(db_session, created_room, created_user):
+    """Create conversation for ARQ worker tests."""
+    from app.models.conversation import Conversation, ConversationType
+
+    conversation = Conversation(
+        room_id=created_room.id,
+        conversation_type=ConversationType.PRIVATE,
+        max_participants=2,
+    )
+    db_session.add(conversation)
+    await db_session.commit()
+
+    conversation = await db_session.scalar(
+        select(Conversation).where(Conversation.id == conversation.id)
+    )
+    db_session.expunge(conversation)
+    return conversation
+
+
+@pytest_asyncio.fixture
+async def async_db_session(db_session):
+    """Alias for db_session for ARQ worker tests."""
+    return db_session

@@ -141,7 +141,7 @@ class AIContextService:
             Formatted memory context string
         """
         memories = await self.memory_repo.get_entity_memories(
-            entity_id=ai_entity_id, limit=max_entries, order_by_importance=True
+            entity_id=ai_entity_id, limit=max_entries
         )
 
         if not memories:

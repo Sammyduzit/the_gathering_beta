@@ -1,7 +1,9 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 
+import structlog
 import uvicorn
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
@@ -10,6 +12,7 @@ from app.api.v1.endpoints.ai_router import router as ai_router
 from app.api.v1.endpoints.auth_router import router as auth_router
 from app.api.v1.endpoints.conversation_router import router as conversation_router
 from app.api.v1.endpoints.room_router import router as rooms_router
+from app.core.arq_pool import close_arq_pool, create_arq_pool
 from app.core.config import settings
 from app.core.database import create_tables, drop_tables
 from app.core.exceptions import (
@@ -21,24 +24,48 @@ from app.core.exceptions import (
 )
 from testing_setup import setup_complete_test_environment
 
+# Configure structlog
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.dev.ConsoleRenderer() if settings.debug else structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.NOTSET),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
+logger = structlog.get_logger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Lifespan event handler for startup and shutdown.
     """
-    print("Starting...")
+    logger.info("fastapi_starting")
 
     if os.getenv("RESET_DB") == "true":
-        print("RESET_DB=true - Resetting database...")
+        logger.warning("database_reset_requested")
         await drop_tables()
-        print("Database reset complete")
+        logger.info("database_reset_complete")
 
     await create_tables()
     await setup_complete_test_environment()
-    print("Database tables created")
+    logger.info("database_tables_created")
+
+    await create_arq_pool()
+    logger.info("arq_pool_initialized")
+
     yield
-    print("Shutting down...")
+
+    await close_arq_pool()
+    logger.info("fastapi_shutdown_complete")
 
 
 app = FastAPI(
@@ -147,7 +174,44 @@ def root():
 
 @app.get("/health")
 async def health_check():
+    """Basic health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.get("/health/ai")
+async def ai_health_check():
+    """AI features health check with Redis and OpenAI status."""
+    from app.core.arq_pool import get_arq_pool
+
+    health_status = {
+        "ai_features_enabled": settings.ai_features_enabled,
+        "openai_configured": settings.openai_api_key is not None,
+        "redis_connected": False,
+        "arq_worker_available": False,
+    }
+
+    # Check Redis connection
+    arq_pool = get_arq_pool()
+    if arq_pool:
+        try:
+            await arq_pool.ping()
+            health_status["redis_connected"] = True
+
+            # Check if ARQ worker is processing jobs
+            info = await arq_pool.info()
+            health_status["arq_worker_available"] = info is not None
+            health_status["arq_info"] = info
+        except Exception as e:
+            health_status["redis_error"] = str(e)
+
+    # Overall status
+    health_status["status"] = (
+        "healthy"
+        if health_status["redis_connected"] and health_status["openai_configured"]
+        else "degraded"
+    )
+
+    return health_status
 
 
 @app.get("/test")

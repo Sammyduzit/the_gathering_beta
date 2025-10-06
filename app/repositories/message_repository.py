@@ -16,14 +16,24 @@ class IMessageRepository(BaseRepository[Message]):
 
     @abstractmethod
     async def create_room_message(
-        self, room_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+        self,
+        room_id: int,
+        content: str,
+        sender_user_id: int | None = None,
+        sender_ai_id: int | None = None,
+        in_reply_to_message_id: int | None = None,
     ) -> Message:
         """Create a room-wide message (polymorphic sender)."""
         pass
 
     @abstractmethod
     async def create_conversation_message(
-        self, conversation_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+        self,
+        conversation_id: int,
+        content: str,
+        sender_user_id: int | None = None,
+        sender_ai_id: int | None = None,
+        in_reply_to_message_id: int | None = None,
     ) -> Message:
         """Create a conversation message (polymorphic sender)."""
         pass
@@ -77,7 +87,12 @@ class MessageRepository(IMessageRepository):
         return result.scalar_one_or_none()
 
     async def create_room_message(
-        self, room_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+        self,
+        room_id: int,
+        content: str,
+        sender_user_id: int | None = None,
+        sender_ai_id: int | None = None,
+        in_reply_to_message_id: int | None = None,
     ) -> Message:
         """Create a room-wide message (polymorphic sender)."""
         new_message = Message(
@@ -87,6 +102,7 @@ class MessageRepository(IMessageRepository):
             message_type=MessageType.TEXT,
             room_id=room_id,
             conversation_id=None,
+            in_reply_to_message_id=in_reply_to_message_id,
         )
 
         self.db.add(new_message)
@@ -95,7 +111,12 @@ class MessageRepository(IMessageRepository):
         return new_message
 
     async def create_conversation_message(
-        self, conversation_id: int, content: str, sender_user_id: int | None = None, sender_ai_id: int | None = None
+        self,
+        conversation_id: int,
+        content: str,
+        sender_user_id: int | None = None,
+        sender_ai_id: int | None = None,
+        in_reply_to_message_id: int | None = None,
     ) -> Message:
         """Create a conversation message (polymorphic sender)."""
         new_message = Message(
@@ -105,6 +126,7 @@ class MessageRepository(IMessageRepository):
             message_type=MessageType.TEXT,
             room_id=None,
             conversation_id=conversation_id,
+            in_reply_to_message_id=in_reply_to_message_id,
         )
 
         self.db.add(new_message)

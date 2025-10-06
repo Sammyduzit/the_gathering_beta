@@ -31,11 +31,17 @@ class TestAIEntityService:
         return AsyncMock()
 
     @pytest.fixture
-    def service(self, mock_ai_repo, mock_conversation_repo):
+    def mock_cooldown_repo(self):
+        """Create mock cooldown repository."""
+        return AsyncMock()
+
+    @pytest.fixture
+    def service(self, mock_ai_repo, mock_conversation_repo, mock_cooldown_repo):
         """Create service instance with mocked dependencies."""
         return AIEntityService(
             ai_entity_repo=mock_ai_repo,
             conversation_repo=mock_conversation_repo,
+            cooldown_repo=mock_cooldown_repo,
         )
 
     async def test_get_all_entities(self, service, mock_ai_repo):
@@ -316,3 +322,33 @@ class TestAIEntityService:
         assert result["conversation_id"] == 1
         assert result["ai_entity_id"] == 1
         mock_conversation_repo.remove_ai_participant.assert_called_once_with(1, 1)
+
+    async def test_update_cooldown_room_context(self, service, mock_cooldown_repo):
+        """Test updating cooldown for room context."""
+        # Arrange
+        mock_cooldown_repo.upsert_cooldown.return_value = None
+
+        # Act
+        await service.update_cooldown(ai_entity_id=1, room_id=1)
+
+        # Assert
+        mock_cooldown_repo.upsert_cooldown.assert_called_once_with(
+            ai_entity_id=1,
+            room_id=1,
+            conversation_id=None,
+        )
+
+    async def test_update_cooldown_conversation_context(self, service, mock_cooldown_repo):
+        """Test updating cooldown for conversation context."""
+        # Arrange
+        mock_cooldown_repo.upsert_cooldown.return_value = None
+
+        # Act
+        await service.update_cooldown(ai_entity_id=1, conversation_id=1)
+
+        # Assert
+        mock_cooldown_repo.upsert_cooldown.assert_called_once_with(
+            ai_entity_id=1,
+            room_id=None,
+            conversation_id=1,
+        )

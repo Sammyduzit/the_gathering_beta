@@ -1,4 +1,4 @@
-import logging
+import structlog
 
 from app.core.exceptions import (
     AIEntityNotFoundException,
@@ -8,10 +8,11 @@ from app.core.exceptions import (
     InvalidOperationException,
 )
 from app.models.ai_entity import AIEntity, AIEntityStatus
+from app.repositories.ai_cooldown_repository import IAICooldownRepository
 from app.repositories.ai_entity_repository import IAIEntityRepository
 from app.repositories.conversation_repository import IConversationRepository
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class AIEntityService:
@@ -21,9 +22,11 @@ class AIEntityService:
         self,
         ai_entity_repo: IAIEntityRepository,
         conversation_repo: IConversationRepository,
+        cooldown_repo: IAICooldownRepository,
     ):
         self.ai_entity_repo = ai_entity_repo
         self.conversation_repo = conversation_repo
+        self.cooldown_repo = cooldown_repo
 
     async def get_all_entities(self) -> list[AIEntity]:
         """Get all AI entities."""
@@ -159,3 +162,16 @@ class AIEntityService:
             "conversation_id": conversation_id,
             "ai_entity_id": ai_entity_id,
         }
+
+    async def update_cooldown(
+        self,
+        ai_entity_id: int,
+        room_id: int | None = None,
+        conversation_id: int | None = None,
+    ) -> None:
+        """Update AI entity cooldown for rate limiting."""
+        await self.cooldown_repo.upsert_cooldown(
+            ai_entity_id=ai_entity_id,
+            room_id=room_id,
+            conversation_id=conversation_id,
+        )
