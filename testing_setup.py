@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from app.core.auth_utils import hash_password
 from app.core.database import AsyncSessionLocal
+from app.models.ai_entity import AIEntity, AIEntityStatus, AIResponseStrategy
 from app.models.room import Room
 from app.models.user import User
 from app.services.avatar_service import generate_avatar_url
@@ -50,11 +51,12 @@ async def create_test_users():
                 existing_user = result.scalar_one_or_none()
 
                 if not existing_user:
+                    avatar_url = await generate_avatar_url(user_data["username"])
                     new_user = User(
                         email=user_data["email"],
                         username=user_data["username"],
                         password_hash=hash_password(user_data["password"]),
-                        avatar_url=generate_avatar_url(user_data["username"]),
+                        avatar_url=avatar_url,
                         is_admin=user_data["is_admin"],
                     )
                     db.add(new_user)
@@ -135,12 +137,68 @@ async def create_test_rooms():
     return created_rooms
 
 
+async def create_test_ai_entities():
+    """Create test AI entities for development"""
+    async with AsyncSessionLocal() as db:
+        try:
+            test_ai_entities = [
+                {
+                    "name": "assistant_alpha",
+                    "display_name": "Assistant Alpha",
+                    "description": "Helpful AI assistant for general questions",
+                    "system_prompt": "You are a helpful AI assistant in The Gathering chat. Be friendly, concise, and helpful. Respond naturally to questions and mentions.",
+                    "model_name": "gpt-4o-mini",
+                    "temperature": 0.7,
+                    "max_tokens": 500,
+                    "status": AIEntityStatus.ONLINE,
+                    "room_response_strategy": AIResponseStrategy.ROOM_MENTION_ONLY,
+                    "conversation_response_strategy": AIResponseStrategy.CONV_ON_QUESTIONS,
+                    "response_probability": 0.3,
+                },
+                {
+                    "name": "bot_beta",
+                    "display_name": "Bot Beta",
+                    "description": "Active AI that participates in conversations",
+                    "system_prompt": "You are an active participant in The Gathering. Engage naturally in discussions, share insights, and contribute to conversations.",
+                    "model_name": "gpt-4o-mini",
+                    "temperature": 0.8,
+                    "max_tokens": 300,
+                    "status": AIEntityStatus.OFFLINE,
+                    "room_response_strategy": AIResponseStrategy.ROOM_ACTIVE,
+                    "conversation_response_strategy": AIResponseStrategy.CONV_SMART,
+                    "response_probability": 0.5,
+                },
+            ]
+
+            created_entities = []
+            for ai_data in test_ai_entities:
+                ai_query = select(AIEntity).where(AIEntity.name == ai_data["name"])
+                result = await db.execute(ai_query)
+                existing_ai = result.scalar_one_or_none()
+
+                if not existing_ai:
+                    new_ai = AIEntity(**ai_data)
+                    db.add(new_ai)
+                    created_entities.append(ai_data)
+
+            if created_entities:
+                await db.commit()
+
+        except Exception as e:
+            print(f"Error creating AI entities: {e}")
+            await db.rollback()
+            raise
+
+    return created_entities
+
+
 async def setup_complete_test_environment():
     """Create complete test environment for development"""
     print("\nCreating test environment...\n")
 
     created_users = await create_test_users()
     created_rooms = await create_test_rooms()
+    created_ai = await create_test_ai_entities()
 
     if created_users:
         print("═" * 68)
@@ -162,6 +220,18 @@ async def setup_complete_test_environment():
             name = room["name"]
             description = room["description"][:40] + "..." if len(room["description"]) > 40 else room["description"]
             line = f"  ROOM : {name:<20} | {description:<35}"
+            print(line)
+
+    if created_ai:
+        if created_rooms:
+            print()
+        print(" " * 25 + "TEST AI ENTITIES")
+        print()
+        for ai in created_ai:
+            status = "ONLINE " if ai["status"] == AIEntityStatus.ONLINE else "OFFLINE"
+            name = ai["display_name"]
+            strategy = ai["room_response_strategy"].value
+            line = f"  AI   : {name:<20} | Status: {status:<8} | Strategy: {strategy}"
             print(line)
 
     print("═" * 68)

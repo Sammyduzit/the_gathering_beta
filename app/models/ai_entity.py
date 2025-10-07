@@ -31,6 +31,7 @@ class AIResponseStrategy(str, enum.Enum):
     CONV_EVERY_MESSAGE = "conv_every_message"
     CONV_ON_QUESTIONS = "conv_on_questions"
     CONV_SMART = "conv_smart"
+    NO_RESPONSE = "no_response"
 
 
 class AIEntity(Base):
