@@ -128,16 +128,19 @@ def get_ai_entity_service(
     ai_entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),
     cooldown_repo: IAICooldownRepository = Depends(get_ai_cooldown_repository),
+    room_repo: IRoomRepository = Depends(get_room_repository),
 ) -> AIEntityService:
     """
     Create AIEntityService instance with repository dependencies.
     :param ai_entity_repo: AI entity repository instance
     :param conversation_repo: Conversation repository instance
     :param cooldown_repo: AI cooldown repository instance
+    :param room_repo: Room repository instance
     :return: AIEntityService instance
     """
     return AIEntityService(
         ai_entity_repo=ai_entity_repo,
         conversation_repo=conversation_repo,
         cooldown_repo=cooldown_repo,
+        room_repo=room_repo,
     )

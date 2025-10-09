@@ -2,7 +2,7 @@
 
 import structlog
 from arq import create_pool
-from arq.connections import ArqRedis
+from arq.connections import ArqRedis, RedisSettings
 
 from app.core.config import settings
 
@@ -19,7 +19,8 @@ async def create_arq_pool() -> None:
         logger.warning("ai_features_disabled", reason="AI features not enabled or OpenAI key missing")
         return
 
-    arq_pool = await create_pool(settings.redis_url)
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)
+    arq_pool = await create_pool(redis_settings)
     logger.info("arq_pool_created", redis_url=settings.redis_url)
 
 

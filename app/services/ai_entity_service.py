@@ -6,11 +6,13 @@ from app.core.exceptions import (
     ConversationNotFoundException,
     DuplicateResourceException,
     InvalidOperationException,
+    RoomNotFoundException,
 )
 from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.repositories.ai_cooldown_repository import IAICooldownRepository
 from app.repositories.ai_entity_repository import IAIEntityRepository
 from app.repositories.conversation_repository import IConversationRepository
+from app.repositories.room_repository import IRoomRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -23,10 +25,12 @@ class AIEntityService:
         ai_entity_repo: IAIEntityRepository,
         conversation_repo: IConversationRepository,
         cooldown_repo: IAICooldownRepository,
+        room_repo: IRoomRepository,
     ):
         self.ai_entity_repo = ai_entity_repo
         self.conversation_repo = conversation_repo
         self.cooldown_repo = cooldown_repo
+        self.room_repo = room_repo
 
     async def get_all_entities(self) -> list[AIEntity]:
         """Get all AI entities."""
@@ -79,10 +83,34 @@ class AIEntityService:
         temperature: float | None = None,
         max_tokens: int | None = None,
         config: dict | None = None,
+        status: AIEntityStatus | None = None,
+        current_room_id: int | None = ...,  # ... as sentinel: not provided
     ) -> AIEntity:
-        """Update AI entity with validation."""
+        """Update AI entity with validation and room assignment.
+
+        Args:
+            status: If set to OFFLINE, AI will automatically leave current room
+            current_room_id: Room assignment (None = leave room, int = assign to room, ... = no change)
+        """
         entity = await self.get_entity_by_id(entity_id)
 
+        # Handle status change (auto-leave room if set to OFFLINE)
+        if status is not None and status != entity.status:
+            if status == AIEntityStatus.OFFLINE and entity.current_room_id:
+                await self._remove_from_room(entity)
+            entity.status = status
+
+        # Handle room assignment if explicitly provided
+        if current_room_id is not ...:
+            if current_room_id is None:
+                # Remove from current room
+                if entity.current_room_id:
+                    await self._remove_from_room(entity)
+            else:
+                # Assign to new room
+                await self._assign_to_room(entity, current_room_id)
+
+        # Update other fields
         if display_name is not None:
             entity.display_name = display_name
         if system_prompt is not None:
@@ -175,3 +203,72 @@ class AIEntityService:
             room_id=room_id,
             conversation_id=conversation_id,
         )
+
+    async def _assign_to_room(self, entity: AIEntity, new_room_id: int) -> None:
+        """Assign AI entity to a room with validation.
+
+        Args:
+            entity: AI entity to assign
+            new_room_id: Target room ID
+
+        Raises:
+            RoomNotFoundException: If room doesn't exist
+            InvalidOperationException: If room already has AI or AI is offline
+        """
+        # Validate new room exists
+        new_room = await self.room_repo.get_by_id(new_room_id)
+        if not new_room:
+            raise RoomNotFoundException(new_room_id)
+
+        # Check if new room already has AI
+        if new_room.has_ai:
+            raise InvalidOperationException(f"Room '{new_room.name}' already has an AI entity")
+
+        # Check AI is ONLINE before joining
+        if entity.status != AIEntityStatus.ONLINE:
+            raise InvalidOperationException(
+                f"AI entity '{entity.display_name}' must be ONLINE to join a room"
+            )
+
+        # Remove from old room if present
+        if entity.current_room_id:
+            old_room = await self.room_repo.get_by_id(entity.current_room_id)
+            if old_room:
+                old_room.has_ai = False
+
+        # Assign to new room
+        new_room.has_ai = True
+        entity.current_room_id = new_room_id
+
+        logger.info(
+            "ai_assigned_to_room",
+            ai_entity_id=entity.id,
+            ai_name=entity.display_name,
+            room_id=new_room_id,
+            room_name=new_room.name,
+        )
+
+    async def _remove_from_room(self, entity: AIEntity) -> None:
+        """Remove AI entity from current room.
+
+        Args:
+            entity: AI entity to remove from room
+        """
+        if not entity.current_room_id:
+            return  # Already not in a room
+
+        # Get current room and update has_ai flag
+        room = await self.room_repo.get_by_id(entity.current_room_id)
+        if room:
+            room.has_ai = False
+
+        logger.info(
+            "ai_removed_from_room",
+            ai_entity_id=entity.id,
+            ai_name=entity.display_name,
+            room_id=entity.current_room_id,
+            room_name=room.name if room else "unknown",
+        )
+
+        # Clear room assignment
+        entity.current_room_id = None

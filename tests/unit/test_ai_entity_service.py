@@ -36,12 +36,18 @@ class TestAIEntityService:
         return AsyncMock()
 
     @pytest.fixture
-    def service(self, mock_ai_repo, mock_conversation_repo, mock_cooldown_repo):
+    def mock_room_repo(self):
+        """Create mock room repository."""
+        return AsyncMock()
+
+    @pytest.fixture
+    def service(self, mock_ai_repo, mock_conversation_repo, mock_cooldown_repo, mock_room_repo):
         """Create service instance with mocked dependencies."""
         return AIEntityService(
             ai_entity_repo=mock_ai_repo,
             conversation_repo=mock_conversation_repo,
             cooldown_repo=mock_cooldown_repo,
+            room_repo=mock_room_repo,
         )
 
     async def test_get_all_entities(self, service, mock_ai_repo):
@@ -352,3 +358,138 @@ class TestAIEntityService:
             room_id=None,
             conversation_id=1,
         )
+
+    # ===== Checkpoint 2 Tests: AI Room Assignment =====
+
+    async def test_assign_ai_to_room_success(self, service, mock_ai_repo, mock_room_repo):
+        """Test assigning AI to room successfully."""
+        from app.models.room import Room
+
+        # Arrange
+        mock_entity = AIEntity(
+            id=1,
+            name="ai1",
+            display_name="AI 1",
+            system_prompt="Test",
+            model_name="gpt-4",
+            status=AIEntityStatus.ONLINE,
+        )
+        mock_room = Room(id=1, name="Test Room", has_ai=False)
+
+        mock_ai_repo.get_by_id.return_value = mock_entity
+        mock_room_repo.get_by_id.return_value = mock_room
+        mock_ai_repo.update.return_value = mock_entity
+
+        # Act
+        result = await service.update_entity(entity_id=1, current_room_id=1)
+
+        # Assert
+        assert result.current_room_id == 1
+        assert mock_room.has_ai is True
+        mock_room_repo.get_by_id.assert_called_once_with(1)
+        mock_ai_repo.update.assert_called_once()
+
+    async def test_assign_ai_to_room_already_has_ai(self, service, mock_ai_repo, mock_room_repo):
+        """Test assigning AI to room that already has AI raises error."""
+        from app.models.room import Room
+
+        # Arrange
+        mock_entity = AIEntity(
+            id=1,
+            name="ai1",
+            display_name="AI 1",
+            system_prompt="Test",
+            model_name="gpt-4",
+            status=AIEntityStatus.ONLINE,
+        )
+        mock_room = Room(id=1, name="Test Room", has_ai=True)  # Already has AI
+
+        mock_ai_repo.get_by_id.return_value = mock_entity
+        mock_room_repo.get_by_id.return_value = mock_room
+
+        # Act & Assert
+        with pytest.raises(InvalidOperationException) as exc_info:
+            await service.update_entity(entity_id=1, current_room_id=1)
+
+        assert "already has an AI entity" in str(exc_info.value)
+
+    async def test_assign_ai_offline_cannot_join(self, service, mock_ai_repo, mock_room_repo):
+        """Test offline AI cannot join a room."""
+        from app.models.room import Room
+
+        # Arrange
+        mock_entity = AIEntity(
+            id=1,
+            name="ai1",
+            display_name="AI 1",
+            system_prompt="Test",
+            model_name="gpt-4",
+            status=AIEntityStatus.OFFLINE,  # Offline
+        )
+        mock_room = Room(id=1, name="Test Room", has_ai=False)
+
+        mock_ai_repo.get_by_id.return_value = mock_entity
+        mock_room_repo.get_by_id.return_value = mock_room
+
+        # Act & Assert
+        with pytest.raises(InvalidOperationException) as exc_info:
+            await service.update_entity(entity_id=1, current_room_id=1)
+
+        assert "must be ONLINE" in str(exc_info.value)
+
+    async def test_remove_ai_from_room(self, service, mock_ai_repo, mock_room_repo):
+        """Test removing AI from room."""
+        from app.models.room import Room
+
+        # Arrange
+        mock_room = Room(id=1, name="Test Room", has_ai=True)
+        mock_entity = AIEntity(
+            id=1,
+            name="ai1",
+            display_name="AI 1",
+            system_prompt="Test",
+            model_name="gpt-4",
+            status=AIEntityStatus.ONLINE,
+            current_room_id=1,
+        )
+
+        mock_ai_repo.get_by_id.return_value = mock_entity
+        mock_room_repo.get_by_id.return_value = mock_room
+        mock_ai_repo.update.return_value = mock_entity
+
+        # Act
+        result = await service.update_entity(entity_id=1, current_room_id=None)
+
+        # Assert
+        assert result.current_room_id is None
+        assert mock_room.has_ai is False
+        mock_ai_repo.update.assert_called_once()
+
+    async def test_update_status_offline_auto_leaves_room(self, service, mock_ai_repo, mock_room_repo):
+        """Test setting AI status to OFFLINE automatically removes from room."""
+        from app.models.room import Room
+
+        # Arrange
+        mock_room = Room(id=1, name="Test Room", has_ai=True)
+        mock_entity = AIEntity(
+            id=1,
+            name="ai1",
+            display_name="AI 1",
+            system_prompt="Test",
+            model_name="gpt-4",
+            status=AIEntityStatus.ONLINE,
+            current_room_id=1,
+        )
+
+        mock_ai_repo.get_by_id.return_value = mock_entity
+        mock_room_repo.get_by_id.return_value = mock_room
+        mock_ai_repo.update.return_value = mock_entity
+
+        # Act
+        result = await service.update_entity(entity_id=1, status=AIEntityStatus.OFFLINE)
+
+        # Assert
+        assert result.status == AIEntityStatus.OFFLINE
+        assert result.current_room_id is None
+        assert mock_room.has_ai is False
+        mock_ai_repo.update.assert_called_once()
