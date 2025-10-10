@@ -4,7 +4,7 @@ import structlog
 
 from app.core.arq_db_manager import ARQDatabaseManager
 from app.core.config import settings
-from app.workers.tasks import generate_ai_conversation_response, generate_ai_room_response
+from app.workers.tasks import check_and_generate_ai_response
 
 logger = structlog.get_logger(__name__)
 
@@ -29,8 +29,7 @@ class WorkerSettings:
     """ARQ worker configuration."""
 
     functions = [
-        generate_ai_room_response,
-        generate_ai_conversation_response,
+        check_and_generate_ai_response,
     ]
 
     redis_settings = settings.redis_url

@@ -36,6 +36,11 @@ class IAIEntityRepository(BaseRepository[AIEntity]):
         """Get AI entity in specific conversation (optimized with JOIN)."""
         pass
 
+    @abstractmethod
+    async def get_ai_in_room(self, room_id: int) -> AIEntity | None:
+        """Get AI entity currently assigned to a specific room."""
+        pass
+
 
 class AIEntityRepository(IAIEntityRepository):
     """SQLAlchemy implementation of AI Entity repository."""
@@ -157,6 +162,23 @@ class AIEntityRepository(IAIEntityRepository):
                     ConversationParticipant.conversation_id == conversation_id,
                     ConversationParticipant.left_at.is_(None),
                 )
+            )
+        )
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_ai_in_room(self, room_id: int) -> AIEntity | None:
+        """
+        Get AI entity currently assigned to a specific room.
+
+        Returns active AI entity with current_room_id == room_id and status == ONLINE.
+        Returns None if no AI assigned to room.
+        """
+        query = select(AIEntity).where(
+            and_(
+                AIEntity.current_room_id == room_id,
+                AIEntity.status == AIEntityStatus.ONLINE,
+                AIEntity.is_active,
             )
         )
         result = await self.db.execute(query)
