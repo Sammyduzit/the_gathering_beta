@@ -83,7 +83,7 @@ async def create_ai_entity(
     )
 
 
-@router.put("/entities/{entity_id}", response_model=AIEntityResponse)
+@router.patch("/entities/{entity_id}", response_model=AIEntityResponse)
 async def update_ai_entity(
     entity_id: int,
     entity_data: AIEntityUpdate,
@@ -91,9 +91,16 @@ async def update_ai_entity(
     ai_service: AIEntityService = Depends(get_ai_entity_service),
 ) -> AIEntityResponse:
     """
-    Update AI entity (Admin only).
+    Update AI entity (Admin only) - Partial update.
+
+    Supports room assignment and status management:
+    - Set status=OFFLINE to automatically remove AI from room
+    - Set current_room_id to assign AI to room (requires AI to be ONLINE)
+    - Set current_room_id=null to remove AI from current room
+    - Omit current_room_id to keep current assignment
+
     :param entity_id: AI entity ID
-    :param entity_data: AI entity update data
+    :param entity_data: AI entity update data (partial)
     :param current_admin: Current authenticated admin
     :param ai_service: AI entity service instance
     :return: Updated AI entity
@@ -106,6 +113,8 @@ async def update_ai_entity(
         temperature=entity_data.temperature,
         max_tokens=entity_data.max_tokens,
         config=entity_data.config,
+        status=entity_data.status,
+        current_room_id=entity_data.current_room_id,
     )
 
 

@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.constants import MAX_AI_MAX_TOKENS, MAX_AI_TEMPERATURE, MIN_AI_MAX_TOKENS, MIN_AI_TEMPERATURE
 from app.core.validators import SanitizedString
+from app.models.ai_entity import AIEntityStatus
 
 
 class AIEntityCreate(BaseModel):
@@ -27,6 +28,10 @@ class AIEntityUpdate(BaseModel):
     temperature: float | None = Field(None, ge=MIN_AI_TEMPERATURE, le=MAX_AI_TEMPERATURE)
     max_tokens: int | None = Field(None, ge=MIN_AI_MAX_TOKENS, le=MAX_AI_MAX_TOKENS)
     config: dict | None = None
+    status: AIEntityStatus | None = Field(None, description="AI online/offline status")
+    current_room_id: int | None = Field(
+        ..., description="Room assignment (None=leave room, int=assign to room, omit=no change)"
+    )
 
 
 class AIEntityResponse(BaseModel):

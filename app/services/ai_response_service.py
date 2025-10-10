@@ -7,10 +7,12 @@ This service coordinates:
 3. Message persistence
 """
 
+import random
+
 import structlog
 
 from app.interfaces.ai_provider import AIProviderError, IAIProvider
-from app.models.ai_entity import AIEntity
+from app.models.ai_entity import AIEntity, AIResponseStrategy
 from app.models.message import Message
 from app.repositories.message_repository import IMessageRepository
 from app.services.ai_context_service import AIContextService
@@ -162,14 +164,7 @@ class AIResponseService:
         room_id: int | None = None,
     ) -> bool:
         """
-        Determine if AI should respond to a message.
-
-        Currently uses simple heuristics:
-        - AI was mentioned by name
-        - Direct question patterns
-        - Random engagement for natural conversation
-
-        Future: Could use LLM to decide whether to respond.
+        Determine if AI should respond to a message based on configured strategies.
 
         Args:
             ai_entity: AI entity to check
@@ -184,29 +179,14 @@ class AIResponseService:
         if latest_message.sender_ai_id == ai_entity.id:
             return False
 
-        content = latest_message.content.lower()
-
-        # Check if AI was mentioned by name or display name
-        if ai_entity.name.lower() in content or ai_entity.display_name.lower() in content:
-            logger.info(f"AI '{ai_entity.name}' mentioned in message - will respond")
-            return True
-
-        # Check for question patterns
-        question_indicators = ["?", "what", "how", "why", "when", "where", "who"]
-        if any(indicator in content for indicator in question_indicators):
-            # In conversations, respond to questions more frequently
-            if conversation_id:
-                logger.info(f"Question detected in conversation - AI '{ai_entity.name}' will respond")
-                return True
-
-        # In rooms, be more selective (don't spam)
+        # Delegate to appropriate strategy handler
         if room_id:
-            # Only respond if directly engaged
+            return await self._should_respond_in_room(ai_entity, latest_message, room_id)
+        elif conversation_id:
+            return await self._should_respond_in_conversation(ai_entity, latest_message, conversation_id)
+        else:
+            logger.warning("should_ai_respond called without room_id or conversation_id")
             return False
-
-        # In conversations, respond more naturally
-        # Future: Use LLM to determine response probability
-        return False
 
     async def check_provider_availability(self) -> bool:
         """
@@ -224,3 +204,117 @@ class AIResponseService:
         except Exception as e:
             logger.error(f"AI provider availability check failed: {e}")
             return False
+
+    async def _should_respond_in_room(self, ai_entity: AIEntity, message: Message, room_id: int) -> bool:
+        """
+        Determine if AI should respond in a room based on room response strategy.
+
+        Args:
+            ai_entity: AI entity to check
+            message: Latest message
+            room_id: Room ID
+
+        Returns:
+            True if AI should respond, False otherwise
+        """
+        strategy = ai_entity.room_response_strategy
+
+        # NO_RESPONSE: Never respond (after graceful goodbye)
+        if strategy == AIResponseStrategy.NO_RESPONSE:
+            return False
+
+        content = message.content.lower()
+        ai_mentioned = ai_entity.name.lower() in content or ai_entity.display_name.lower() in content
+
+        # ROOM_MENTION_ONLY: Only respond when mentioned
+        if strategy == AIResponseStrategy.ROOM_MENTION_ONLY:
+            if ai_mentioned:
+                logger.info(f"AI '{ai_entity.name}' mentioned in room {room_id} - will respond")
+                return True
+            return False
+
+        # ROOM_PROBABILISTIC: Respond based on probability (higher chance if mentioned)
+        if strategy == AIResponseStrategy.ROOM_PROBABILISTIC:
+            probability = ai_entity.response_probability
+            if ai_mentioned:
+                probability = 1.0  # Always respond when mentioned
+
+            should_respond = random.random() < probability
+            if should_respond:
+                logger.info(
+                    f"AI '{ai_entity.name}' probabilistic response triggered "
+                    f"(p={probability}) in room {room_id}"
+                )
+            return should_respond
+
+        # ROOM_ACTIVE: Respond to most messages (filter very short ones)
+        if strategy == AIResponseStrategy.ROOM_ACTIVE:
+            # Always respond if mentioned
+            if ai_mentioned:
+                return True
+
+            # Filter very short messages (like "ok", "lol")
+            if len(message.content.strip()) < 3:
+                return False
+
+            logger.info(f"AI '{ai_entity.name}' active response in room {room_id}")
+            return True
+
+        # Unknown strategy
+        logger.warning(f"Unknown room response strategy: {strategy} for AI '{ai_entity.name}'")
+        return False
+
+    async def _should_respond_in_conversation(
+        self, ai_entity: AIEntity, message: Message, conversation_id: int
+    ) -> bool:
+        """
+        Determine if AI should respond in a conversation based on conversation response strategy.
+
+        Args:
+            ai_entity: AI entity to check
+            message: Latest message
+            conversation_id: Conversation ID
+
+        Returns:
+            True if AI should respond, False otherwise
+        """
+        strategy = ai_entity.conversation_response_strategy
+
+        # NO_RESPONSE: Never respond (after graceful goodbye)
+        if strategy == AIResponseStrategy.NO_RESPONSE:
+            return False
+
+        content = message.content.lower()
+        ai_mentioned = ai_entity.name.lower() in content or ai_entity.display_name.lower() in content
+
+        # CONV_EVERY_MESSAGE: Respond to every message
+        if strategy == AIResponseStrategy.CONV_EVERY_MESSAGE:
+            logger.info(f"AI '{ai_entity.name}' responding to every message in conversation {conversation_id}")
+            return True
+
+        # CONV_ON_QUESTIONS: Only respond to questions
+        if strategy == AIResponseStrategy.CONV_ON_QUESTIONS:
+            question_indicators = ["?", "what", "how", "why", "when", "where", "who", "can you", "could you"]
+            is_question = any(indicator in content for indicator in question_indicators)
+
+            if is_question:
+                logger.info(f"Question detected in conversation {conversation_id} - AI '{ai_entity.name}' will respond")
+                return True
+            return False
+
+        # CONV_SMART: Respond to questions OR mentions
+        if strategy == AIResponseStrategy.CONV_SMART:
+            question_indicators = ["?", "what", "how", "why", "when", "where", "who", "can you", "could you"]
+            is_question = any(indicator in content for indicator in question_indicators)
+
+            if ai_mentioned or is_question:
+                logger.info(
+                    f"AI '{ai_entity.name}' smart response in conversation {conversation_id} "
+                    f"(mentioned={ai_mentioned}, question={is_question})"
+                )
+                return True
+            return False
+
+        # Unknown strategy
+        logger.warning(f"Unknown conversation response strategy: {strategy} for AI '{ai_entity.name}'")
+        return False

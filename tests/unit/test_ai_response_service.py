@@ -151,7 +151,10 @@ class TestAIResponseService:
 
     async def test_should_ai_respond_mentioned_by_name(self, service, sample_ai_entity):
         """Test AI responds when mentioned by name."""
+        from app.models.ai_entity import AIResponseStrategy
+
         # Arrange
+        sample_ai_entity.conversation_response_strategy = AIResponseStrategy.CONV_SMART
         message = Message(id=1, content="Hey test_ai, how are you?", sender_user_id=2)
 
         # Act
@@ -166,7 +169,10 @@ class TestAIResponseService:
 
     async def test_should_ai_respond_mentioned_by_display_name(self, service, sample_ai_entity):
         """Test AI responds when mentioned by display name."""
+        from app.models.ai_entity import AIResponseStrategy
+
         # Arrange
+        sample_ai_entity.conversation_response_strategy = AIResponseStrategy.CONV_SMART
         message = Message(id=1, content="Test AI, can you help?", sender_user_id=2)
 
         # Act
@@ -181,7 +187,10 @@ class TestAIResponseService:
 
     async def test_should_ai_respond_question_in_conversation(self, service, sample_ai_entity):
         """Test AI responds to questions in conversations."""
+        from app.models.ai_entity import AIResponseStrategy
+
         # Arrange
+        sample_ai_entity.conversation_response_strategy = AIResponseStrategy.CONV_SMART
         message = Message(id=1, content="What is the weather like?", sender_user_id=2)
 
         # Act
@@ -261,3 +270,106 @@ class TestAIResponseService:
 
         # Assert
         assert result is False
+
+    # ===== Checkpoint 3 Tests: Response Strategy =====
+
+    async def test_should_respond_room_mention_only(self, service, sample_ai_entity):
+        """Test ROOM_MENTION_ONLY strategy."""
+        from app.models.ai_entity import AIResponseStrategy
+
+        # Arrange
+        sample_ai_entity.room_response_strategy = AIResponseStrategy.ROOM_MENTION_ONLY
+        message_with_mention = Message(id=1, content="Hey Test AI, can you help?", sender_user_id=1)
+        message_without_mention = Message(id=2, content="This is a random message", sender_user_id=1)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, message_with_mention, room_id=1) is True
+        assert await service.should_ai_respond(sample_ai_entity, message_without_mention, room_id=1) is False
+
+    async def test_should_respond_room_probabilistic(self, service, sample_ai_entity):
+        """Test ROOM_PROBABILISTIC strategy."""
+        from app.models.ai_entity import AIResponseStrategy
+
+        # Arrange
+        sample_ai_entity.room_response_strategy = AIResponseStrategy.ROOM_PROBABILISTIC
+        sample_ai_entity.response_probability = 0.0  # Never respond (unless mentioned)
+        message = Message(id=1, content="Random message", sender_user_id=1)
+        message_with_mention = Message(id=2, content="Hey test_ai", sender_user_id=1)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, message, room_id=1) is False
+        assert await service.should_ai_respond(sample_ai_entity, message_with_mention, room_id=1) is True
+
+    async def test_should_respond_room_active(self, service, sample_ai_entity):
+        """Test ROOM_ACTIVE strategy."""
+        from app.models.ai_entity import AIResponseStrategy
+
+        # Arrange
+        sample_ai_entity.room_response_strategy = AIResponseStrategy.ROOM_ACTIVE
+        normal_message = Message(id=1, content="This is a normal message", sender_user_id=1)
+        short_message = Message(id=2, content="ok", sender_user_id=1)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, normal_message, room_id=1) is True
+        assert await service.should_ai_respond(sample_ai_entity, short_message, room_id=1) is False
+
+    async def test_should_respond_conv_every_message(self, service, sample_ai_entity):
+        """Test CONV_EVERY_MESSAGE strategy."""
+        from app.models.ai_entity import AIResponseStrategy
+
+        # Arrange
+        sample_ai_entity.conversation_response_strategy = AIResponseStrategy.CONV_EVERY_MESSAGE
+        message = Message(id=1, content="Any message", sender_user_id=1)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, message, conversation_id=1) is True
+
+    async def test_should_respond_conv_on_questions(self, service, sample_ai_entity):
+        """Test CONV_ON_QUESTIONS strategy."""
+        from app.models.ai_entity import AIResponseStrategy
+
+        # Arrange
+        sample_ai_entity.conversation_response_strategy = AIResponseStrategy.CONV_ON_QUESTIONS
+        question = Message(id=1, content="What is the weather today?", sender_user_id=1)
+        statement = Message(id=2, content="It's a nice day", sender_user_id=1)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, question, conversation_id=1) is True
+        assert await service.should_ai_respond(sample_ai_entity, statement, conversation_id=1) is False
+
+    async def test_should_respond_conv_smart(self, service, sample_ai_entity):
+        """Test CONV_SMART strategy."""
+        from app.models.ai_entity import AIResponseStrategy
+
+        # Arrange
+        sample_ai_entity.conversation_response_strategy = AIResponseStrategy.CONV_SMART
+        question = Message(id=1, content="What time is it?", sender_user_id=1)
+        mention = Message(id=2, content="Test AI, are you there?", sender_user_id=1)
+        normal = Message(id=3, content="Just chatting here", sender_user_id=1)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, question, conversation_id=1) is True
+        assert await service.should_ai_respond(sample_ai_entity, mention, conversation_id=1) is True
+        assert await service.should_ai_respond(sample_ai_entity, normal, conversation_id=1) is False
+
+    async def test_should_respond_no_response_strategy(self, service, sample_ai_entity):
+        """Test NO_RESPONSE strategy blocks all responses."""
+        from app.models.ai_entity import AIResponseStrategy
+
+        # Arrange
+        sample_ai_entity.room_response_strategy = AIResponseStrategy.NO_RESPONSE
+        sample_ai_entity.conversation_response_strategy = AIResponseStrategy.NO_RESPONSE
+        message = Message(id=1, content="Hey test_ai, can you help?", sender_user_id=1)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, message, room_id=1) is False
+        assert await service.should_ai_respond(sample_ai_entity, message, conversation_id=1) is False
+
+    async def test_should_not_respond_to_own_messages(self, service, sample_ai_entity):
+        """Test AI doesn't respond to its own messages."""
+        # Arrange
+        own_message = Message(id=1, content="I am responding", sender_ai_id=sample_ai_entity.id)
+
+        # Act & Assert
+        assert await service.should_ai_respond(sample_ai_entity, own_message, room_id=1) is False
+        assert await service.should_ai_respond(sample_ai_entity, own_message, conversation_id=1) is False
