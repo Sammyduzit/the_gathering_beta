@@ -1,7 +1,10 @@
+from arq.connections import ArqRedis
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
 
+from app.core.arq_pool import get_arq_pool
 from app.core.auth_dependencies import get_current_active_user, get_current_admin_user
 from app.core.background_tasks import async_bg_task_manager
+from app.core.config import settings
 from app.models.user import User
 from app.schemas.chat_schemas import MessageCreate, MessageResponse
 from app.schemas.room_schemas import RoomCreate, RoomResponse
@@ -247,16 +250,19 @@ async def send_room_message(
     room_service: RoomService = Depends(get_room_service),
     background_service: BackgroundService = Depends(get_background_service),
     background_tasks: BackgroundTasks = BackgroundTasks(),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ) -> MessageResponse:
     """
     Send message to room, visible for every member.
     Background tasks handle translation and notifications.
+    ARQ task triggers AI response if AI is present in room.
     :param room_id: Target room ID
     :param message_data: Message content
     :param background_tasks: FastAPI background tasks
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
     :param background_service: Background service for async tasks
+    :param arq_pool: ARQ Redis pool for AI response jobs
     :return: Created message object
     """
     # Send message immediately
@@ -264,6 +270,14 @@ async def send_room_message(
 
     # Get room info for translation settings
     room = await room_service.get_room_by_id(room_id)
+
+    # Trigger AI response check if AI is in room
+    if room.has_ai and settings.is_ai_available and arq_pool:
+        await arq_pool.enqueue_job(
+            "check_and_generate_ai_response",
+            message_id=message_response["id"],
+            room_id=room_id,
+        )
 
     # Schedule background translation if enabled
     if room.is_translation_enabled:

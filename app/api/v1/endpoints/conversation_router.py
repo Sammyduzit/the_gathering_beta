@@ -1,7 +1,12 @@
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Body, Depends, status
 
+from app.core.arq_pool import get_arq_pool
 from app.core.auth_dependencies import get_current_active_user
+from app.core.config import settings
 from app.models.user import User
+from app.repositories.ai_entity_repository import AIEntityRepository
+from app.repositories.repository_dependencies import get_ai_entity_repository
 from app.schemas.chat_schemas import ConversationCreate, MessageCreate, MessageResponse
 from app.services.conversation_service import ConversationService
 from app.services.service_dependencies import get_conversation_service
@@ -41,20 +46,40 @@ async def send_conversation_message(
     message_data: MessageCreate = Body(...),
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
+    ai_entity_repo: AIEntityRepository = Depends(get_ai_entity_repository),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ) -> MessageResponse:
     """
     Send message to conversation.
+    ARQ task triggers AI response if AI participant is present.
     :param conversation_id: Target conversation ID
     :param message_data: Message content
     :param current_user: Current authenticated user
     :param conversation_service: Service instance handling conversation logic
+    :param ai_entity_repo: AI entity repository for checking AI participants
+    :param arq_pool: ARQ Redis pool for AI response jobs
     :return: Created message object
     """
-    return await conversation_service.send_message(
+    # Send message immediately
+    message_response = await conversation_service.send_message(
         current_user=current_user,
         conversation_id=conversation_id,
         content=message_data.content,
     )
+
+    # Check if AI participant is in conversation
+    ai_entity = await ai_entity_repo.get_ai_in_conversation(conversation_id)
+
+    # Trigger AI response check if AI is present
+    if ai_entity and settings.is_ai_available and arq_pool:
+        await arq_pool.enqueue_job(
+            "check_and_generate_ai_response",
+            message_id=message_response["id"],
+            conversation_id=conversation_id,
+            ai_entity_id=ai_entity.id,
+        )
+
+    return message_response
 
 
 @router.get("/{conversation_id}/messages", response_model=list[MessageResponse])

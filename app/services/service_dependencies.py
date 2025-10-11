@@ -2,9 +2,13 @@ from fastapi import Depends
 
 from app.core.config import settings
 from app.implementations.deepl_translator import DeepLTranslator
+from app.interfaces.keyword_extractor import IKeywordExtractor
+from app.interfaces.memory_retriever import IMemoryRetriever
+from app.interfaces.memory_summarizer import IMemorySummarizer
 from app.interfaces.translator import TranslatorInterface
 from app.repositories.ai_cooldown_repository import IAICooldownRepository
 from app.repositories.ai_entity_repository import IAIEntityRepository
+from app.repositories.ai_memory_repository import IAIMemoryRepository
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import (
@@ -13,6 +17,7 @@ from app.repositories.message_translation_repository import (
 from app.repositories.repository_dependencies import (
     get_ai_cooldown_repository,
     get_ai_entity_repository,
+    get_ai_memory_repository,
     get_conversation_repository,
     get_message_repository,
     get_message_translation_repository,
@@ -24,8 +29,12 @@ from app.repositories.user_repository import IUserRepository
 from app.services.ai_entity_service import AIEntityService
 from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService
+from app.services.heuristic_summarizer import HeuristicMemorySummarizer
+from app.services.keyword_retriever import KeywordMemoryRetriever
+from app.services.memory_builder_service import MemoryBuilderService
 from app.services.room_service import RoomService
 from app.services.translation_service import TranslationService
+from app.services.yake_extractor import YakeKeywordExtractor
 
 
 def get_deepl_translator() -> TranslatorInterface:
@@ -129,6 +138,7 @@ def get_ai_entity_service(
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),
     cooldown_repo: IAICooldownRepository = Depends(get_ai_cooldown_repository),
     room_repo: IRoomRepository = Depends(get_room_repository),
+    message_repo: IMessageRepository = Depends(get_message_repository),
 ) -> AIEntityService:
     """
     Create AIEntityService instance with repository dependencies.
@@ -136,6 +146,7 @@ def get_ai_entity_service(
     :param conversation_repo: Conversation repository instance
     :param cooldown_repo: AI cooldown repository instance
     :param room_repo: Room repository instance
+    :param message_repo: Message repository instance
     :return: AIEntityService instance
     """
     return AIEntityService(
@@ -143,4 +154,77 @@ def get_ai_entity_service(
         conversation_repo=conversation_repo,
         cooldown_repo=cooldown_repo,
         room_repo=room_repo,
+        message_repo=message_repo,
+    )
+
+
+def get_keyword_extractor() -> IKeywordExtractor:
+    """
+    Create keyword extractor implementation based on feature flags.
+
+    Feature flags (future):
+    - USE_LLM_KEYWORDS: Switch to LLM-based keyword extraction
+
+    :return: Keyword extractor instance (default: YAKE)
+    """
+    # Future: Check settings.USE_LLM_KEYWORDS for LLM implementation
+    return YakeKeywordExtractor()
+
+
+def get_memory_summarizer() -> IMemorySummarizer:
+    """
+    Create memory summarizer implementation based on feature flags.
+
+    Feature flags (future):
+    - USE_LLM_SUMMARIZATION: Switch to LLM-based summarization
+
+    :return: Memory summarizer instance (default: Heuristic)
+    """
+    # Future: Check settings.USE_LLM_SUMMARIZATION for LLM implementation
+    return HeuristicMemorySummarizer()
+
+
+def get_memory_retriever(
+    memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+) -> IMemoryRetriever:
+    """
+    Create memory retriever implementation based on feature flags.
+
+    Feature flags (future):
+    - ENABLE_VECTOR_SEARCH: Switch to vector-based or hybrid retrieval
+
+    :param memory_repo: AI memory repository instance
+    :return: Memory retriever instance (default: Keyword-based)
+    """
+    # Future: Check settings.ENABLE_VECTOR_SEARCH for vector implementation
+    return KeywordMemoryRetriever(memory_repo=memory_repo)
+
+
+def get_memory_builder_service(
+    message_repo: IMessageRepository = Depends(get_message_repository),
+    memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
+    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
+    summarizer: IMemorySummarizer = Depends(get_memory_summarizer),
+) -> MemoryBuilderService:
+    """
+    Create MemoryBuilderService instance with dependency injection.
+
+    Dependencies are injected via factory functions that support feature flags:
+    - keyword_extractor: YAKE (default) or LLM-based
+    - summarizer: Heuristic (default) or LLM-based
+
+    :param message_repo: Message repository instance
+    :param memory_repo: AI memory repository instance
+    :param entity_repo: AI entity repository instance
+    :param keyword_extractor: Keyword extraction implementation
+    :param summarizer: Summary generation implementation
+    :return: MemoryBuilderService instance
+    """
+    return MemoryBuilderService(
+        message_repo=message_repo,
+        memory_repo=memory_repo,
+        entity_repo=entity_repo,
+        keyword_extractor=keyword_extractor,
+        summarizer=summarizer,
     )

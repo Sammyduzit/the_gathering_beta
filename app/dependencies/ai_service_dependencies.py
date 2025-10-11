@@ -11,6 +11,7 @@ from app.repositories.ai_memory_repository import AIMemoryRepository
 from app.repositories.message_repository import MessageRepository
 from app.services.ai_context_service import AIContextService
 from app.services.ai_response_service import AIResponseService
+from app.services.keyword_retriever import KeywordMemoryRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,15 @@ def get_ai_context_service(
         memory_repo: AI memory repository for retrieving AI memories
 
     Returns:
-        Configured AIContextService instance
+        Configured AIContextService instance with memory retriever
     """
+    # Initialize memory retriever with repository
+    memory_retriever = KeywordMemoryRetriever(memory_repo=memory_repo)
+
     return AIContextService(
         message_repo=message_repo,
         memory_repo=memory_repo,
+        memory_retriever=memory_retriever,
     )
 
 

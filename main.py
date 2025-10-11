@@ -1,7 +1,7 @@
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 import structlog
 import uvicorn
@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.endpoints.ai_router import router as ai_router
 from app.api.v1.endpoints.auth_router import router as auth_router
 from app.api.v1.endpoints.conversation_router import router as conversation_router
+from app.api.v1.endpoints.memory_router import router as memory_router
 from app.api.v1.endpoints.room_router import router as rooms_router
 from app.core.arq_pool import close_arq_pool, create_arq_pool
 from app.core.config import settings
@@ -89,7 +90,7 @@ async def not_found_exception_handler(request: Request, exc: NotFoundException) 
         content={
             "detail": exc.message,
             "error_code": exc.error_code,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
 
@@ -102,7 +103,7 @@ async def unauthorized_exception_handler(request: Request, exc: UnauthorizedExce
         content={
             "detail": exc.message,
             "error_code": exc.error_code,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
 
@@ -115,7 +116,7 @@ async def forbidden_exception_handler(request: Request, exc: ForbiddenException)
         content={
             "detail": exc.message,
             "error_code": exc.error_code,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
 
@@ -128,7 +129,7 @@ async def validation_exception_handler(request: Request, exc: ValidationExceptio
         content={
             "detail": exc.message,
             "error_code": exc.error_code,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
 
@@ -141,7 +142,7 @@ async def domain_exception_handler(request: Request, exc: DomainException) -> JS
         content={
             "detail": exc.message,
             "error_code": exc.error_code,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         },
     )
 
@@ -156,6 +157,7 @@ app.include_router(rooms_router, prefix=API_V1_PREFIX)
 app.include_router(auth_router, prefix=API_V1_PREFIX)
 app.include_router(conversation_router, prefix=API_V1_PREFIX)
 app.include_router(ai_router, prefix=API_V1_PREFIX)
+app.include_router(memory_router, prefix=API_V1_PREFIX)
 
 
 @app.get("/")

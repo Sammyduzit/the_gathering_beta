@@ -8,6 +8,8 @@ from arq import Retry
 from app.core.arq_db_manager import ARQDatabaseManager, db_session_context
 from app.core.config import settings
 from app.interfaces.ai_provider import AIProviderError
+from app.interfaces.keyword_extractor import KeywordExtractionError
+from app.interfaces.memory_summarizer import MemorySummarizationError
 from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.providers.openai_provider import OpenAIProvider
 from app.repositories.ai_entity_repository import AIEntityRepository
@@ -15,6 +17,10 @@ from app.repositories.ai_memory_repository import AIMemoryRepository
 from app.repositories.message_repository import MessageRepository
 from app.services.ai_context_service import AIContextService
 from app.services.ai_response_service import AIResponseService
+from app.services.heuristic_summarizer import HeuristicMemorySummarizer
+from app.services.keyword_retriever import KeywordMemoryRetriever
+from app.services.memory_builder_service import MemoryBuilderService
+from app.services.yake_extractor import YakeKeywordExtractor
 
 logger = structlog.get_logger(__name__)
 
@@ -127,7 +133,15 @@ async def check_and_generate_ai_response(
                 api_key=settings.openai_api_key,
                 model_name=ai_entity.model_name or "gpt-4o-mini",
             )
-            context_service = AIContextService(message_repo, memory_repo)
+
+            # Initialize memory retriever for context service
+            memory_retriever = KeywordMemoryRetriever(memory_repo=memory_repo)
+            context_service = AIContextService(
+                message_repo=message_repo,
+                memory_repo=memory_repo,
+                memory_retriever=memory_retriever,
+            )
+
             response_service = AIResponseService(
                 ai_provider=ai_provider,
                 context_service=context_service,
@@ -189,6 +203,28 @@ async def check_and_generate_ai_response(
                 conversation_id=conversation_id,
             )
 
+            # Fire-and-forget: Enqueue memory creation task for conversations
+            if conversation_id:
+                try:
+                    await ctx["redis"].enqueue_job(
+                        "create_conversation_memory_task",
+                        ai_entity.id,
+                        conversation_id,
+                        ai_message.id,
+                    )
+                    logger.debug(
+                        "memory_creation_enqueued",
+                        ai_entity_id=ai_entity.id,
+                        conversation_id=conversation_id,
+                    )
+                except Exception as e:
+                    # Non-critical: log warning if enqueue fails, don't fail the task
+                    logger.warning(
+                        "memory_creation_enqueue_failed",
+                        error=str(e),
+                        conversation_id=conversation_id,
+                    )
+
             return {
                 "ai_message_id": ai_message.id,
                 "ai_entity_id": ai_entity.id,
@@ -213,3 +249,90 @@ async def check_and_generate_ai_response(
             conversation_id=conversation_id,
         )
         raise Retry(defer=ctx["job_try"] * 5)
+
+
+async def create_conversation_memory_task(
+    ctx: dict,
+    ai_entity_id: int,
+    conversation_id: int,
+    trigger_message_id: int,
+) -> dict:
+    """
+    ARQ task: Create conversation memory after AI response.
+
+    This is a **fire-and-forget** background task that doesn't block AI responses.
+    Non-critical: Logs warning on failure, no retry.
+
+    Args:
+        ctx: ARQ context with db_manager
+        ai_entity_id: AI entity ID that owns the memory
+        conversation_id: Conversation ID to create memory from
+        trigger_message_id: Message ID that triggered memory creation
+
+    Returns:
+        Dict with memory_id and keywords on success, or error on failure
+    """
+    job_id = str(uuid4())
+    db_session_context.set(job_id)
+
+    db_manager: ARQDatabaseManager = ctx["db_manager"]
+
+    try:
+        async for session in db_manager.get_session():
+            message_repo = MessageRepository(session)
+            memory_repo = AIMemoryRepository(session)
+            entity_repo = AIEntityRepository(session)
+
+            # Initialize memory builder service with default implementations
+            keyword_extractor = YakeKeywordExtractor()
+            summarizer = HeuristicMemorySummarizer()
+
+            memory_builder = MemoryBuilderService(
+                message_repo=message_repo,
+                memory_repo=memory_repo,
+                entity_repo=entity_repo,
+                keyword_extractor=keyword_extractor,
+                summarizer=summarizer,
+            )
+
+            # Create memory
+            memory = await memory_builder.create_conversation_memory(
+                ai_entity_id=ai_entity_id,
+                conversation_id=conversation_id,
+                trigger_message_id=trigger_message_id,
+            )
+
+            logger.info(
+                "conversation_memory_created",
+                memory_id=memory.id,
+                ai_entity_id=ai_entity_id,
+                conversation_id=conversation_id,
+                keywords=memory.keywords,
+            )
+
+            return {
+                "memory_id": memory.id,
+                "keywords": memory.keywords,
+                "importance_score": memory.importance_score,
+            }
+
+    except (KeywordExtractionError, MemorySummarizationError) as e:
+        # Non-critical errors: log warning, don't retry
+        logger.warning(
+            "memory_creation_failed",
+            error=str(e),
+            ai_entity_id=ai_entity_id,
+            conversation_id=conversation_id,
+            reason="Extraction or summarization error",
+        )
+        return {"error": str(e), "skipped": True}
+
+    except Exception as e:
+        # Unexpected errors: log error, don't retry (non-critical task)
+        logger.error(
+            "unexpected_error_creating_memory",
+            error=str(e),
+            ai_entity_id=ai_entity_id,
+            conversation_id=conversation_id,
+        )
+        return {"error": str(e), "skipped": True}

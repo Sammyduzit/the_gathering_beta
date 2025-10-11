@@ -184,3 +184,27 @@ async def remove_ai_from_conversation(
     :return: Removal confirmation
     """
     return await ai_service.remove_from_conversation(conversation_id, ai_entity_id)
+
+
+@router.post("/entities/{entity_id}/goodbye")
+async def initiate_ai_goodbye(
+    entity_id: int,
+    current_admin: User = Depends(get_current_admin_user),
+    ai_service: AIEntityService = Depends(get_ai_entity_service),
+) -> dict:
+    """
+    Initiate graceful goodbye for AI entity (Admin only).
+
+    The AI will:
+    1. Say contextual farewell in all active conversations and leave them
+    2. Say contextual farewell in assigned room (if any) and leave it
+    3. Set response strategies to NO_RESPONSE to prevent further responses
+
+    This is useful for gracefully retiring an AI or preparing it for reconfiguration.
+
+    :param entity_id: AI entity ID
+    :param current_admin: Current authenticated admin
+    :param ai_service: AI entity service instance
+    :return: Summary of goodbye actions (room/conversation farewells)
+    """
+    return await ai_service.initiate_graceful_goodbye(entity_id)

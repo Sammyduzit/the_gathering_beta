@@ -55,6 +55,9 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DEEPL_API_KEY=${DEEPL_API_KEY}
       - DEBUG=${DEBUG:-false}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - APP_NAME=${APP_NAME:-The Gathering}
     volumes:
       - .:/app
     restart: unless-stopped

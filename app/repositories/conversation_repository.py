@@ -61,6 +61,11 @@ class IConversationRepository(BaseRepository[Conversation]):
         """Get all active conversations in a room."""
         pass
 
+    @abstractmethod
+    async def get_active_conversations_for_ai(self, ai_entity_id: int) -> list[Conversation]:
+        """Get all active conversations where AI is still a participant."""
+        pass
+
 
 class ConversationRepository(IConversationRepository):
     """SQLAlchemy implementation of Conversation repository."""
@@ -238,6 +243,28 @@ class ConversationRepository(IConversationRepository):
         """Get all active conversations in a room."""
         query = select(Conversation).where(and_(Conversation.room_id == room_id, Conversation.is_active.is_(True)))
         result = await self.db.execute(query)
+        return list(result.scalars().all())
+
+    async def get_active_conversations_for_ai(self, ai_entity_id: int) -> list[Conversation]:
+        """
+        Get all active conversations where AI is still a participant.
+
+        Returns conversations where AI has not left yet (left_at IS NULL).
+        """
+        conversations_query = (
+            select(Conversation)
+            .join(
+                ConversationParticipant,
+                and_(
+                    ConversationParticipant.conversation_id == Conversation.id,
+                    ConversationParticipant.ai_entity_id == ai_entity_id,
+                    ConversationParticipant.left_at.is_(None),
+                ),
+            )
+            .where(Conversation.is_active.is_(True))
+        )
+
+        result = await self.db.execute(conversations_query)
         return list(result.scalars().all())
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[Conversation]:
