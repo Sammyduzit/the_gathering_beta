@@ -16,6 +16,7 @@ from app.api.v1.endpoints.room_router import router as rooms_router
 from app.core.arq_pool import close_arq_pool, create_arq_pool
 from app.core.config import settings
 from app.core.database import create_tables, drop_tables
+from app.core.redis_client import close_redis_client, create_redis_client
 from app.core.exceptions import (
     DomainException,
     ForbiddenException,
@@ -60,12 +61,16 @@ async def lifespan(app: FastAPI):
     await setup_complete_test_environment()
     logger.info("database_tables_created")
 
+    await create_redis_client()
+    logger.info("redis_client_initialized")
+
     await create_arq_pool()
     logger.info("arq_pool_initialized")
 
     yield
 
     await close_arq_pool()
+    await close_redis_client()
     logger.info("fastapi_shutdown_complete")
 
 

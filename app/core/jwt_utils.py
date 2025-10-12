@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -8,10 +9,15 @@ from app.core.config import settings
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
-    Create JWT access token
-    :param data: Data to encode
+    Create JWT access token with unique JTI (JWT ID).
+
+    JTI enables token revocation and tracking. Each token gets a unique identifier
+    that can be used for blacklisting or session management.
+
+    :param data: Data to encode. Must contain 'sub' key with username value.
+                 Example: {"sub": "alice"}
     :param expires_delta: Token expiration time
-    :return: JWT token string
+    :return: JWT token string with jti, exp, iat claims
     """
     to_encode = data.copy()
 
@@ -20,7 +26,48 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     else:
         expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
 
-    to_encode.update({"exp": expire})
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": datetime.now(UTC),
+            "jti": str(uuid.uuid4()),
+            "type": "access",
+        }
+    )
+
+    encode_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+
+    return encode_jwt
+
+
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """
+    Create JWT refresh token with unique JTI (JWT ID).
+
+    Refresh tokens are long-lived and stored in Redis for revocation capability.
+    The JTI is used as part of the Redis key for tracking active refresh tokens.
+
+    :param data: Data to encode. Must contain 'sub' key with username value.
+                 Example: {"sub": "alice"}
+    :param expires_delta: Token expiration time
+    :return: JWT token string with jti, exp, iat claims
+    """
+    to_encode = data.copy()
+
+    if expires_delta:
+        expire = datetime.now(UTC) + expires_delta
+    else:
+        expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
+
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": datetime.now(UTC),
+            "jti": str(uuid.uuid4()),
+            "type": "refresh",
+        }
+    )
+
     encode_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
     return encode_jwt
