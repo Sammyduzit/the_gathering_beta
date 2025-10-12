@@ -4,6 +4,7 @@ from fastapi import APIRouter, Body, Depends, status
 from app.core.arq_pool import get_arq_pool
 from app.core.auth_dependencies import get_current_active_user
 from app.core.config import settings
+from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
 from app.repositories.ai_entity_repository import AIEntityRepository
 from app.repositories.repository_dependencies import get_ai_entity_repository
@@ -19,6 +20,7 @@ async def create_conversation(
     conversation_data: ConversationCreate = Body(...),
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Create private or group conversation.
@@ -48,6 +50,7 @@ async def send_conversation_message(
     conversation_service: ConversationService = Depends(get_conversation_service),
     ai_entity_repo: AIEntityRepository = Depends(get_ai_entity_repository),
     arq_pool: ArqRedis | None = Depends(get_arq_pool),
+    _csrf: None = Depends(validate_csrf),
 ) -> MessageResponse:
     """
     Send message to conversation.

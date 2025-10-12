@@ -10,6 +10,7 @@ import math
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.auth_dependencies import get_current_admin_user
+from app.core.csrf_dependencies import validate_csrf
 from app.models.ai_memory import AIMemory
 from app.models.user import User
 from app.repositories.ai_memory_repository import IAIMemoryRepository
@@ -107,6 +108,7 @@ async def create_memory(
     memory_data: MemoryCreate,
     current_admin: User = Depends(get_current_admin_user),
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    _csrf: None = Depends(validate_csrf),
 ) -> MemoryResponse:
     """
     Create new AI memory manually (Admin only).
@@ -172,6 +174,7 @@ async def update_memory(
     memory_data: MemoryUpdate,
     current_admin: User = Depends(get_current_admin_user),
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    _csrf: None = Depends(validate_csrf),
 ) -> MemoryResponse:
     """
     Update existing AI memory (Admin only).
@@ -235,6 +238,7 @@ async def delete_memory(
     memory_id: int,
     current_admin: User = Depends(get_current_admin_user),
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    _csrf: None = Depends(validate_csrf),
 ) -> None:
     """
     Delete AI memory (Admin only).

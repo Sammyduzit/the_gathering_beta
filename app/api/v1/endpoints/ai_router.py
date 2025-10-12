@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 
 from app.core.auth_dependencies import get_current_active_user, get_current_admin_user
+from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
 from app.schemas.ai_schemas import (
     AIAvailableResponse,
@@ -64,6 +65,7 @@ async def create_ai_entity(
     entity_data: AIEntityCreate,
     current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> AIEntityResponse:
     """
     Create new AI entity (Admin only).
@@ -89,6 +91,7 @@ async def update_ai_entity(
     entity_data: AIEntityUpdate,
     current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> AIEntityResponse:
     """
     Update AI entity (Admin only) - Partial update.
@@ -123,6 +126,7 @@ async def delete_ai_entity(
     entity_id: int,
     current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Delete AI entity (Admin only).
@@ -156,6 +160,7 @@ async def invite_ai_to_conversation(
     invite_data: AIInviteRequest,
     current_user: User = Depends(get_current_active_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Invite AI entity to a conversation.
@@ -174,6 +179,7 @@ async def remove_ai_from_conversation(
     ai_entity_id: int,
     current_user: User = Depends(get_current_active_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Remove AI entity from a conversation.
@@ -191,6 +197,7 @@ async def initiate_ai_goodbye(
     entity_id: int,
     current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Initiate graceful goodbye for AI entity (Admin only).

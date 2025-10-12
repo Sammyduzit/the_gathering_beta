@@ -5,6 +5,7 @@ from app.core.arq_pool import get_arq_pool
 from app.core.auth_dependencies import get_current_active_user, get_current_admin_user
 from app.core.background_tasks import async_bg_task_manager
 from app.core.config import settings
+from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
 from app.schemas.chat_schemas import MessageCreate, MessageResponse
 from app.schemas.room_schemas import RoomCreate, RoomResponse
@@ -40,6 +41,7 @@ async def create_room(
     room_data: RoomCreate,
     current_admin: User = Depends(get_current_admin_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomResponse:
     """
     Create a new room.
@@ -62,6 +64,7 @@ async def update_room(
     room_data: RoomCreate,
     current_admin: User = Depends(get_current_admin_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomResponse:
     """
     Update existing room data.
@@ -85,6 +88,7 @@ async def delete_room(
     room_id: int,
     current_admin: User = Depends(get_current_admin_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Close room with cleanup, kick users and archive conversations.
@@ -139,6 +143,7 @@ async def join_room(
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
     background_service: BackgroundService = Depends(get_background_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomJoinResponse:
     """
     User joins room.
@@ -178,6 +183,7 @@ async def leave_room(
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
     background_service: BackgroundService = Depends(get_background_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomLeaveResponse:
     """
     User leaves room.
@@ -231,6 +237,7 @@ async def update_user_status(
     status_update: UserStatusUpdate,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Update current user status.
@@ -251,6 +258,7 @@ async def send_room_message(
     background_service: BackgroundService = Depends(get_background_service),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     arq_pool: ArqRedis | None = Depends(get_arq_pool),
+    _csrf: None = Depends(validate_csrf),
 ) -> MessageResponse:
     """
     Send message to room, visible for every member.
