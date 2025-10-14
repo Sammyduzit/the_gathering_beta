@@ -65,6 +65,16 @@ class IMessageRepository(BaseRepository[Message]):
         pass
 
     @abstractmethod
+    async def get_latest_conversation_message(self, conversation_id: int) -> Message | None:
+        """Get most recent message from a conversation."""
+        pass
+
+    @abstractmethod
+    async def count_conversation_messages(self, conversation_id: int) -> int:
+        """Count total messages in a conversation."""
+        pass
+
+    @abstractmethod
     async def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
         """Delete old room messages, keeping only the most recent ones"""
         pass
@@ -230,6 +240,27 @@ class MessageRepository(IMessageRepository):
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
+
+    async def get_latest_conversation_message(self, conversation_id: int) -> Message | None:
+        """Get most recent message from a conversation."""
+        from sqlalchemy.orm import selectinload
+
+        query = (
+            select(Message)
+            .options(selectinload(Message.sender_user), selectinload(Message.sender_ai))
+            .where(Message.conversation_id == conversation_id)
+            .order_by(desc(Message.sent_at))
+            .limit(1)
+        )
+
+        result = await self.db.execute(query)
+        return result.scalar_one_or_none()
+
+    async def count_conversation_messages(self, conversation_id: int) -> int:
+        """Count total messages in a conversation."""
+        query = select(func.count(Message.id)).where(Message.conversation_id == conversation_id)
+        result = await self.db.execute(query)
+        return result.scalar_one() or 0
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[Message]:
         """Get all messages with pagination."""

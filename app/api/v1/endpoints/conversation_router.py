@@ -8,7 +8,13 @@ from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
 from app.repositories.ai_entity_repository import AIEntityRepository
 from app.repositories.repository_dependencies import get_ai_entity_repository
-from app.schemas.chat_schemas import ConversationCreate, MessageCreate, MessageResponse
+from app.schemas.chat_schemas import (
+    ConversationCreate,
+    ConversationDetailResponse,
+    ConversationListItemResponse,
+    MessageCreate,
+    MessageResponse,
+)
 from app.services.conversation_service import ConversationService
 from app.services.service_dependencies import get_conversation_service
 
@@ -112,18 +118,36 @@ async def get_conversation_messages(
     return messages
 
 
-@router.get("/", response_model=list[dict])
+@router.get("/", response_model=list[ConversationListItemResponse])
 async def get_user_conversations(
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
-) -> list[dict]:
+) -> list[ConversationListItemResponse]:
     """
     Get all active conversations for current user.
+    Includes room name, participant info, and latest message preview for list views.
     :param current_user: Current authenticated user
     :param conversation_service: Service instance handling conversation logic
-    :return: List of conversation dictionaries the user is part of
+    :return: List of conversation list items
     """
     return await conversation_service.get_user_conversations(current_user.id)
+
+
+@router.get("/{conversation_id}", response_model=ConversationDetailResponse)
+async def get_conversation_detail(
+    conversation_id: int,
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> ConversationDetailResponse:
+    """
+    Get detailed conversation information.
+    Includes full participant details, permissions, message count, and latest message.
+    :param conversation_id: ID of the conversation
+    :param current_user: Current authenticated user
+    :param conversation_service: Service instance handling conversation logic
+    :return: Detailed conversation data
+    """
+    return await conversation_service.get_conversation_detail(current_user, conversation_id)
 
 
 @router.get("/{conversation_id}/participants", response_model=list[dict])

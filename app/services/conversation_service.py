@@ -179,6 +179,7 @@ class ConversationService:
     async def get_user_conversations(self, user_id: int) -> list[dict]:
         """
         Get all active conversations for user with formatted response.
+        Includes room name, participant info, and latest message preview.
         :param user_id: User ID
         :return: List of formatted conversation data
         """
@@ -186,17 +187,38 @@ class ConversationService:
 
         conversation_list = []
         for conv in conversations:
+            # Get participants
             participants = await self.conversation_repo.get_participants(conv.id)
-            participant_names = [p.participant_name for p in participants if p.user_id and p.user_id != user_id]
+            participant_names = [
+                p.participant_name for p in participants if p.user_id != user_id or p.ai_entity_id is not None
+            ]
+
+            # Get room name
+            room = await self.room_repo.get_by_id(conv.room_id)
+            room_name = room.name if room else None
+
+            # Get latest message for preview
+            latest_message_obj = await self.message_repo.get_latest_conversation_message(conv.id)
+            latest_message_at = latest_message_obj.sent_at if latest_message_obj else None
+            latest_message_preview = (
+                latest_message_obj.content[:50] + "..."
+                if latest_message_obj and len(latest_message_obj.content) > 50
+                else latest_message_obj.content
+                if latest_message_obj
+                else None
+            )
 
             conversation_list.append(
                 {
                     "id": conv.id,
                     "type": conv.conversation_type.value,
                     "room_id": conv.room_id,
+                    "room_name": room_name,
                     "participants": participant_names,
                     "participant_count": len(participants),
                     "created_at": conv.created_at,
+                    "latest_message_at": latest_message_at,
+                    "latest_message_preview": latest_message_preview,
                 }
             )
 
@@ -224,9 +246,7 @@ class ConversationService:
             for participant in participants
         ]
 
-    async def _validate_participants(
-        self, usernames: list[str], room_id: int
-    ) -> tuple[list[User], list]:
+    async def _validate_participants(self, usernames: list[str], room_id: int) -> tuple[list[User], list]:
         """
         Validate and separate human and AI participants.
 
@@ -387,3 +407,78 @@ class ConversationService:
             }
 
         raise UserNotFoundException(f"Participant '{username}' not found")
+
+    async def get_conversation_detail(self, current_user: User, conversation_id: int) -> dict:
+        """
+        Get detailed conversation information including participants, permissions, and message metadata.
+        :param current_user: User requesting conversation details
+        :param conversation_id: Conversation ID
+        :return: Detailed conversation data formatted for frontend
+        """
+        # Validate access
+        await self._validate_conversation_access(current_user.id, conversation_id)
+
+        # Get conversation
+        conversation = await self.conversation_repo.get_by_id(conversation_id)
+        if not conversation:
+            raise ConversationNotFoundException(f"Conversation {conversation_id} not found")
+
+        # Get participants with full details
+        participants = await self.conversation_repo.get_participants(conversation_id)
+        participant_details = [
+            {
+                "id": p.user_id if p.user_id else p.ai_entity_id,
+                "username": p.participant_name,
+                "avatar_url": p.user.avatar_url if p.user_id else None,
+                "status": p.user.status.value if p.user_id else "online",
+                "is_ai": p.is_ai,
+            }
+            for p in participants
+        ]
+
+        # Get room name
+        room = await self.room_repo.get_by_id(conversation.room_id)
+        room_name = room.name if room else None
+
+        # Get message metadata
+        message_count = await self.message_repo.count_conversation_messages(conversation_id)
+        latest_message_obj = await self.message_repo.get_latest_conversation_message(conversation_id)
+
+        # Format latest message
+        latest_message = None
+        if latest_message_obj:
+            latest_message = {
+                "id": latest_message_obj.id,
+                "sender_id": latest_message_obj.sender_user_id or latest_message_obj.sender_ai_id,
+                "sender_username": (
+                    latest_message_obj.sender_user.username
+                    if latest_message_obj.sender_user_id
+                    else latest_message_obj.sender_ai.name
+                ),
+                "content": latest_message_obj.content,
+                "sent_at": latest_message_obj.sent_at,
+                "room_id": latest_message_obj.room_id,
+                "conversation_id": latest_message_obj.conversation_id,
+            }
+
+        # Calculate permissions
+        is_participant = any(p.user_id == current_user.id for p in participants)
+        permissions = {
+            "can_post": is_participant,
+            "can_manage_participants": current_user.is_admin or is_participant,
+            "can_leave": is_participant,
+        }
+
+        return {
+            "id": conversation.id,
+            "type": conversation.conversation_type.value,
+            "room_id": conversation.room_id,
+            "room_name": room_name,
+            "is_active": conversation.is_active,
+            "created_at": conversation.created_at,
+            "participants": participant_details,
+            "participant_count": len(participants),
+            "message_count": message_count,
+            "latest_message": latest_message,
+            "permissions": permissions,
+        }
