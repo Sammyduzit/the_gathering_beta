@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import structlog
 import uvicorn
 from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.endpoints.ai_router import router as ai_router
@@ -15,8 +16,8 @@ from app.api.v1.endpoints.memory_router import router as memory_router
 from app.api.v1.endpoints.room_router import router as rooms_router
 from app.core.arq_pool import close_arq_pool, create_arq_pool
 from app.core.config import settings
+from app.core.constants import CORS_ALLOWED_ORIGINS_DEV
 from app.core.database import create_tables, drop_tables
-from app.core.redis_client import close_redis_client, create_redis_client
 from app.core.exceptions import (
     DomainException,
     ForbiddenException,
@@ -24,6 +25,7 @@ from app.core.exceptions import (
     UnauthorizedException,
     ValidationException,
 )
+from app.core.redis_client import close_redis_client, create_redis_client
 from testing_setup import setup_complete_test_environment
 
 # Configure structlog
@@ -81,6 +83,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ALLOWED_ORIGINS_DEV,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ============================================================================
 # Exception Handlers (Convert Domain Exceptions → HTTP Responses)

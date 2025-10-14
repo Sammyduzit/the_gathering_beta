@@ -56,3 +56,9 @@ DEFAULT_COOKIE_SECURE = False  # True in production via environment
 SECONDS_PER_MINUTE = 60
 SECONDS_PER_HOUR = 3600
 SECONDS_PER_DAY = 86400
+
+# CORS Configuration (Development)
+CORS_ALLOWED_ORIGINS_DEV = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
