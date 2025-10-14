@@ -8,6 +8,7 @@ from app.core.auth_utils import hash_password, verify_password
 from app.core.config import settings
 from app.core.constants import SECONDS_PER_DAY, SECONDS_PER_MINUTE
 from app.core.cookie_utils import clear_auth_cookies, generate_csrf_token, set_auth_cookies
+from app.core.csrf_dependencies import validate_csrf
 from app.core.jwt_utils import create_access_token, create_refresh_token, verify_token
 from app.core.redis_client import get_redis
 from app.core.validators import validate_language_code
@@ -214,6 +215,7 @@ async def refresh_access_token(
 async def logout_user(
     request: Request,
     response: Response,
+    _csrf: None = Depends(validate_csrf),
     redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_active_user),
 ):
