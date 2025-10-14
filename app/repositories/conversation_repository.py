@@ -12,23 +12,37 @@ class IConversationRepository(BaseRepository[Conversation]):
     """Abstract interface for Conversation repository."""
 
     @abstractmethod
-    async def create_private_conversation(self, room_id: int, participant_ids: list[int]) -> Conversation:
-        """Create a private conversation (2 participants)."""
+    async def create_private_conversation(
+        self, room_id: int, user_ids: list[int], ai_ids: list[int]
+    ) -> Conversation:
+        """Create a private conversation (2 participants: human and/or AI)."""
         pass
 
     @abstractmethod
-    async def create_group_conversation(self, room_id: int, participant_ids: list[int]) -> Conversation:
-        """Create a group conversation (3+ participants)."""
+    async def create_group_conversation(
+        self, room_id: int, user_ids: list[int], ai_ids: list[int]
+    ) -> Conversation:
+        """Create a group conversation (2+ participants: human and/or AI)."""
         pass
 
     @abstractmethod
-    async def add_participant(self, conversation_id: int, user_id: int) -> ConversationParticipant:
-        """Add participant to conversation."""
+    async def add_participant(
+        self,
+        conversation_id: int,
+        user_id: int | None = None,
+        ai_entity_id: int | None = None,
+    ) -> ConversationParticipant:
+        """Add participant (human or AI) to conversation."""
         pass
 
     @abstractmethod
-    async def remove_participant(self, conversation_id: int, user_id: int) -> bool:
-        """Remove participant from conversation (set left_at)."""
+    async def remove_participant(
+        self,
+        conversation_id: int,
+        user_id: int | None = None,
+        ai_entity_id: int | None = None,
+    ) -> bool:
+        """Remove participant (human or AI) from conversation (set left_at)."""
         pass
 
     @abstractmethod
@@ -41,15 +55,6 @@ class IConversationRepository(BaseRepository[Conversation]):
         """Get all active participants in conversation (polymorphic: User + AI)."""
         pass
 
-    @abstractmethod
-    async def add_ai_participant(self, conversation_id: int, ai_entity_id: int) -> ConversationParticipant:
-        """Add AI to conversation."""
-        pass
-
-    @abstractmethod
-    async def remove_ai_participant(self, conversation_id: int, ai_entity_id: int) -> bool:
-        """Remove AI from conversation (soft delete)."""
-        pass
 
     @abstractmethod
     async def get_user_conversations(self, user_id: int) -> list[Conversation]:
@@ -64,6 +69,11 @@ class IConversationRepository(BaseRepository[Conversation]):
     @abstractmethod
     async def get_active_conversations_for_ai(self, ai_entity_id: int) -> list[Conversation]:
         """Get all active conversations where AI is still a participant."""
+        pass
+
+    @abstractmethod
+    async def count_active_participants(self, conversation_id: int) -> int:
+        """Count active participants in conversation."""
         pass
 
 
@@ -83,10 +93,17 @@ class ConversationRepository(IConversationRepository):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def create_private_conversation(self, room_id: int, participant_ids: list[int]) -> Conversation:
-        """Create a private conversation (2 participants)."""
-        if len(participant_ids) != 2:
-            raise ValueError("Private conversations require exactly 2 participants")
+    async def create_private_conversation(
+        self, room_id: int, user_ids: list[int], ai_ids: list[int]
+    ) -> Conversation:
+        """Create a private conversation (2 participants: human and/or AI)."""
+        total_participants = len(user_ids) + len(ai_ids)
+
+        if total_participants != 2:
+            raise ValueError(f"Private conversations require exactly 2 participants, got {total_participants}")
+
+        if len(user_ids) < 1:
+            raise ValueError("Private conversations require at least 1 human participant")
 
         new_conversation = Conversation(
             room_id=room_id,
@@ -97,19 +114,31 @@ class ConversationRepository(IConversationRepository):
         self.db.add(new_conversation)
         await self.db.flush()
 
-        # Add participants
-        for user_id in participant_ids:
+        # Add human participants
+        for user_id in user_ids:
             participant = ConversationParticipant(conversation_id=new_conversation.id, user_id=user_id)
+            self.db.add(participant)
+
+        # Add AI participants
+        for ai_id in ai_ids:
+            participant = ConversationParticipant(conversation_id=new_conversation.id, ai_entity_id=ai_id)
             self.db.add(participant)
 
         await self.db.commit()
         await self.db.refresh(new_conversation)
         return new_conversation
 
-    async def create_group_conversation(self, room_id: int, participant_ids: list[int]) -> Conversation:
-        """Create a group conversation (3+ participants)."""
-        if len(participant_ids) < 2:
-            raise ValueError("Group conversations require at least 2 participants")
+    async def create_group_conversation(
+        self, room_id: int, user_ids: list[int], ai_ids: list[int]
+    ) -> Conversation:
+        """Create a group conversation (2+ participants: human and/or AI)."""
+        total_participants = len(user_ids) + len(ai_ids)
+
+        if total_participants < 2:
+            raise ValueError(f"Group conversations require at least 2 participants, got {total_participants}")
+
+        if len(user_ids) < 1:
+            raise ValueError("Group conversations require at least 1 human participant")
 
         new_conversation = Conversation(
             room_id=room_id,
@@ -120,36 +149,84 @@ class ConversationRepository(IConversationRepository):
         self.db.add(new_conversation)
         await self.db.flush()
 
-        # Add participants
-        for user_id in participant_ids:
+        # Add human participants
+        for user_id in user_ids:
             participant = ConversationParticipant(conversation_id=new_conversation.id, user_id=user_id)
+            self.db.add(participant)
+
+        # Add AI participants
+        for ai_id in ai_ids:
+            participant = ConversationParticipant(conversation_id=new_conversation.id, ai_entity_id=ai_id)
             self.db.add(participant)
 
         await self.db.commit()
         await self.db.refresh(new_conversation)
         return new_conversation
 
-    async def add_participant(self, conversation_id: int, user_id: int) -> ConversationParticipant:
-        """Add participant to conversation."""
-        if await self.is_participant(conversation_id, user_id):
-            raise ValueError("User is already a participant in this conversation")
+    async def add_participant(
+        self,
+        conversation_id: int,
+        user_id: int | None = None,
+        ai_entity_id: int | None = None,
+    ) -> ConversationParticipant:
+        """Add participant (human or AI) to conversation."""
+        # XOR validation: exactly one must be set
+        if (user_id is None) == (ai_entity_id is None):
+            raise ValueError("Exactly one of user_id or ai_entity_id must be provided")
 
-        participant = ConversationParticipant(conversation_id=conversation_id, user_id=user_id)
+        # Check if already participant (human or AI)
+        if user_id:
+            if await self.is_participant(conversation_id, user_id):
+                raise ValueError("User is already a participant in this conversation")
+
+        if ai_entity_id:
+            # Check if AI already in conversation
+            query = select(ConversationParticipant).where(
+                and_(
+                    ConversationParticipant.conversation_id == conversation_id,
+                    ConversationParticipant.ai_entity_id == ai_entity_id,
+                    ConversationParticipant.left_at.is_(None),
+                )
+            )
+            result = await self.db.execute(query)
+            if result.scalar_one_or_none():
+                raise ValueError("AI is already a participant in this conversation")
+
+        # Create participant
+        participant = ConversationParticipant(
+            conversation_id=conversation_id,
+            user_id=user_id,
+            ai_entity_id=ai_entity_id,
+        )
 
         self.db.add(participant)
         await self.db.commit()
         await self.db.refresh(participant)
         return participant
 
-    async def remove_participant(self, conversation_id: int, user_id: int) -> bool:
-        """Remove participant from conversation (set left_at)."""
-        participant_query = select(ConversationParticipant).where(
-            and_(
-                ConversationParticipant.conversation_id == conversation_id,
-                ConversationParticipant.user_id == user_id,
-                ConversationParticipant.left_at.is_(None),
-            )
-        )
+    async def remove_participant(
+        self,
+        conversation_id: int,
+        user_id: int | None = None,
+        ai_entity_id: int | None = None,
+    ) -> bool:
+        """Remove participant (human or AI) from conversation (set left_at)."""
+        # XOR validation: exactly one must be set
+        if (user_id is None) == (ai_entity_id is None):
+            raise ValueError("Exactly one of user_id or ai_entity_id must be provided")
+
+        # Build query based on participant type
+        conditions = [
+            ConversationParticipant.conversation_id == conversation_id,
+            ConversationParticipant.left_at.is_(None),
+        ]
+
+        if user_id:
+            conditions.append(ConversationParticipant.user_id == user_id)
+        else:
+            conditions.append(ConversationParticipant.ai_entity_id == ai_entity_id)
+
+        participant_query = select(ConversationParticipant).where(and_(*conditions))
         result = await self.db.execute(participant_query)
         participant = result.scalar_one_or_none()
 
@@ -158,6 +235,15 @@ class ConversationRepository(IConversationRepository):
 
             participant.left_at = datetime.now()
             await self.db.commit()
+
+            # Auto-archive if no active participants left
+            active_count = await self.count_active_participants(conversation_id)
+            if active_count == 0:
+                conversation = await self.get_by_id(conversation_id)
+                if conversation:
+                    conversation.is_active = False
+                    await self.db.commit()
+
             return True
         return False
 
@@ -186,40 +272,6 @@ class ConversationRepository(IConversationRepository):
         result = await self.db.execute(participants_query)
         return list(result.scalars().all())
 
-    async def add_ai_participant(self, conversation_id: int, ai_entity_id: int) -> ConversationParticipant:
-        """Add AI to conversation."""
-        from sqlalchemy.exc import IntegrityError
-
-        participant = ConversationParticipant(conversation_id=conversation_id, ai_entity_id=ai_entity_id)
-
-        self.db.add(participant)
-        try:
-            await self.db.commit()
-            await self.db.refresh(participant)
-            return participant
-        except IntegrityError:
-            await self.db.rollback()
-            raise ValueError("AI is already in this conversation or 1-AI limit reached")
-
-    async def remove_ai_participant(self, conversation_id: int, ai_entity_id: int) -> bool:
-        """Remove AI from conversation (soft delete)."""
-        from datetime import datetime
-
-        participant_query = select(ConversationParticipant).where(
-            and_(
-                ConversationParticipant.conversation_id == conversation_id,
-                ConversationParticipant.ai_entity_id == ai_entity_id,
-                ConversationParticipant.left_at.is_(None),
-            )
-        )
-        result = await self.db.execute(participant_query)
-        participant = result.scalar_one_or_none()
-
-        if participant:
-            participant.left_at = datetime.now()
-            await self.db.commit()
-            return True
-        return False
 
     async def get_user_conversations(self, user_id: int) -> list[Conversation]:
         """Get all active conversations for a user."""
@@ -299,3 +351,16 @@ class ConversationRepository(IConversationRepository):
         """Check if conversation exists by ID."""
         conversation = await self.get_by_id(id)
         return conversation is not None
+
+    async def count_active_participants(self, conversation_id: int) -> int:
+        """Count active participants in conversation."""
+        from sqlalchemy import func
+
+        query = select(func.count()).select_from(ConversationParticipant).where(
+            and_(
+                ConversationParticipant.conversation_id == conversation_id,
+                ConversationParticipant.left_at.is_(None),
+            )
+        )
+        result = await self.db.execute(query)
+        return result.scalar() or 0

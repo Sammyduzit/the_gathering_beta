@@ -167,7 +167,7 @@ class AIEntityService:
 
         # Add AI to conversation
         try:
-            await self.conversation_repo.add_ai_participant(conversation_id, ai_entity_id)
+            await self.conversation_repo.add_participant(conversation_id, ai_entity_id=ai_entity_id)
         except ValueError as e:
             raise InvalidOperationException(str(e))
 
@@ -188,7 +188,7 @@ class AIEntityService:
             raise ConversationNotFoundException(conversation_id)
 
         # Remove AI from conversation
-        await self.conversation_repo.remove_ai_participant(conversation_id, ai_entity_id)
+        await self.conversation_repo.remove_participant(conversation_id, ai_entity_id=ai_entity_id)
 
         return {
             "message": f"AI entity '{entity.display_name}' removed from conversation",
@@ -393,7 +393,7 @@ Generate ONLY the farewell message, nothing else."""
             await self.message_repo.create(farewell_msg)
 
             # Leave conversation
-            await self.conversation_repo.remove_ai_participant(conversation.id, entity_id)
+            await self.conversation_repo.remove_participant(conversation.id, ai_entity_id=entity_id)
 
             summary["conversation_goodbyes"].append(
                 {

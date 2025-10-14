@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -54,6 +54,8 @@ class ConversationParticipant(Base):
             "(user_id IS NULL) != (ai_entity_id IS NULL)",
             name="participant_xor_user_ai",
         ),
+        UniqueConstraint("conversation_id", "user_id", name="uq_conversation_user"),
+        UniqueConstraint("conversation_id", "ai_entity_id", name="uq_conversation_ai"),
         Index("idx_conversation_user", "conversation_id", "user_id"),
         Index("idx_conversation_ai", "conversation_id", "ai_entity_id"),
         Index("idx_user_participation_history", "user_id", "joined_at"),

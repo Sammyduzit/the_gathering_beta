@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
-from app.core.auth_dependencies import get_current_active_user, get_current_admin_user
+from app.core.auth_dependencies import get_current_admin_user
 from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
 from app.schemas.ai_schemas import (
@@ -8,7 +8,6 @@ from app.schemas.ai_schemas import (
     AIEntityCreate,
     AIEntityResponse,
     AIEntityUpdate,
-    AIInviteRequest,
 )
 from app.services.ai_entity_service import AIEntityService
 from app.services.service_dependencies import get_ai_entity_service
@@ -18,12 +17,12 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 
 @router.get("/entities", response_model=list[AIEntityResponse])
 async def get_all_ai_entities(
-    current_user: User = Depends(get_current_active_user),
+    current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
 ) -> list[AIEntityResponse]:
     """
-    Get all AI entities.
-    :param current_user: Current authenticated user
+    Get all AI entities (Admin only).
+    :param current_admin: Current authenticated admin
     :param ai_service: AI entity service instance
     :return: List of all AI entities
     """
@@ -32,12 +31,12 @@ async def get_all_ai_entities(
 
 @router.get("/entities/available", response_model=list[AIEntityResponse])
 async def get_available_ai_entities(
-    current_user: User = Depends(get_current_active_user),
+    current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
 ) -> list[AIEntityResponse]:
     """
-    Get all available AI entities (online and not deleted).
-    :param current_user: Current authenticated user
+    Get all available AI entities (online and not deleted) (Admin only).
+    :param current_admin: Current authenticated admin
     :param ai_service: AI entity service instance
     :return: List of available AI entities
     """
@@ -47,13 +46,13 @@ async def get_available_ai_entities(
 @router.get("/entities/{entity_id}", response_model=AIEntityResponse)
 async def get_ai_entity_by_id(
     entity_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
 ) -> AIEntityResponse:
     """
-    Get AI entity by ID.
+    Get AI entity by ID (Admin only).
     :param entity_id: AI entity ID
-    :param current_user: Current authenticated user
+    :param current_admin: Current authenticated admin
     :param ai_service: AI entity service instance
     :return: AI entity details
     """
@@ -141,55 +140,17 @@ async def delete_ai_entity(
 @router.get("/rooms/{room_id}/available", response_model=list[AIAvailableResponse])
 async def get_available_ai_in_room(
     room_id: int,
-    current_user: User = Depends(get_current_active_user),
+    current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
 ) -> list[AIAvailableResponse]:
     """
-    Get available AI entities in a room (active and not in conversation).
+    Get available AI entities in a room (Admin only).
     :param room_id: Room ID
-    :param current_user: Current authenticated user
+    :param current_admin: Current authenticated admin
     :param ai_service: AI entity service instance
     :return: List of available AI entities
     """
     return await ai_service.get_available_in_room(room_id)
-
-
-@router.post("/conversations/{conversation_id}/invite")
-async def invite_ai_to_conversation(
-    conversation_id: int,
-    invite_data: AIInviteRequest,
-    current_user: User = Depends(get_current_active_user),
-    ai_service: AIEntityService = Depends(get_ai_entity_service),
-    _csrf: None = Depends(validate_csrf),
-) -> dict:
-    """
-    Invite AI entity to a conversation.
-    :param conversation_id: Conversation ID
-    :param invite_data: AI invitation data
-    :param current_user: Current authenticated user
-    :param ai_service: AI entity service instance
-    :return: Invitation confirmation
-    """
-    return await ai_service.invite_to_conversation(conversation_id, invite_data.ai_entity_id)
-
-
-@router.delete("/conversations/{conversation_id}/ai/{ai_entity_id}")
-async def remove_ai_from_conversation(
-    conversation_id: int,
-    ai_entity_id: int,
-    current_user: User = Depends(get_current_active_user),
-    ai_service: AIEntityService = Depends(get_ai_entity_service),
-    _csrf: None = Depends(validate_csrf),
-) -> dict:
-    """
-    Remove AI entity from a conversation.
-    :param conversation_id: Conversation ID
-    :param ai_entity_id: AI entity ID
-    :param current_user: Current authenticated user
-    :param ai_service: AI entity service instance
-    :return: Removal confirmation
-    """
-    return await ai_service.remove_from_conversation(conversation_id, ai_entity_id)
 
 
 @router.post("/entities/{entity_id}/goodbye")

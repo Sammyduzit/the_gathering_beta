@@ -140,3 +140,60 @@ async def get_conversation_participants(
     :return: List of participant user dictionaries for the given conversation
     """
     return await conversation_service.get_participants(current_user=current_user, conversation_id=conversation_id)
+
+
+@router.post("/{conversation_id}/participants")
+async def add_participant_to_conversation(
+    conversation_id: int,
+    username: str = Body(..., embed=True),
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    _csrf: None = Depends(validate_csrf),
+) -> dict:
+    """
+    Add participant (human or AI) to conversation.
+
+    Works seamlessly for both:
+    - username="alice" → Adds human user
+    - username="sophia" → Adds AI entity (if it exists)
+
+    User cannot distinguish between human and AI from an API perspective.
+
+    :param conversation_id: Conversation ID
+    :param username: Username of human or AI to add
+    :param current_user: Current authenticated user
+    :param conversation_service: Service instance handling conversation logic
+    :return: Success response with participant info
+    """
+    return await conversation_service.add_participant(
+        conversation_id=conversation_id,
+        username=username,
+        current_user=current_user,
+    )
+
+
+@router.delete("/{conversation_id}/participants/{username}")
+async def remove_participant_from_conversation(
+    conversation_id: int,
+    username: str,
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    _csrf: None = Depends(validate_csrf),
+) -> dict:
+    """
+    Remove participant from conversation.
+
+    Users can remove themselves (leave conversation).
+    Only admins can remove other participants (human or AI).
+
+    :param conversation_id: Conversation ID
+    :param username: Username of human or AI to remove
+    :param current_user: Current authenticated user
+    :param conversation_service: Service instance handling conversation logic
+    :return: Success response with removal info
+    """
+    return await conversation_service.remove_participant(
+        conversation_id=conversation_id,
+        username=username,
+        current_user=current_user,
+    )

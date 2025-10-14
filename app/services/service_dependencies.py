@@ -70,6 +70,7 @@ def get_conversation_service(
     user_repo: IUserRepository = Depends(get_user_repository),
     room_repo: IRoomRepository = Depends(get_room_repository),
     translation_service: TranslationService = Depends(get_translation_service),
+    ai_entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
 ) -> ConversationService:
     """
     Create ConversationService instance with repository dependencies.
@@ -78,6 +79,7 @@ def get_conversation_service(
     :param user_repo: User repository instance
     :param room_repo: Room repository instance
     :param translation_service: Translation service instance
+    :param ai_entity_repo: AI entity repository instance
     :return: ConversationService instance
     """
     return ConversationService(
@@ -86,6 +88,7 @@ def get_conversation_service(
         user_repo=user_repo,
         room_repo=room_repo,
         translation_service=translation_service,
+        ai_entity_repo=ai_entity_repo,
     )
 
 
