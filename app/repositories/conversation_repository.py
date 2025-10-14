@@ -2,6 +2,7 @@ from abc import abstractmethod
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.conversation import Conversation, ConversationType
 from app.models.conversation_participant import ConversationParticipant
@@ -12,16 +13,12 @@ class IConversationRepository(BaseRepository[Conversation]):
     """Abstract interface for Conversation repository."""
 
     @abstractmethod
-    async def create_private_conversation(
-        self, room_id: int, user_ids: list[int], ai_ids: list[int]
-    ) -> Conversation:
+    async def create_private_conversation(self, room_id: int, user_ids: list[int], ai_ids: list[int]) -> Conversation:
         """Create a private conversation (2 participants: human and/or AI)."""
         pass
 
     @abstractmethod
-    async def create_group_conversation(
-        self, room_id: int, user_ids: list[int], ai_ids: list[int]
-    ) -> Conversation:
+    async def create_group_conversation(self, room_id: int, user_ids: list[int], ai_ids: list[int]) -> Conversation:
         """Create a group conversation (2+ participants: human and/or AI)."""
         pass
 
@@ -54,7 +51,6 @@ class IConversationRepository(BaseRepository[Conversation]):
     async def get_participants(self, conversation_id: int) -> list[ConversationParticipant]:
         """Get all active participants in conversation (polymorphic: User + AI)."""
         pass
-
 
     @abstractmethod
     async def get_user_conversations(self, user_id: int) -> list[Conversation]:
@@ -93,9 +89,7 @@ class ConversationRepository(IConversationRepository):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def create_private_conversation(
-        self, room_id: int, user_ids: list[int], ai_ids: list[int]
-    ) -> Conversation:
+    async def create_private_conversation(self, room_id: int, user_ids: list[int], ai_ids: list[int]) -> Conversation:
         """Create a private conversation (2 participants: human and/or AI)."""
         total_participants = len(user_ids) + len(ai_ids)
 
@@ -128,9 +122,7 @@ class ConversationRepository(IConversationRepository):
         await self.db.refresh(new_conversation)
         return new_conversation
 
-    async def create_group_conversation(
-        self, room_id: int, user_ids: list[int], ai_ids: list[int]
-    ) -> Conversation:
+    async def create_group_conversation(self, room_id: int, user_ids: list[int], ai_ids: list[int]) -> Conversation:
         """Create a group conversation (2+ participants: human and/or AI)."""
         total_participants = len(user_ids) + len(ai_ids)
 
@@ -262,16 +254,19 @@ class ConversationRepository(IConversationRepository):
 
     async def get_participants(self, conversation_id: int) -> list[ConversationParticipant]:
         """Get all active participants in conversation (polymorphic: User + AI)."""
-        participants_query = select(ConversationParticipant).where(
-            and_(
-                ConversationParticipant.conversation_id == conversation_id,
-                ConversationParticipant.left_at.is_(None),
+        participants_query = (
+            select(ConversationParticipant)
+            .options(selectinload(ConversationParticipant.user), selectinload(ConversationParticipant.ai_entity))
+            .where(
+                and_(
+                    ConversationParticipant.conversation_id == conversation_id,
+                    ConversationParticipant.left_at.is_(None),
+                )
             )
         )
 
         result = await self.db.execute(participants_query)
         return list(result.scalars().all())
-
 
     async def get_user_conversations(self, user_id: int) -> list[Conversation]:
         """Get all active conversations for a user."""
@@ -356,10 +351,14 @@ class ConversationRepository(IConversationRepository):
         """Count active participants in conversation."""
         from sqlalchemy import func
 
-        query = select(func.count()).select_from(ConversationParticipant).where(
-            and_(
-                ConversationParticipant.conversation_id == conversation_id,
-                ConversationParticipant.left_at.is_(None),
+        query = (
+            select(func.count())
+            .select_from(ConversationParticipant)
+            .where(
+                and_(
+                    ConversationParticipant.conversation_id == conversation_id,
+                    ConversationParticipant.left_at.is_(None),
+                )
             )
         )
         result = await self.db.execute(query)
