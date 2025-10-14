@@ -121,3 +121,16 @@ class ConversationDetailResponse(BaseModel):
 
     # Permissions
     permissions: ConversationPermissions = Field(description="Current user's permissions")
+
+
+class PaginatedMessagesResponse(BaseModel):
+    """
+    Paginated message response with metadata.
+    """
+
+    messages: list[MessageResponse] = Field(description="List of messages for current page")
+    total: int = Field(description="Total number of messages in conversation")
+    page: int = Field(ge=1, description="Current page number")
+    page_size: int = Field(ge=1, le=100, description="Number of messages per page")
+    total_pages: int = Field(description="Total number of pages")
+    has_more: bool = Field(description="Whether more pages are available")

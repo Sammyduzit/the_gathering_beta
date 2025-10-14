@@ -1,3 +1,4 @@
+import structlog
 from arq.connections import ArqRedis
 from fastapi import APIRouter, Body, Depends, status
 
@@ -14,9 +15,12 @@ from app.schemas.chat_schemas import (
     ConversationListItemResponse,
     MessageCreate,
     MessageResponse,
+    PaginatedMessagesResponse,
 )
 from app.services.conversation_service import ConversationService
 from app.services.service_dependencies import get_conversation_service
+
+logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -48,7 +52,7 @@ async def create_conversation(
     }
 
 
-@router.post("/{conversation_id}/messages", response_model=MessageResponse)
+@router.post("/{conversation_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def send_conversation_message(
     conversation_id: int,
     message_data: MessageCreate = Body(...),
@@ -60,7 +64,7 @@ async def send_conversation_message(
 ) -> MessageResponse:
     """
     Send message to conversation.
-    ARQ task triggers AI response if AI participant is present.
+    Returns 201 Created immediately, AI response (if applicable) is processed asynchronously.
     :param conversation_id: Target conversation ID
     :param message_data: Message content
     :param current_user: Current authenticated user
@@ -81,32 +85,53 @@ async def send_conversation_message(
 
     # Trigger AI response check if AI is present
     if ai_entity and settings.is_ai_available and arq_pool:
-        await arq_pool.enqueue_job(
-            "check_and_generate_ai_response",
-            message_id=message_response["id"],
-            conversation_id=conversation_id,
-            ai_entity_id=ai_entity.id,
-        )
+        try:
+            job = await arq_pool.enqueue_job(
+                "check_and_generate_ai_response",
+                message_id=message_response["id"],
+                conversation_id=conversation_id,
+                ai_entity_id=ai_entity.id,
+            )
+            logger.info(
+                "ai_response_job_enqueued",
+                job_id=job.job_id if job else None,
+                message_id=message_response["id"],
+                conversation_id=conversation_id,
+                ai_entity_id=ai_entity.id,
+                ai_entity_name=ai_entity.name,
+            )
+        except Exception as e:
+            logger.error(
+                "ai_response_job_failed",
+                error=str(e),
+                message_id=message_response["id"],
+                conversation_id=conversation_id,
+                ai_entity_id=ai_entity.id,
+                exc_info=True,
+            )
+            # Don't fail the message send if AI job fails
+            # Message was already saved successfully
 
     return message_response
 
 
-@router.get("/{conversation_id}/messages", response_model=list[MessageResponse])
+@router.get("/{conversation_id}/messages", response_model=PaginatedMessagesResponse)
 async def get_conversation_messages(
     conversation_id: int,
     page: int = 1,
     page_size: int = 50,
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
-) -> list[MessageResponse]:
+) -> PaginatedMessagesResponse:
     """
-    Get conversation message history.
+    Get conversation message history with pagination.
+    Messages are sorted by sent_at descending (newest first).
     :param conversation_id: Conversation ID to get messages from
-    :param page: Page number
-    :param page_size: Messages per page
+    :param page: Page number (starting at 1)
+    :param page_size: Messages per page (max 100)
     :param current_user: Current authenticated user
     :param conversation_service: Service instance handling conversation logic
-    :return: List of conversation messages
+    :return: Paginated message response with metadata
     """
     messages, total_count = await conversation_service.get_messages(
         current_user=current_user,
@@ -115,7 +140,18 @@ async def get_conversation_messages(
         page_size=page_size,
     )
 
-    return messages
+    # Calculate pagination metadata
+    total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 0
+    has_more = page < total_pages
+
+    return PaginatedMessagesResponse(
+        messages=messages,
+        total=total_count,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        has_more=has_more,
+    )
 
 
 @router.get("/", response_model=list[ConversationListItemResponse])
