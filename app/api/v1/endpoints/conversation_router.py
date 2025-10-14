@@ -88,14 +88,14 @@ async def send_conversation_message(
         try:
             job = await arq_pool.enqueue_job(
                 "check_and_generate_ai_response",
-                message_id=message_response["id"],
+                message_id=message_response.id,
                 conversation_id=conversation_id,
                 ai_entity_id=ai_entity.id,
             )
             logger.info(
                 "ai_response_job_enqueued",
                 job_id=job.job_id if job else None,
-                message_id=message_response["id"],
+                message_id=message_response.id,
                 conversation_id=conversation_id,
                 ai_entity_id=ai_entity.id,
                 ai_entity_name=ai_entity.name,
@@ -104,7 +104,7 @@ async def send_conversation_message(
             logger.error(
                 "ai_response_job_failed",
                 error=str(e),
-                message_id=message_response["id"],
+                message_id=message_response.id,
                 conversation_id=conversation_id,
                 ai_entity_id=ai_entity.id,
                 exc_info=True,
