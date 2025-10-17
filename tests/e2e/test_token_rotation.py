@@ -91,7 +91,7 @@ class TestTokenRotation:
         )
 
         # Save first token
-        first_token = login_response.cookies.get("tg_refresh")
+        _ = login_response.cookies.get("tg_refresh")
 
         # Refresh to get second token
         refresh1 = await async_client.post("/api/v1/auth/refresh")
