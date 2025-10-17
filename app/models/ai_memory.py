@@ -28,7 +28,7 @@ class AIMemory(Base):
     keywords = Column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"), nullable=True)
     importance_score = Column(Float, nullable=False, default=1.0)
 
-    # Vector search support (pgvector for semantic search)
+    # Vector search support (pgvector for semantic search, PostgreSQL only)
     embedding = Column(Vector(1536), nullable=True)
 
     # Access tracking for importance adjustment

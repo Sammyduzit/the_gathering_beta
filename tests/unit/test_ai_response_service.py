@@ -40,6 +40,7 @@ class TestAIResponseService:
         result = await service.generate_conversation_response(
             conversation_id=1,
             ai_entity=sample_ai_entity,
+            user_id=42,
             include_memories=True,
         )
 
@@ -51,6 +52,7 @@ class TestAIResponseService:
             conversation_id=1,
             room_id=None,
             ai_entity=sample_ai_entity,
+            user_id=42,
             include_memories=True,
         )
 
@@ -85,6 +87,7 @@ class TestAIResponseService:
         result = await service.generate_conversation_response(
             conversation_id=1,
             ai_entity=sample_ai_entity,
+            user_id=42,
             include_memories=False,
         )
 
@@ -108,6 +111,7 @@ class TestAIResponseService:
             await service.generate_conversation_response(
                 conversation_id=1,
                 ai_entity=sample_ai_entity,
+                user_id=42,
             )
 
     async def test_generate_room_response_success(
@@ -128,6 +132,7 @@ class TestAIResponseService:
         result = await service.generate_room_response(
             room_id=1,
             ai_entity=sample_ai_entity,
+            user_id=24,
             include_memories=True,
         )
 
@@ -139,6 +144,7 @@ class TestAIResponseService:
             conversation_id=None,
             room_id=1,
             ai_entity=sample_ai_entity,
+            user_id=24,
             include_memories=True,
         )
 
