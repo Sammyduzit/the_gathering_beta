@@ -1,5 +1,4 @@
 import yake
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.interfaces.embedding_service import IEmbeddingService

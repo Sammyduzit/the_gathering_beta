@@ -94,10 +94,10 @@ class MemoryBuilderService:
             raise ValueError(f"AI entity {ai_entity_id} not found")
 
         # Fetch last 20 messages from conversation
-        messages = await self.message_repo.get_conversation_messages(
+        messages, _ = await self.message_repo.get_conversation_messages(
             conversation_id=conversation_id,
-            limit=20,
-            offset=0,
+            page=1,
+            page_size=20,
         )
 
         if not messages:

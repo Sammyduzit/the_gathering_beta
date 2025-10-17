@@ -1,5 +1,4 @@
 import yake
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_memory import AIMemory
 from app.models.message import Message

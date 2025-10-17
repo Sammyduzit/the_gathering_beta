@@ -243,12 +243,8 @@ class AIContextService:
             memory.access_count = (memory.access_count or 0) + 1
             memory.last_accessed = now
 
-            # Update in database
-            await self.memory_repo.update(
-                memory_id=memory.id,
-                access_count=memory.access_count,
-                last_accessed=memory.last_accessed,
-            )
+            # Update in database (repository expects full AIMemory object)
+            await self.memory_repo.update(memory)
 
         logger.debug(f"Updated access tracking for {len(memories)} memories")
 
@@ -257,7 +253,7 @@ class AIContextService:
         conversation_id: int | None,
         room_id: int | None,
         ai_entity: AIEntity,
-        user_id: int,
+        user_id: int | None = None,
         include_memories: bool = True,
     ) -> tuple[list[dict[str, str]], str | None]:
         """
@@ -267,7 +263,7 @@ class AIContextService:
             conversation_id: Conversation ID (for private/group chats)
             room_id: Room ID (for public room messages)
             ai_entity: AI entity that will respond
-            user_id: User ID for personalized memories
+            user_id: User ID for personalized memories (optional, NULL for rooms = only personality memories)
             include_memories: Whether to include AI memories in system prompt
 
         Returns:
@@ -288,7 +284,7 @@ class AIContextService:
 
         # Get memory context if enabled
         memory_context = None
-        if include_memories and messages:
+        if include_memories and messages and user_id:
             # Use last user message as query for semantic search
             query = messages[-1]["content"] if messages else ""
             memory_context = await self.get_ai_memories(

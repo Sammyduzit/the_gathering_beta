@@ -1,5 +1,3 @@
-import asyncio
-from typing import Any
 
 import structlog
 from openai import AsyncOpenAI

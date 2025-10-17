@@ -2,6 +2,7 @@ from fastapi import Depends
 
 from app.core.config import settings
 from app.implementations.deepl_translator import DeepLTranslator
+from app.interfaces.embedding_service import IEmbeddingService
 from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.interfaces.memory_retriever import IMemoryRetriever
 from app.interfaces.memory_summarizer import IMemorySummarizer
@@ -26,7 +27,6 @@ from app.repositories.repository_dependencies import (
 )
 from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
-from app.interfaces.embedding_service import IEmbeddingService
 from app.services.ai_entity_service import AIEntityService
 from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService

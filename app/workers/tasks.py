@@ -175,6 +175,7 @@ async def check_and_generate_ai_response(
                 ai_message = await response_service.generate_room_response(
                     room_id=room_id,
                     ai_entity=ai_entity,
+                    user_id=message.sender_user_id,  # Pass for potential future room memories
                     include_memories=True,
                     in_reply_to_message_id=message_id,
                 )
@@ -182,6 +183,7 @@ async def check_and_generate_ai_response(
                 ai_message = await response_service.generate_conversation_response(
                     conversation_id=conversation_id,
                     ai_entity=ai_entity,
+                    user_id=message.sender_user_id,  # Required for personalized memories
                     include_memories=True,
                     in_reply_to_message_id=message_id,
                 )
@@ -213,9 +215,10 @@ async def check_and_generate_ai_response(
                     short_term_service = ShortTermMemoryService(memory_repo=memory_repo)
 
                     # Get recent messages for memory creation
-                    recent_messages = await message_repo.get_conversation_messages(
+                    recent_messages, _ = await message_repo.get_conversation_messages(
                         conversation_id=conversation_id,
-                        limit=20,
+                        page=1,
+                        page_size=20,
                     )
 
                     await short_term_service.create_short_term_memory(

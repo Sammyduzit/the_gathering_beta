@@ -5,9 +5,8 @@ Covers adding human participants, verifying count, removing participants,
 and enforcing admin-only removal rules.
 """
 
-from sqlalchemy import update
-
 import pytest
+from sqlalchemy import update
 
 from app.models.user import User
 

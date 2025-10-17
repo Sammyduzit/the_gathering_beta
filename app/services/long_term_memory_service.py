@@ -1,10 +1,7 @@
 import yake
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.interfaces.embedding_service import IEmbeddingService
 from app.models.ai_memory import AIMemory
-from app.models.message import Message
 from app.repositories.ai_memory_repository import AIMemoryRepository
 from app.repositories.message_repository import MessageRepository
 from app.services.text_chunking_service import TextChunkingService
@@ -58,9 +55,10 @@ class LongTermMemoryService:
             Exception: If embedding generation fails (fail fast)
         """
         # Fetch all messages from conversation
-        messages = await self.message_repo.get_conversation_messages(
+        messages, _ = await self.message_repo.get_conversation_messages(
             conversation_id=conversation_id,
-            limit=10000,  # High limit to get all
+            page=1,
+            page_size=10000,  # High limit to get all
         )
 
         if not messages:

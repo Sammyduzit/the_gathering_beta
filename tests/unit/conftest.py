@@ -242,8 +242,9 @@ async def created_ai_entity(async_db_session, sample_ai_entity_data):
 @pytest_asyncio.fixture
 async def created_room(async_db_session, sample_room_data):
     """Create room for cooldown tests."""
-    from app.models.room import Room
     from sqlalchemy import select
+
+    from app.models.room import Room
 
     room = Room(**sample_room_data)
     async_db_session.add(room)
@@ -259,8 +260,9 @@ async def created_room(async_db_session, sample_room_data):
 @pytest_asyncio.fixture
 async def created_conversation(async_db_session, created_room, test_user):
     """Create conversation for cooldown tests."""
-    from app.models.conversation import Conversation, ConversationType
     from sqlalchemy import select
+
+    from app.models.conversation import Conversation, ConversationType
 
     conversation = Conversation(
         room_id=created_room.id,

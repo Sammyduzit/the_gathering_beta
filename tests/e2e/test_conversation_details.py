@@ -4,9 +4,8 @@ E2E tests for conversation detail flows.
 Covers creation → detail endpoint → participant/metadata assertions.
 """
 
-from sqlalchemy import update
-
 import pytest
+from sqlalchemy import update
 
 from app.models.ai_entity import AIEntity
 from app.models.user import User

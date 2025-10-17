@@ -43,6 +43,33 @@ class IMemoryRetriever(ABC):
         """
         pass
 
+    @abstractmethod
+    async def retrieve_tiered(
+        self,
+        entity_id: int,
+        user_id: int,
+        conversation_id: int | None,
+        query: str,
+    ) -> list[AIMemory]:
+        """
+        Tiered retrieval across short-term, long-term, and personality memory layers.
+
+        Returns mixed memories from all 3 layers, ordered by relevance.
+
+        Args:
+            entity_id: AI entity ID to retrieve memories for
+            user_id: User ID for user-specific memories
+            conversation_id: Conversation ID for short-term context
+            query: Query text for retrieval
+
+        Returns:
+            List of memories from all layers, ordered by relevance
+
+        Raises:
+            MemoryRetrievalError: If retrieval fails
+        """
+        pass
+
 
 class MemoryRetrievalError(Exception):
     """Exception raised when memory retrieval operations fail."""

@@ -5,9 +5,8 @@ Scenario: Admin + user + AI share a room, admin creates conversation,
 user sends message, detail + history endpoints reflect new message.
 """
 
-from sqlalchemy import update
-
 import pytest
+from sqlalchemy import update
 
 from app.models.ai_entity import AIEntity
 from app.models.user import User

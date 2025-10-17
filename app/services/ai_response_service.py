@@ -37,6 +37,7 @@ class AIResponseService:
         self,
         conversation_id: int,
         ai_entity: AIEntity,
+        user_id: int | None = None,
         include_memories: bool = True,
         in_reply_to_message_id: int | None = None,
     ) -> Message:
@@ -46,6 +47,7 @@ class AIResponseService:
         Args:
             conversation_id: Conversation ID to respond in
             ai_entity: AI entity that should respond
+            user_id: User ID for personalized memory retrieval (optional)
             include_memories: Whether to include AI memories in context
 
         Returns:
@@ -60,6 +62,7 @@ class AIResponseService:
                 conversation_id=conversation_id,
                 room_id=None,
                 ai_entity=ai_entity,
+                user_id=user_id,
                 include_memories=include_memories,
             )
 
@@ -99,6 +102,7 @@ class AIResponseService:
         self,
         room_id: int,
         ai_entity: AIEntity,
+        user_id: int | None = None,
         include_memories: bool = True,
         in_reply_to_message_id: int | None = None,
     ) -> Message:
@@ -108,6 +112,7 @@ class AIResponseService:
         Args:
             room_id: Room ID to respond in
             ai_entity: AI entity that should respond
+            user_id: User ID for personalized memory (optional, rooms use global memories)
             include_memories: Whether to include AI memories in context
 
         Returns:
@@ -118,10 +123,12 @@ class AIResponseService:
         """
         try:
             # Build context (message history + memories)
+            # Note: For rooms, user_id is optional (global memories only for now)
             messages, memory_context = await self.context_service.build_full_context(
                 conversation_id=None,
                 room_id=room_id,
                 ai_entity=ai_entity,
+                user_id=user_id or 0,  # Placeholder for rooms (TODO: room memory system)
                 include_memories=include_memories,
             )
 

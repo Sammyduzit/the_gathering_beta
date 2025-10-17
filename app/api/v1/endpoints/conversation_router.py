@@ -322,7 +322,7 @@ async def delete_conversation(
     :return: 204 No Content on success
     """
     # Get conversation details before archiving
-    conversation_detail = await conversation_service.get_conversation_by_id(
+    conversation_detail = await conversation_service.get_conversation_detail(
         current_user=current_user,
         conversation_id=conversation_id,
     )
