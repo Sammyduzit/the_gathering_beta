@@ -1,5 +1,7 @@
 """Unit tests for AIContextService."""
 
+from unittest.mock import AsyncMock
+
 import pytest
 
 from app.models.ai_memory import AIMemory
@@ -12,11 +14,19 @@ class TestAIContextService:
     """Unit tests for AI context service."""
 
     @pytest.fixture
-    def service(self, mock_message_repo, mock_memory_repo):
+    def mock_memory_retriever(self):
+        """Create mock memory retriever."""
+        mock = AsyncMock()
+        mock.retrieve_tiered.return_value = []
+        return mock
+
+    @pytest.fixture
+    def service(self, mock_message_repo, mock_memory_repo, mock_memory_retriever):
         """Create service instance with mocked dependencies from conftest."""
         return AIContextService(
             message_repo=mock_message_repo,
             memory_repo=mock_memory_repo,
+            memory_retriever=mock_memory_retriever,
         )
 
     async def test_build_conversation_context(self, service, mock_message_repo, sample_ai_entity, sample_user):
@@ -89,42 +99,67 @@ class TestAIContextService:
             page_size=20,
         )
 
-    async def test_get_ai_memories(self, service, mock_memory_repo):
-        """Test retrieving AI memories formatted as context."""
+    async def test_get_ai_memories(self, service, mock_memory_retriever):
+        """Test retrieving AI memories formatted as context using tiered retrieval."""
         # Arrange
         mem1 = AIMemory(
-            id=1, entity_id=1, summary="User likes programming", memory_content={}, importance_score=3.0
+            id=1,
+            entity_id=1,
+            summary="User likes programming",
+            memory_content={},
+            importance_score=3.0,
+            memory_metadata={"type": "short_term"},
         )
-        mem2 = AIMemory(id=2, entity_id=1, summary="User mentioned cats", memory_content={}, importance_score=1.0)
+        mem2 = AIMemory(
+            id=2,
+            entity_id=1,
+            summary="User mentioned cats",
+            memory_content={},
+            importance_score=1.0,
+            memory_metadata={"type": "long_term"},
+        )
 
-        mock_memory_repo.get_entity_memories.return_value = [mem1, mem2]
+        mock_memory_retriever.retrieve_tiered.return_value = [mem1, mem2]
 
         # Act
-        result = await service.get_ai_memories(ai_entity_id=1, max_entries=10)
+        result = await service.get_ai_memories(
+            ai_entity_id=1,
+            user_id=42,
+            conversation_id=10,
+            query="programming and cats",
+        )
 
         # Assert
-        assert "# Previous Memories:" in result
-        assert "!!! User likes programming" in result  # 3 exclamation marks
-        assert "! User mentioned cats" in result  # 1 exclamation mark
+        assert "# Recent Context (this conversation):" in result
+        assert "User likes programming" in result
+        assert "# Past Interactions:" in result
+        assert "User mentioned cats" in result
 
-        mock_memory_repo.get_entity_memories.assert_called_once_with(
+        mock_memory_retriever.retrieve_tiered.assert_called_once_with(
             entity_id=1,
-            limit=40,
+            user_id=42,
+            conversation_id=10,
+            query="programming and cats",
         )
 
-    async def test_get_ai_memories_empty(self, service, mock_memory_repo):
+    async def test_get_ai_memories_empty(self, service, mock_memory_retriever):
         """Test retrieving memories when none exist."""
         # Arrange
-        mock_memory_repo.get_entity_memories.return_value = []
+        mock_memory_retriever.retrieve_tiered.return_value = []
 
         # Act
-        result = await service.get_ai_memories(ai_entity_id=1)
+        result = await service.get_ai_memories(
+            ai_entity_id=1,
+            user_id=42,
+            conversation_id=10,
+            query="test query",
+        )
 
         # Assert
         assert result == ""
 
     async def test_build_full_context_conversation(
-        self, service, mock_message_repo, mock_memory_repo, sample_ai_entity, sample_user
+        self, service, mock_message_repo, mock_memory_retriever, sample_ai_entity, sample_user
     ):
         """Test building full context for conversation with memories."""
         # Arrange
@@ -132,14 +167,22 @@ class TestAIContextService:
         msg.sender_user = sample_user
         mock_message_repo.get_conversation_messages.return_value = ([msg], 1)
 
-        mem = AIMemory(id=1, entity_id=1, summary="Test memory", memory_content={}, importance_score=2.0)
-        mock_memory_repo.get_entity_memories.return_value = [mem]
+        mem = AIMemory(
+            id=1,
+            entity_id=1,
+            summary="Test memory",
+            memory_content={},
+            importance_score=2.0,
+            memory_metadata={"type": "short_term"},
+        )
+        mock_memory_retriever.retrieve_tiered.return_value = [mem]
 
         # Act
         messages, memory_context = await service.build_full_context(
             conversation_id=1,
             room_id=None,
             ai_entity=sample_ai_entity,
+            user_id=42,
             include_memories=True,
         )
 
@@ -147,10 +190,10 @@ class TestAIContextService:
         assert len(messages) == 1
         assert messages[0]["content"] == "testuser: Hello"
         assert memory_context is not None
-        assert "!! Test memory" in memory_context
+        assert "Test memory" in memory_context
 
     async def test_build_full_context_room(
-        self, service, mock_message_repo, mock_memory_repo, sample_ai_entity, sample_user
+        self, service, mock_message_repo, mock_memory_retriever, sample_ai_entity, sample_user
     ):
         """Test building full context for room."""
         # Arrange
@@ -158,13 +201,14 @@ class TestAIContextService:
         msg.sender_user = sample_user
         mock_message_repo.get_room_messages.return_value = ([msg], 1)
 
-        mock_memory_repo.get_entity_memories.return_value = []
+        mock_memory_retriever.retrieve_tiered.return_value = []
 
         # Act
         messages, memory_context = await service.build_full_context(
             conversation_id=None,
             room_id=1,
             ai_entity=sample_ai_entity,
+            user_id=42,
             include_memories=True,
         )
 
@@ -174,7 +218,7 @@ class TestAIContextService:
         assert memory_context == ""  # No memories
 
     async def test_build_full_context_no_memories(
-        self, service, mock_message_repo, mock_memory_repo, sample_ai_entity, sample_user
+        self, service, mock_message_repo, mock_memory_retriever, sample_ai_entity, sample_user
     ):
         """Test building context without memories when disabled."""
         # Arrange
@@ -187,13 +231,14 @@ class TestAIContextService:
             conversation_id=1,
             room_id=None,
             ai_entity=sample_ai_entity,
+            user_id=42,
             include_memories=False,
         )
 
         # Assert
         assert len(messages) == 1
         assert memory_context is None
-        mock_memory_repo.get_entity_memories.assert_not_called()
+        mock_memory_retriever.retrieve_tiered.assert_not_called()
 
     async def test_build_full_context_requires_id(self, service, sample_ai_entity):
         """Test that build_full_context requires either conversation_id or room_id."""
@@ -203,4 +248,5 @@ class TestAIContextService:
                 conversation_id=None,
                 room_id=None,
                 ai_entity=sample_ai_entity,
+                user_id=42,
             )
