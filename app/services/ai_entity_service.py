@@ -305,7 +305,13 @@ class AIEntityService:
         # Build context from recent messages
         context_lines = []
         for msg in messages[::-1]:  # Reverse to chronological order
-            sender = msg.sender.username if msg.sender else ai_entity.display_name
+            # Handle polymorphic sender (User or AI)
+            if msg.sender_user_id:
+                sender = msg.sender_user.username
+            elif msg.sender_ai_id:
+                sender = msg.sender_ai.display_name
+            else:
+                sender = "System"  # Fallback for system messages
             context_lines.append(f"{sender}: {msg.content}")
 
         context = "\n".join(context_lines) if context_lines else "No previous messages"
@@ -329,8 +335,8 @@ Generate ONLY the farewell message, nothing else."""
         )
 
         farewell_message = await ai_provider.generate_response(
+            messages=[],  # Empty messages, using only system prompt
             system_prompt=farewell_prompt,
-            conversation_history=[],
             temperature=0.8,  # Higher temperature for natural variation
             max_tokens=100,
         )

@@ -134,10 +134,10 @@ class TestAuthWorkflows:
         detail = response.json()["detail"].lower()
         assert "invalid" in detail or "incorrect" in detail
 
-    async def test_get_current_user_authenticated(self, async_client, authenticated_user_headers, created_user):
+    async def test_get_current_user_authenticated(self, authenticated_user_client, created_user):
         """Test getting current user with valid token."""
         # Act
-        response = await async_client.get("/api/v1/auth/me", headers=authenticated_user_headers)
+        response = await authenticated_user_client.get("/api/v1/auth/me")
 
         # Assert
         assert response.status_code == 200
@@ -157,13 +157,12 @@ class TestAuthWorkflows:
         assert "authent" in detail  # Matches "authenticated" or "authentication"
 
     async def test_admin_permission_required(
-        self, async_client, authenticated_user_headers, authenticated_admin_headers
+        self, authenticated_user_client, authenticated_admin_client
     ):
         """Test that admin-only endpoints reject regular users."""
         # Act - Regular user tries to create room (admin-only)
-        response = await async_client.post(
+        response = await authenticated_user_client.post(
             "/api/v1/rooms/",
-            headers=authenticated_user_headers,
             json={
                 "name": "New Room",
                 "description": "Test room",
@@ -177,9 +176,8 @@ class TestAuthWorkflows:
         assert "admin" in detail or "permission" in detail
 
         # Act - Admin creates room
-        admin_response = await async_client.post(
+        admin_response = await authenticated_admin_client.post(
             "/api/v1/rooms/",
-            headers=authenticated_admin_headers,
             json={
                 "name": "Admin Room",
                 "description": "Admin-created room",

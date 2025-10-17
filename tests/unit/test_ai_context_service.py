@@ -109,7 +109,7 @@ class TestAIContextService:
 
         mock_memory_repo.get_entity_memories.assert_called_once_with(
             entity_id=1,
-            limit=10,
+            limit=40,
         )
 
     async def test_get_ai_memories_empty(self, service, mock_memory_repo):

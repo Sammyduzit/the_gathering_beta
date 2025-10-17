@@ -238,8 +238,13 @@ class ConversationService:
         return [
             {
                 "id": participant.user_id if participant.user_id else participant.ai_entity_id,
-                "username": participant.participant_name,
-                "status": participant.user.status.value if participant.user_id else "active",
+                "username": participant.participant_name if participant.user_id else participant.ai_entity.name,
+                "display_name": participant.participant_name,
+                "status":(
+                    participant.user.status.value
+                    if participant.user_id
+                    else participant.ai_entity.status.value if participant.ai_entity else "offline"
+                ),
                 "avatar_url": participant.user.avatar_url if participant.user_id else None,
                 "is_ai": participant.is_ai,
             }
@@ -428,9 +433,14 @@ class ConversationService:
         participant_details = [
             {
                 "id": p.user_id if p.user_id else p.ai_entity_id,
-                "username": p.participant_name,
+                "username": p.participant_name if p.user_id else p.ai_entity.name,
+                "display_name": p.participant_name,
                 "avatar_url": p.user.avatar_url if p.user_id else None,
-                "status": p.user.status.value if p.user_id else "online",
+                "status": (
+                    p.user.status.value
+                    if p.user_id
+                    else p.ai_entity.status.value if p.ai_entity else "offline"
+                ),
                 "is_ai": p.is_ai,
             }
             for p in participants
@@ -454,6 +464,11 @@ class ConversationService:
                     latest_message_obj.sender_user.username
                     if latest_message_obj.sender_user_id
                     else latest_message_obj.sender_ai.name
+                ),
+                "sender_display_name": (
+                    latest_message_obj.sender_user.username
+                    if latest_message_obj.sender_user_id
+                    else latest_message_obj.sender_ai.display_name
                 ),
                 "content": latest_message_obj.content,
                 "sent_at": latest_message_obj.sent_at,
@@ -482,3 +497,57 @@ class ConversationService:
             "latest_message": latest_message,
             "permissions": permissions,
         }
+
+    async def update_conversation(
+        self,
+        current_user: User,
+        conversation_id: int,
+        is_active: bool,
+    ) -> Conversation:
+        """
+        Update conversation metadata (currently supports archiving/unarchiving).
+
+        Only participants can archive their own view of the conversation.
+
+        :param current_user: User updating the conversation
+        :param conversation_id: Conversation ID
+        :param is_active: Whether conversation is active (false = archived)
+        :return: Updated conversation
+        :raises ConversationNotFoundException: If conversation not found
+        :raises NotConversationParticipantException: If user is not a participant
+        """
+        # Get conversation
+        conversation = await self.conversation_repo.get_by_id(conversation_id)
+        if not conversation:
+            raise ConversationNotFoundException(f"Conversation {conversation_id} not found")
+
+        # Verify participant
+        is_participant = await self.conversation_repo.is_participant(conversation_id, current_user.id)
+        if not is_participant:
+            raise NotConversationParticipantException(
+                f"User {current_user.username} is not a participant in conversation {conversation_id}"
+            )
+
+        # Update is_active field
+        conversation.is_active = is_active
+        updated = await self.conversation_repo.update(conversation)
+
+        return updated
+
+    async def delete_conversation(
+        self,
+        current_user: User,
+        conversation_id: int,
+    ) -> None:
+        """
+        Soft-delete conversation by setting is_active to False (archive).
+
+        Only participants can archive conversations.
+        This is an alias for update_conversation with is_active=False.
+
+        :param current_user: User deleting the conversation
+        :param conversation_id: Conversation ID
+        :raises ConversationNotFoundException: If conversation not found
+        :raises NotConversationParticipantException: If user is not a participant
+        """
+        await self.update_conversation(current_user, conversation_id, is_active=False)

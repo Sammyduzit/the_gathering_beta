@@ -13,6 +13,7 @@ from app.schemas.chat_schemas import (
     ConversationCreate,
     ConversationDetailResponse,
     ConversationListItemResponse,
+    ConversationUpdate,
     MessageCreate,
     MessageResponse,
     PaginatedMessagesResponse,
@@ -256,4 +257,64 @@ async def remove_participant_from_conversation(
         conversation_id=conversation_id,
         username=username,
         current_user=current_user,
+    )
+
+
+@router.patch("/{conversation_id}", response_model=dict)
+async def update_conversation(
+    conversation_id: int,
+    conversation_data: ConversationUpdate = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    _csrf: None = Depends(validate_csrf),
+) -> dict:
+    """
+    Update conversation metadata (archive/unarchive).
+
+    Allows participants to archive or unarchive conversations.
+    Archived conversations (is_active=false) are hidden from main conversation list.
+
+    :param conversation_id: Conversation ID
+    :param conversation_data: Update data (is_active field)
+    :param current_user: Current authenticated user
+    :param conversation_service: Service instance handling conversation logic
+    :return: Success response with updated conversation info
+    """
+    updated_conversation = await conversation_service.update_conversation(
+        current_user=current_user,
+        conversation_id=conversation_id,
+        is_active=conversation_data.is_active,
+    )
+
+    action = "unarchived" if conversation_data.is_active else "archived"
+    return {
+        "message": f"Conversation {action} successfully",
+        "conversation_id": updated_conversation.id,
+        "is_active": updated_conversation.is_active,
+    }
+
+
+@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_conversation(
+    conversation_id: int,
+    current_user: User = Depends(get_current_active_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    _csrf: None = Depends(validate_csrf),
+) -> None:
+    """
+    Archive conversation (soft delete).
+
+    Sets is_active=false to archive the conversation.
+    Archived conversations are hidden from main list but data is preserved.
+
+    Only participants can archive conversations.
+
+    :param conversation_id: Conversation ID
+    :param current_user: Current authenticated user
+    :param conversation_service: Service instance handling conversation logic
+    :return: 204 No Content on success
+    """
+    await conversation_service.delete_conversation(
+        current_user=current_user,
+        conversation_id=conversation_id,
     )

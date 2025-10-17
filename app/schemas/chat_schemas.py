@@ -43,6 +43,15 @@ class ConversationCreate(BaseModel):
     conversation_type: str = Field(description="'private' (2 users) or 'group' (2+ users)")
 
 
+class ConversationUpdate(BaseModel):
+    """
+    Schema for updating conversation metadata.
+    Currently supports archiving/unarchiving conversations.
+    """
+
+    is_active: bool = Field(description="Set to false to archive, true to unarchive")
+
+
 class ConversationResponse(BaseModel):
     """
     Conversation response.

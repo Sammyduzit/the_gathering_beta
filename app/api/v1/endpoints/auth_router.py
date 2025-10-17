@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from redis.asyncio import Redis
 
@@ -19,6 +20,41 @@ from app.schemas.auth_schemas import Token, UserLogin, UserRegister, UserRespons
 from app.services.avatar_service import generate_avatar_url
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+logger = structlog.get_logger(__name__)
+
+
+async def _revoke_token_family(redis: Redis, user_id: int, family_id: str) -> None:
+    """
+    Revoke entire token family when reuse is detected.
+
+    Security measure to prevent token theft exploitation.
+    If a stolen token is reused, all tokens in the family are invalidated.
+
+    :param redis: Redis client
+    :param user_id: User ID
+    :param family_id: Token family ID
+    """
+    family_key = f"refresh_token_family:{user_id}:{family_id}"
+
+    # Get all tokens in family
+    token_jtis = await redis.smembers(family_key)
+
+    # Delete all tokens in family
+    for jti in token_jtis:
+        jti_str = jti.decode("utf-8") if isinstance(jti, bytes) else jti
+        token_key = f"refresh_token:{user_id}:{jti_str}"
+        await redis.delete(token_key)
+
+    # Delete family set
+    await redis.delete(family_key)
+
+    logger.warning(
+        "token_family_revoked",
+        user_id=user_id,
+        family_id=family_id,
+        revoked_tokens=len(token_jtis) if token_jtis else 0,
+        reason="token_reuse_detected",
+    )
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -86,12 +122,17 @@ async def login_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User account is inactive")
 
+    # Generate token family ID for rotation tracking
+    token_family_id = generate_csrf_token()  # Reuse secure random generator
+
     # Generate tokens
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(data={"sub": user.username}, expires_delta=access_token_expires)
 
     refresh_token_expires = timedelta(days=settings.refresh_token_expire_days)
-    refresh_token = create_refresh_token(data={"sub": user.username}, expires_delta=refresh_token_expires)
+    refresh_token = create_refresh_token(
+        data={"sub": user.username, "family_id": token_family_id}, expires_delta=refresh_token_expires
+    )
 
     # Generate CSRF token
     csrf_token = generate_csrf_token()
@@ -106,6 +147,11 @@ async def login_user(
         settings.refresh_token_expire_days * SECONDS_PER_DAY,
         csrf_token,  # Store CSRF with refresh token for validation
     )
+
+    # Initialize token family for reuse detection
+    family_key = f"refresh_token_family:{user.id}:{token_family_id}"
+    await redis.sadd(family_key, refresh_jti)
+    await redis.expire(family_key, settings.refresh_token_expire_days * SECONDS_PER_DAY)
 
     # Set authentication cookies
     set_auth_cookies(response, access_token, refresh_token, csrf_token)
@@ -126,13 +172,17 @@ async def refresh_access_token(
     redis: Redis = Depends(get_redis),
 ):
     """
-    Refresh access token using refresh token from HttpOnly cookie.
+    Refresh access token using refresh token from HttpOnly cookie with rotation.
+
+    Security Features (OWASP 2025):
+    - Refresh token rotation: New refresh token issued on every refresh
+    - Reuse detection: Detects token theft and revokes entire token family
+    - Single-use tokens: Old refresh token is immediately invalidated
 
     This endpoint does NOT require CSRF validation (read-only operation).
-    Uses refresh token to generate a new access token without requiring re-authentication.
 
     :param request: FastAPI Request object for reading cookies
-    :param response: FastAPI Response object for updating access token cookie
+    :param response: FastAPI Response object for updating cookies
     :param user_repo: User Repository instance
     :param redis: Redis client for refresh token validation
     :return: New access token
@@ -162,7 +212,8 @@ async def refresh_access_token(
         )
 
     username = payload.get("sub")
-    refresh_jti = payload.get("jti")
+    old_refresh_jti = payload.get("jti")
+    token_family_id = payload.get("family_id")
 
     # Verify user still exists
     user = await user_repo.get_by_username(username)
@@ -178,31 +229,64 @@ async def refresh_access_token(
             detail="User account is inactive.",
         )
 
-    # Check if refresh token is revoked (Redis lookup)
-    redis_key = f"refresh_token:{user.id}:{refresh_jti}"
-    csrf_token = await redis.get(redis_key)
+    # Check if refresh token exists in Redis
+    redis_key = f"refresh_token:{user.id}:{old_refresh_jti}"
+    token_data = await redis.get(redis_key)
 
-    if not csrf_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token has been revoked. Please log in again.",
-        )
+    if not token_data:
+        # Token not found - could be revoked or reused
+        # Check if token family exists (indicates potential reuse)
+        family_key = f"refresh_token_family:{user.id}:{token_family_id}"
+        family_exists = await redis.exists(family_key)
 
-    # Generate new access token
+        if family_exists:
+            # SECURITY EVENT: Token reuse detected!
+            # Revoke entire token family to prevent further compromise
+            await _revoke_token_family(redis, user.id, token_family_id)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token reuse detected. All sessions revoked. Please log in again.",
+            )
+        else:
+            # Token expired or manually revoked
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token has been revoked. Please log in again.",
+            )
+
+    # Decode token data from Redis (format: "csrf_token")
+    csrf_token = token_data.decode("utf-8") if isinstance(token_data, bytes) else token_data
+
+    # Delete old refresh token (single-use token pattern)
+    await redis.delete(redis_key)
+
+    # Generate NEW tokens (rotation)
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     new_access_token = create_access_token(data={"sub": username}, expires_delta=access_token_expires)
 
-    # Update access token cookie only (refresh token and CSRF remain unchanged)
-    response.set_cookie(
-        key="tg_access",
-        value=new_access_token,
-        httponly=True,
-        max_age=settings.access_token_expire_minutes * SECONDS_PER_MINUTE,
-        secure=settings.cookie_secure,
-        samesite=settings.cookie_samesite,
-        domain=settings.cookie_domain,
-        path="/",
+    refresh_token_expires = timedelta(days=settings.refresh_token_expire_days)
+    new_refresh_token = create_refresh_token(
+        data={"sub": username, "family_id": token_family_id}, expires_delta=refresh_token_expires
     )
+
+    # Store new refresh token in Redis
+    new_refresh_payload = verify_token(new_refresh_token)
+    new_refresh_jti = new_refresh_payload["jti"]
+
+    new_redis_key = f"refresh_token:{user.id}:{new_refresh_jti}"
+    await redis.setex(
+        new_redis_key,
+        settings.refresh_token_expire_days * SECONDS_PER_DAY,
+        csrf_token,  # Keep same CSRF token for session continuity
+    )
+
+    # Add new token to family for reuse detection
+    family_key = f"refresh_token_family:{user.id}:{token_family_id}"
+    await redis.sadd(family_key, new_refresh_jti)
+    await redis.expire(family_key, settings.refresh_token_expire_days * SECONDS_PER_DAY)
+
+    # Update BOTH cookies (access + refresh)
+    set_auth_cookies(response, new_access_token, new_refresh_token, csrf_token)
 
     return {
         "access_token": new_access_token,
@@ -220,11 +304,14 @@ async def logout_user(
     current_user: User = Depends(get_current_active_user),
 ):
     """
-    Logout user by invalidating cookies and revoking refresh token.
+    Logout user by invalidating cookies and revoking entire token family.
+
+    With token rotation, we revoke the entire token family to ensure
+    all rotated tokens from this login session are invalidated.
 
     Performs three actions:
     1. Retrieves refresh token from cookie
-    2. Deletes refresh token from Redis (revocation)
+    2. Revokes entire token family from Redis
     3. Clears all auth cookies
 
     Requires authentication to prevent unauthorized logout attacks.
@@ -242,10 +329,15 @@ async def logout_user(
         try:
             payload = verify_token(refresh_token)
             refresh_jti = payload.get("jti")
+            token_family_id = payload.get("family_id")
 
-            # Delete from Redis (revoke refresh token)
-            redis_key = f"refresh_token:{current_user.id}:{refresh_jti}"
-            await redis.delete(redis_key)
+            if token_family_id:
+                # Revoke entire token family (all rotated tokens from this login)
+                await _revoke_token_family(redis, current_user.id, token_family_id)
+            else:
+                # Fallback: Delete single token (for old tokens without family_id)
+                redis_key = f"refresh_token:{current_user.id}:{refresh_jti}"
+                await redis.delete(redis_key)
 
         except Exception:
             # Continue with logout even if revocation fails

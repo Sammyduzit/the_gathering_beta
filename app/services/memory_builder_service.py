@@ -127,7 +127,7 @@ class MemoryBuilderService:
 
         # Create memory instance
         memory = AIMemory(
-            ai_entity_id=ai_entity_id,
+            entity_id=ai_entity_id,
             conversation_id=conversation_id,
             summary=summary,
             memory_content=memory_content,

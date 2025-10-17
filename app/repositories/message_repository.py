@@ -75,6 +75,20 @@ class IMessageRepository(BaseRepository[Message]):
         pass
 
     @abstractmethod
+    async def get_recent_messages(
+        self, room_id: int | None = None, conversation_id: int | None = None, limit: int = 10
+    ) -> list[Message]:
+        """
+        Get recent messages from either a room or conversation.
+        Unified method for fetching latest messages regardless of context.
+        :param room_id: Room ID (exclusive with conversation_id)
+        :param conversation_id: Conversation ID (exclusive with room_id)
+        :param limit: Maximum number of messages to retrieve
+        :return: List of recent messages ordered by sent_at descending (newest first)
+        """
+        pass
+
+    @abstractmethod
     async def cleanup_old_room_messages(self, room_id: int, keep_count: int = 100) -> int:
         """Delete old room messages, keeping only the most recent ones"""
         pass
@@ -261,6 +275,34 @@ class MessageRepository(IMessageRepository):
         query = select(func.count(Message.id)).where(Message.conversation_id == conversation_id)
         result = await self.db.execute(query)
         return result.scalar_one() or 0
+
+    async def get_recent_messages(
+        self, room_id: int | None = None, conversation_id: int | None = None, limit: int = 10
+    ) -> list[Message]:
+        """
+        Get recent messages from either a room or conversation.
+        Unified method for fetching latest messages regardless of context.
+        """
+        from sqlalchemy.orm import selectinload
+
+        # Validate XOR: exactly one must be set
+        if (room_id is None) == (conversation_id is None):
+            raise ValueError("Exactly one of room_id or conversation_id must be provided")
+
+        # Build query based on context
+        query = select(Message).options(selectinload(Message.sender_user), selectinload(Message.sender_ai))
+
+        if room_id:
+            # Room messages (exclude conversation messages in the room)
+            query = query.where(and_(Message.room_id == room_id, Message.conversation_id.is_(None)))
+        else:
+            # Conversation messages
+            query = query.where(Message.conversation_id == conversation_id)
+
+        query = query.order_by(desc(Message.sent_at)).limit(limit)
+
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[Message]:
         """Get all messages with pagination."""

@@ -26,7 +26,7 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.core.redis_client import close_redis_client, create_redis_client
-from testing_setup import setup_complete_test_environment
+from dev_setup import setup_complete_test_environment
 
 # Configure structlog
 structlog.configure(
@@ -81,6 +81,7 @@ app = FastAPI(
     description="Virtual meeting space with 3 type chat system",
     docs_url="/docs",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 app.add_middleware(

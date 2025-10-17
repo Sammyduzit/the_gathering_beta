@@ -41,13 +41,26 @@ class TestAIEntityService:
         return AsyncMock()
 
     @pytest.fixture
-    def service(self, mock_ai_repo, mock_conversation_repo, mock_cooldown_repo, mock_room_repo):
+    def mock_message_repo(self):
+        """Create mock message repository."""
+        return AsyncMock()
+
+    @pytest.fixture
+    def service(
+        self,
+        mock_ai_repo,
+        mock_conversation_repo,
+        mock_cooldown_repo,
+        mock_room_repo,
+        mock_message_repo,
+    ):
         """Create service instance with mocked dependencies."""
         return AIEntityService(
             ai_entity_repo=mock_ai_repo,
             conversation_repo=mock_conversation_repo,
             cooldown_repo=mock_cooldown_repo,
             room_repo=mock_room_repo,
+            message_repo=mock_message_repo,
         )
 
     async def test_get_all_entities(self, service, mock_ai_repo):
@@ -222,7 +235,7 @@ class TestAIEntityService:
         mock_ai_repo.get_by_id.return_value = mock_entity
         mock_conversation_repo.get_by_id.return_value = mock_conversation
         mock_ai_repo.get_ai_in_conversation.return_value = None
-        mock_conversation_repo.add_ai_participant.return_value = None
+        mock_conversation_repo.add_participant.return_value = None
 
         # Act
         result = await service.invite_to_conversation(conversation_id=1, ai_entity_id=1)
@@ -231,7 +244,7 @@ class TestAIEntityService:
         assert "invited" in result["message"]
         assert result["conversation_id"] == 1
         assert result["ai_entity_id"] == 1
-        mock_conversation_repo.add_ai_participant.assert_called_once_with(1, 1)
+        mock_conversation_repo.add_participant.assert_called_once_with(1, ai_entity_id=1)
 
     async def test_invite_to_conversation_ai_offline(self, service, mock_ai_repo):
         """Test inviting offline AI to conversation raises 400."""
@@ -318,7 +331,7 @@ class TestAIEntityService:
 
         mock_ai_repo.get_by_id.return_value = mock_entity
         mock_conversation_repo.get_by_id.return_value = mock_conversation
-        mock_conversation_repo.remove_ai_participant.return_value = None
+        mock_conversation_repo.remove_participant.return_value = None
 
         # Act
         result = await service.remove_from_conversation(conversation_id=1, ai_entity_id=1)
@@ -327,7 +340,7 @@ class TestAIEntityService:
         assert "removed" in result["message"]
         assert result["conversation_id"] == 1
         assert result["ai_entity_id"] == 1
-        mock_conversation_repo.remove_ai_participant.assert_called_once_with(1, 1)
+        mock_conversation_repo.remove_participant.assert_called_once_with(1, ai_entity_id=1)
 
     async def test_update_cooldown_room_context(self, service, mock_cooldown_repo):
         """Test updating cooldown for room context."""

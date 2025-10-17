@@ -76,33 +76,34 @@ class AuthenticatedClient:
     def __init__(self, client: AsyncClient):
         self._client = client
 
-    def _inject_csrf_header(self, kwargs: dict) -> dict:
+    def _inject_csrf_header(self, method: str, kwargs: dict) -> dict:
         """Inject X-CSRF-Token header if CSRF cookie exists."""
-        csrf_token = self._client.cookies.get("tg_csrf")
-        if csrf_token:
-            if "headers" not in kwargs:
-                kwargs["headers"] = {}
-            kwargs["headers"]["X-CSRF-Token"] = csrf_token
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            csrf_token = self._client.cookies.get("tg_csrf")
+            if csrf_token:
+                if "headers" not in kwargs or kwargs["headers"] is None:
+                    kwargs["headers"] = {}
+                kwargs["headers"]["X-CSRF-Token"] = csrf_token
         return kwargs
 
+    async def request(self, method: str, *args, **kwargs):
+        kwargs = self._inject_csrf_header(method, kwargs)
+        return await self._client.request(method, *args, **kwargs)
+
     async def get(self, *args, **kwargs):
-        return await self._client.get(*args, **kwargs)
+        return await self.request("GET", *args, **kwargs)
 
     async def post(self, *args, **kwargs):
-        kwargs = self._inject_csrf_header(kwargs)
-        return await self._client.post(*args, **kwargs)
+        return await self.request("POST", *args, **kwargs)
 
     async def put(self, *args, **kwargs):
-        kwargs = self._inject_csrf_header(kwargs)
-        return await self._client.put(*args, **kwargs)
+        return await self.request("PUT", *args, **kwargs)
 
     async def patch(self, *args, **kwargs):
-        kwargs = self._inject_csrf_header(kwargs)
-        return await self._client.patch(*args, **kwargs)
+        return await self.request("PATCH", *args, **kwargs)
 
     async def delete(self, *args, **kwargs):
-        kwargs = self._inject_csrf_header(kwargs)
-        return await self._client.delete(*args, **kwargs)
+        return await self.request("DELETE", *args, **kwargs)
 
     @property
     def cookies(self):
@@ -334,24 +335,6 @@ async def authenticated_user_client(db_session, redis_client, created_user):
 
 
 @pytest_asyncio.fixture
-async def authenticated_user_headers(authenticated_user_client):
-    """
-    Headers for authenticated user requests (legacy compatibility).
-
-    Returns headers dict with Authorization: Bearer {token} and X-CSRF-Token.
-    Note: Use authenticated_user_client directly for best practice.
-    """
-    csrf_token = authenticated_user_client.cookies.get("tg_csrf")
-    access_token = authenticated_user_client.cookies.get("tg_access")
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-    if csrf_token:
-        headers["X-CSRF-Token"] = csrf_token
-
-    return headers
-
-
-@pytest_asyncio.fixture
 async def authenticated_admin_client(db_session, redis_client, created_admin):
     """
     Authenticated AsyncClient for admin user E2E tests.
@@ -389,24 +372,6 @@ async def authenticated_admin_client(db_session, redis_client, created_admin):
 
     # Clear overrides
     app.dependency_overrides.clear()
-
-
-@pytest_asyncio.fixture
-async def authenticated_admin_headers(authenticated_admin_client):
-    """
-    Headers for authenticated admin requests (legacy compatibility).
-
-    Returns headers dict with Authorization: Bearer {token} and X-CSRF-Token.
-    Note: Use authenticated_admin_client directly for best practice.
-    """
-    csrf_token = authenticated_admin_client.cookies.get("tg_csrf")
-    access_token = authenticated_admin_client.cookies.get("tg_access")
-
-    headers = {"Authorization": f"Bearer {access_token}"}
-    if csrf_token:
-        headers["X-CSRF-Token"] = csrf_token
-
-    return headers
 
 
 # ============================================================================

@@ -18,6 +18,8 @@ async def create_redis_client() -> None:
     """
     global redis_client
 
+    logger.info("redis_client_initializing", redis_url=settings.redis_url)
+
     try:
         redis_client = Redis.from_url(
             settings.redis_url,
