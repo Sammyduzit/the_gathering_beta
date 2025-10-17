@@ -24,7 +24,11 @@ class TestConversationRepository:
         user2 = await user_factory.create(db_session, username="user2")
 
         # Act
-        conversation = await repo.create_private_conversation(room_id=room.id, participant_ids=[user1.id, user2.id])
+        conversation = await repo.create_private_conversation(
+            room_id=room.id,
+            user_ids=[user1.id, user2.id],
+            ai_ids=[],
+        )
 
         # Assert
         assert conversation.id is not None
@@ -42,7 +46,11 @@ class TestConversationRepository:
 
         # Act & Assert
         with pytest.raises(ValueError, match="exactly 2 participants"):
-            await repo.create_private_conversation(room_id=room.id, participant_ids=[user.id])
+            await repo.create_private_conversation(
+                room_id=room.id,
+                user_ids=[user.id],
+                ai_ids=[],
+            )
 
     async def test_create_group_conversation_success(self, db_session, user_factory, room_factory):
         """Test successful group conversation creation."""
@@ -55,7 +63,9 @@ class TestConversationRepository:
 
         # Act
         conversation = await repo.create_group_conversation(
-            room_id=room.id, participant_ids=[user1.id, user2.id, user3.id]
+            room_id=room.id,
+            user_ids=[user1.id, user2.id, user3.id],
+            ai_ids=[],
         )
 
         # Assert
@@ -74,7 +84,11 @@ class TestConversationRepository:
 
         # Act & Assert
         with pytest.raises(ValueError, match="at least 2 participants"):
-            await repo.create_group_conversation(room_id=room.id, participant_ids=[user.id])
+            await repo.create_group_conversation(
+                room_id=room.id,
+                user_ids=[user.id],
+                ai_ids=[],
+            )
 
     async def test_get_by_id_success(self, db_session, room_factory, conversation_factory):
         """Test successful conversation retrieval by ID."""
@@ -113,7 +127,7 @@ class TestConversationRepository:
         new_user = await user_factory.create(db_session, username="newuser")
 
         # Act
-        participant = await repo.add_participant(conversation.id, new_user.id)
+        participant = await repo.add_participant(conversation.id, user_id=new_user.id)
 
         # Assert
         assert participant.id is not None
@@ -128,11 +142,11 @@ class TestConversationRepository:
         room = await room_factory.create(db_session)
         user = await user_factory.create(db_session)
         conversation = await conversation_factory.create_group_conversation(db_session, room=room)
-        await repo.add_participant(conversation.id, user.id)
+        await repo.add_participant(conversation.id, user_id=user.id)
 
         # Act & Assert
         with pytest.raises(ValueError, match="already a participant"):
-            await repo.add_participant(conversation.id, user.id)
+            await repo.add_participant(conversation.id, user_id=user.id)
 
     async def test_remove_participant_success(self, db_session, user_factory, room_factory, conversation_factory):
         """Test removing participant from conversation."""
@@ -144,7 +158,7 @@ class TestConversationRepository:
         await repo.add_participant(conversation.id, user.id)
 
         # Act
-        result = await repo.remove_participant(conversation.id, user.id)
+        result = await repo.remove_participant(conversation.id, user_id=user.id)
 
         # Assert
         assert result is True
@@ -161,7 +175,7 @@ class TestConversationRepository:
         conversation = await conversation_factory.create_private_conversation(db_session, room=room)
 
         # Act
-        result = await repo.remove_participant(conversation.id, 99999)
+        result = await repo.remove_participant(conversation.id, user_id=99999)
 
         # Assert
         assert result is False
@@ -173,7 +187,7 @@ class TestConversationRepository:
         room = await room_factory.create(db_session)
         user = await user_factory.create(db_session)
         conversation = await conversation_factory.create_group_conversation(db_session, room=room)
-        await repo.add_participant(conversation.id, user.id)
+        await repo.add_participant(conversation.id, user_id=user.id)
 
         # Act
         is_participant = await repo.is_participant(conversation.id, user.id)
@@ -210,9 +224,9 @@ class TestConversationRepository:
 
         # Assert
         assert len(participants) == 2
-        participant_ids = [p.id for p in participants]
-        assert user1.id in participant_ids
-        assert user2.id in participant_ids
+        participant_user_ids = [p.user_id for p in participants]
+        assert user1.id in participant_user_ids
+        assert user2.id in participant_user_ids
 
     async def test_get_user_conversations(self, db_session, user_factory, room_factory, conversation_factory):
         """Test retrieving all conversations for a user."""
@@ -226,8 +240,8 @@ class TestConversationRepository:
         conv2 = await conversation_factory.create_group_conversation(db_session, room=room)
 
         # Add user to both
-        await repo.add_participant(conv1.id, user.id)
-        await repo.add_participant(conv2.id, user.id)
+        await repo.add_participant(conv1.id, user_id=user.id)
+        await repo.add_participant(conv2.id, user_id=user.id)
 
         # Act
         conversations = await repo.get_user_conversations(user.id)

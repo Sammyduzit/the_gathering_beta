@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
@@ -6,6 +7,8 @@ from app.core.config import settings
 
 engine = create_async_engine(
     settings.database_url.replace("postgresql://", "postgresql+asyncpg://"),
+    pool_size=10,
+    max_overflow=5,
     pool_pre_ping=True,
     pool_recycle=3600,
     echo=settings.debug,
@@ -28,6 +31,8 @@ async def get_db():
 async def create_tables():
     """Create all database tables"""
     async with engine.begin() as conn:
+        # Enable pgvector extension before creating tables
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     print("All tables created")
 

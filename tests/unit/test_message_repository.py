@@ -21,11 +21,12 @@ class TestMessageRepository:
         room = await room_factory.create(db_session)
 
         # Act
-        message = await repo.create_room_message(sender_id=user.id, room_id=room.id, content="Hello room!")
+        message = await repo.create_room_message(room_id=room.id, content="Hello room!", sender_user_id=user.id)
 
         # Assert
         assert message.id is not None
         assert message.sender_id == user.id
+        assert message.sender_user_id == user.id
         assert message.room_id == room.id
         assert message.conversation_id is None
         assert message.content == "Hello room!"
@@ -43,7 +44,7 @@ class TestMessageRepository:
 
         # Act
         message = await repo.create_conversation_message(
-            sender_id=user.id, conversation_id=conversation.id, content="Private message"
+            conversation_id=conversation.id, content="Private message", sender_user_id=user.id
         )
 
         # Assert

@@ -16,6 +16,7 @@ class RoomResponse(BaseModel):
     max_users: int | None = None
     is_translation_enabled: bool
     is_active: bool
+    has_ai: bool
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

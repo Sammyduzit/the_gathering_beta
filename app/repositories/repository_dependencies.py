@@ -2,6 +2,9 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.repositories.ai_cooldown_repository import AICooldownRepository, IAICooldownRepository
+from app.repositories.ai_entity_repository import AIEntityRepository, IAIEntityRepository
+from app.repositories.ai_memory_repository import AIMemoryRepository, IAIMemoryRepository
 from app.repositories.conversation_repository import (
     ConversationRepository,
     IConversationRepository,
@@ -62,3 +65,30 @@ def get_message_translation_repository(
     :return: MessageTranslationRepository instance
     """
     return MessageTranslationRepository(db)
+
+
+def get_ai_entity_repository(db: AsyncSession = Depends(get_db)) -> IAIEntityRepository:
+    """
+    Create AIEntityRepository instance with async database session.
+    :param db: Async database session from get_db dependency
+    :return: AIEntityRepository instance
+    """
+    return AIEntityRepository(db)
+
+
+def get_ai_memory_repository(db: AsyncSession = Depends(get_db)) -> IAIMemoryRepository:
+    """
+    Create AIMemoryRepository instance with async database session.
+    :param db: Async database session from get_db dependency
+    :return: AIMemoryRepository instance
+    """
+    return AIMemoryRepository(db)
+
+
+def get_ai_cooldown_repository(db: AsyncSession = Depends(get_db)) -> IAICooldownRepository:
+    """
+    Create AICooldownRepository instance with async database session.
+    :param db: Async database session from get_db dependency
+    :return: AICooldownRepository instance
+    """
+    return AICooldownRepository(db)

@@ -5,16 +5,19 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.user import UserStatus
 
 
-class RoomUserResponse(BaseModel):
+class RoomParticipantResponse(BaseModel):
     """
-    User information within room context.
+    Unified participant (human user or AI entity) in room context.
+    Consistent with ConversationDetailResponse.participants structure.
     """
 
     id: int
-    username: str
-    avatar_url: str | None = None
-    status: str = Field(description="User status: available, busy, away")
-    last_active: datetime
+    username: str = Field(description="Unique identifier: username for humans, name for AI entities")
+    display_name: str = Field(description="Display name for UI: same as username for humans, display_name for AI")
+    avatar_url: str | None = Field(None, description="Avatar URL, null for AI entities")
+    status: str = Field(description="Participant status: available/busy/away for humans, online for AI")
+    is_ai: bool = Field(description="True if participant is an AI entity")
+    last_active: datetime | None = Field(None, description="Last activity timestamp, null for AI entities")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -40,15 +43,16 @@ class RoomLeaveResponse(BaseModel):
     room_name: str = Field(description="Name of left room")
 
 
-class RoomUsersListResponse(BaseModel):
+class RoomParticipantsResponse(BaseModel):
     """
-    List of users currently in a room.
+    All participants (humans + AI) currently in a room.
+    Unified response including both human users and AI entities.
     """
 
     room_id: int
     room_name: str
-    total_users: int
-    users: list[RoomUserResponse]
+    total_participants: int = Field(description="Total count of all participants (humans + AI)")
+    participants: list[RoomParticipantResponse] = Field(description="Unified list of all room participants")
 
 
 class UserStatusUpdate(BaseModel):

@@ -21,6 +21,27 @@ Scope Strategy:
 
 import os
 
+# Default environment values for test runs (only applied if not already set)
+DEFAULT_TEST_ENV = {
+    "DATABASE_URL": "postgresql+asyncpg://postgres:postgres@localhost:55432/the_gathering_test",
+    "REDIS_URL": "redis://localhost:6380/0",
+    "SECRET_KEY": "test_secret_key_for_testing_only_not_for_production",
+    "ALGORITHM": "HS256",
+    "ACCESS_TOKEN_EXPIRE_MINUTES": "30",
+    "APP_NAME": "The Gathering Test",
+    "RESET_DB": "false",
+}
+
+for key, value in DEFAULT_TEST_ENV.items():
+    os.environ[key] = value
+
+# Force E2E test environment
+os.environ["TEST_TYPE"] = "e2e"
+
+# ruff: noqa: E402
+# Imports must come after environment variable setup for proper test configuration
+import importlib
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -28,15 +49,65 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+import app.core.config as config_module
+
+config_module = importlib.reload(config_module)
+
+import app.core.redis_client as redis_client_module
+
+redis_client_module = importlib.reload(redis_client_module)
+
 from app.core.auth_utils import hash_password
 from app.core.database import Base, get_db
+from app.core.redis_client import close_redis_client, create_redis_client
 from app.models.room import Room
 from app.models.user import User
 from main import app
 from tests.fixtures import RoomFactory, UserFactory
 
-# Force E2E test environment
-os.environ["TEST_TYPE"] = "e2e"
+
+class AuthenticatedClient:
+    """
+    Wrapper for AsyncClient that automatically injects CSRF token headers.
+
+    Ensures CSRF double-submit cookie pattern works transparently in tests.
+    """
+
+    def __init__(self, client: AsyncClient):
+        self._client = client
+
+    def _inject_csrf_header(self, method: str, kwargs: dict) -> dict:
+        """Inject X-CSRF-Token header if CSRF cookie exists."""
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            csrf_token = self._client.cookies.get("tg_csrf")
+            if csrf_token:
+                if "headers" not in kwargs or kwargs["headers"] is None:
+                    kwargs["headers"] = {}
+                kwargs["headers"]["X-CSRF-Token"] = csrf_token
+        return kwargs
+
+    async def request(self, method: str, *args, **kwargs):
+        kwargs = self._inject_csrf_header(method, kwargs)
+        return await self._client.request(method, *args, **kwargs)
+
+    async def get(self, *args, **kwargs):
+        return await self.request("GET", *args, **kwargs)
+
+    async def post(self, *args, **kwargs):
+        return await self.request("POST", *args, **kwargs)
+
+    async def put(self, *args, **kwargs):
+        return await self.request("PUT", *args, **kwargs)
+
+    async def patch(self, *args, **kwargs):
+        return await self.request("PATCH", *args, **kwargs)
+
+    async def delete(self, *args, **kwargs):
+        return await self.request("DELETE", *args, **kwargs)
+
+    @property
+    def cookies(self):
+        return self._client.cookies
 
 
 # ============================================================================
@@ -79,6 +150,9 @@ async def e2e_engine():
 
     # Create schema
     async with engine.begin() as conn:
+        # Enable pgvector extension before creating tables
+        from sqlalchemy import text
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
@@ -103,17 +177,37 @@ async def db_session(e2e_engine):
 
 
 # ============================================================================
+# Redis Client Fixture
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def redis_client():
+    """
+    Initialize Redis client for E2E tests.
+
+    Function-scoped to avoid event loop issues with pytest-asyncio 1.2.0.
+    Creates fresh Redis connection per test for proper isolation.
+    Requires Redis running on localhost:6380 (docker-compose.test.yml).
+    """
+    await create_redis_client()
+    yield
+    await close_redis_client()
+
+
+# ============================================================================
 # FastAPI HTTP Client Fixtures
 # ============================================================================
 
 
 @pytest_asyncio.fixture
-async def async_client(db_session):
+async def async_client(db_session, redis_client):
     """
     Async HTTP client for E2E testing with dependency override.
 
     The client uses the test database session via dependency injection,
     ensuring all HTTP requests use the same isolated test database.
+    Redis client is initialized via redis_client fixture dependency.
     """
 
     async def override_get_db():
@@ -124,7 +218,8 @@ async def async_client(db_session):
     app.dependency_overrides[get_db] = override_get_db
 
     # Create HTTP client
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         yield client
 
     # Clear overrides
@@ -203,43 +298,83 @@ async def created_room(db_session):
 
 
 @pytest_asyncio.fixture
-async def authenticated_user_headers(async_client, created_user):
+async def authenticated_user_client(db_session, redis_client, created_user):
     """
-    JWT token for authenticated user requests.
+    Authenticated AsyncClient for regular user E2E tests.
 
-    Returns headers dict with Authorization: Bearer {token}
+    Returns dedicated client with user session cookies set.
+    Automatically injects CSRF token headers for state-changing requests.
+    Separate client prevents cookie conflicts when testing multi-user scenarios.
+
+    Best practice: Use dedicated clients per user role for E2E testing.
     """
-    login_response = await async_client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": "user@example.com",
-            "password": "password123",
-        },
-    )
-    assert login_response.status_code == 200, f"Login failed: {login_response.text}"
 
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    async def override_get_db():
+        """Override get_db dependency to use test session."""
+        yield db_session
+
+    # Override database dependency
+    app.dependency_overrides[get_db] = override_get_db
+
+    # Create HTTP client with follow_redirects to preserve cookies
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver", follow_redirects=True) as client:
+        # Login to get session cookies (cookies are automatically set by AsyncClient)
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "user@example.com",
+                "password": "password123",
+            },
+        )
+        assert login_response.status_code == 200, f"Login failed: {login_response.text}"
+
+        # Cookies are now automatically set in client from login response
+        # Wrap client to automatically inject CSRF headers
+        yield AuthenticatedClient(client)
+
+    # Clear overrides
+    app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
-async def authenticated_admin_headers(async_client, created_admin):
+async def authenticated_admin_client(db_session, redis_client, created_admin):
     """
-    JWT token for authenticated admin requests.
+    Authenticated AsyncClient for admin user E2E tests.
 
-    Returns headers dict with Authorization: Bearer {token}
+    Returns dedicated client with admin session cookies set.
+    Automatically injects CSRF token headers for state-changing requests.
+    Separate client prevents cookie conflicts when testing multi-user scenarios.
+
+    Best practice: Use dedicated clients per user role for E2E testing.
     """
-    login_response = await async_client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": "admin@example.com",
-            "password": "adminpass123",
-        },
-    )
-    assert login_response.status_code == 200, f"Admin login failed: {login_response.text}"
 
-    token = login_response.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    async def override_get_db():
+        """Override get_db dependency to use test session."""
+        yield db_session
+
+    # Override database dependency
+    app.dependency_overrides[get_db] = override_get_db
+
+    # Create HTTP client with follow_redirects to preserve cookies
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver", follow_redirects=True) as client:
+        # Login to get session cookies (cookies are automatically set by AsyncClient)
+        login_response = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "admin@example.com",
+                "password": "adminpass123",
+            },
+        )
+        assert login_response.status_code == 200, f"Admin login failed: {login_response.text}"
+
+        # Cookies are now automatically set in client from login response
+        # Wrap client to automatically inject CSRF headers
+        yield AuthenticatedClient(client)
+
+    # Clear overrides
+    app.dependency_overrides.clear()
 
 
 # ============================================================================
@@ -257,3 +392,54 @@ def user_factory():
 def room_factory():
     """Room factory for creating test rooms."""
     return RoomFactory
+
+
+# ============================================================================
+# AI Entity Fixtures for ARQ Worker Tests
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def created_ai_entity(db_session):
+    """Create AI entity for ARQ worker tests."""
+    from app.models.ai_entity import AIEntity, AIEntityStatus
+
+    ai_entity = AIEntity(
+        name="test_ai",
+        display_name="Test AI",
+        system_prompt="You are a test AI assistant",
+        model_name="gpt-4o-mini",
+        status=AIEntityStatus.ONLINE,
+        temperature=0.7,
+        max_tokens=1024,
+    )
+    db_session.add(ai_entity)
+    await db_session.commit()
+
+    ai_entity = await db_session.scalar(select(AIEntity).where(AIEntity.id == ai_entity.id))
+    db_session.expunge(ai_entity)
+    return ai_entity
+
+
+@pytest_asyncio.fixture
+async def created_conversation(db_session, created_room, created_user):
+    """Create conversation for ARQ worker tests."""
+    from app.models.conversation import Conversation, ConversationType
+
+    conversation = Conversation(
+        room_id=created_room.id,
+        conversation_type=ConversationType.PRIVATE,
+        max_participants=2,
+    )
+    db_session.add(conversation)
+    await db_session.commit()
+
+    conversation = await db_session.scalar(select(Conversation).where(Conversation.id == conversation.id))
+    db_session.expunge(conversation)
+    return conversation
+
+
+@pytest_asyncio.fixture
+async def async_db_session(db_session):
+    """Alias for db_session for ARQ worker tests."""
+    return db_session

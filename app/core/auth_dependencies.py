@@ -1,4 +1,5 @@
-from fastapi import Depends, HTTPException, status
+import structlog
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.jwt_utils import get_user_from_token
@@ -6,24 +7,49 @@ from app.models.user import User
 from app.repositories.repository_dependencies import get_user_repository
 from app.repositories.user_repository import IUserRepository
 
+logger = structlog.get_logger(__name__)
+
 security = HTTPBearer(auto_error=False)
 
 
 async def get_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> str:
     """
-    Extract JWT token from Authorization header.
-    :param credentials: HTTP authorization credentials
+    Extract JWT token from HttpOnly cookie (primary) or Authorization header (fallback).
+
+    Cookie-based authentication is the recommended approach for web applications.
+    Header-based authentication is maintained for backward compatibility with:
+    - API documentation tools (Swagger UI)
+    - Development/testing tools (Postman, curl)
+    - Mobile apps (if not using cookie-based auth)
+
+    :param request: FastAPI Request object for reading cookies
+    :param credentials: HTTP authorization credentials (optional fallback)
     :return: JWT token string
     """
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"},
+    # Primary: HttpOnly Cookie
+    token = request.cookies.get("tg_access")
+    if token:
+        return token
+
+    # Fallback: Authorization Header (Swagger/Dev/Mobile)
+    if credentials:
+        logger.warning(
+            "header_auth_used",
+            path=request.url.path,
+            user_agent=request.headers.get("user-agent", "unknown"),
+            message="Header-based auth is deprecated for web clients. Use cookie-based login.",
         )
-    return credentials.credentials
+        return credentials.credentials
+
+    # Neither cookie nor header present
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required. Use POST /api/v1/auth/login to obtain cookie.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def get_current_user(

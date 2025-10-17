@@ -1,12 +1,17 @@
-import logging
-
-from fastapi import HTTPException, status
+import structlog
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.constants import MAX_ROOM_MESSAGES, MESSAGE_CLEANUP_FREQUENCY
+from app.core.exceptions import (
+    DuplicateResourceException,
+    InvalidOperationException,
+    RoomNotFoundException,
+    UserNotInRoomException,
+)
 from app.models.message import Message
 from app.models.room import Room
 from app.models.user import User, UserStatus
+from app.repositories.ai_entity_repository import IAIEntityRepository
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import IMessageTranslationRepository
@@ -14,7 +19,7 @@ from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
 from app.services.translation_service import TranslationService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RoomService:
@@ -28,6 +33,7 @@ class RoomService:
         conversation_repo: IConversationRepository,
         message_translation_repo: IMessageTranslationRepository,
         translation_service: TranslationService,
+        ai_entity_repo: IAIEntityRepository,
     ):
         self.room_repo = room_repo
         self.user_repo = user_repo
@@ -35,6 +41,7 @@ class RoomService:
         self.conversation_repo = conversation_repo
         self.message_translation_repo = message_translation_repo
         self.translation_service = translation_service
+        self.ai_entity_repo = ai_entity_repo
 
     async def get_all_rooms(self) -> list[Room]:
         """Get all active rooms."""
@@ -55,10 +62,7 @@ class RoomService:
         :return: Created room
         """
         if await self.room_repo.name_exists(name):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room name '{name}' already exists",
-            )
+            raise DuplicateResourceException("Room", name)
 
         new_room = Room(
             name=name,
@@ -88,10 +92,7 @@ class RoomService:
         room = await self._get_room_or_404(room_id)
 
         if name != room.name and await self.room_repo.name_exists(name, room_id):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room name '{name}' already exists",
-            )
+            raise DuplicateResourceException("Room", name)
 
         room.name = name
         room.description = description
@@ -158,10 +159,7 @@ class RoomService:
 
         current_user_count = await self.room_repo.get_user_count(room_id)
         if room.max_users and current_user_count >= room.max_users:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Room '{room.name}' is full (max {room.max_users} users)",
-            )
+            raise InvalidOperationException(f"Room '{room.name}' is full (max {room.max_users} users)")
 
         current_user.current_room_id = room_id
         current_user.status = UserStatus.AVAILABLE
@@ -186,10 +184,7 @@ class RoomService:
         room = await self._get_room_or_404(room_id)
 
         if current_user.current_room_id != room_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"User is not in room '{room.name}'",
-            )
+            raise InvalidOperationException(f"User is not in room '{room.name}'")
 
         current_user.current_room_id = None
         current_user.status = UserStatus.AWAY
@@ -201,31 +196,52 @@ class RoomService:
             "room_name": room.name,
         }
 
-    async def get_room_users(self, room_id: int) -> dict:
+    async def get_room_participants(self, room_id: int) -> dict:
         """
-        Get users in room with validation.
+        Get all participants (humans + AI) in room with validation.
+        Returns unified list of participants consistent with conversation participants structure.
         :param room_id: Room ID
-        :return: Room users data
+        :return: Room participants data including both humans and AI
         """
         room = await self._get_room_or_404(room_id)
+
+        # Get human users
         users = await self.room_repo.get_users_in_room(room_id)
 
-        room_users = [
+        # Build participant list with human users
+        participants = [
             {
                 "id": user.id,
                 "username": user.username,
+                "display_name": user.username,  # For humans, username = display_name
                 "avatar_url": user.avatar_url,
                 "status": user.status.value,
+                "is_ai": False,
                 "last_active": user.last_active,
             }
             for user in users
         ]
 
+        # Get AI entity if present in room
+        ai_entity = await self.ai_entity_repo.get_ai_in_room(room_id)
+        if ai_entity:
+            participants.append(
+                {
+                    "id": ai_entity.id,
+                    "username": ai_entity.name,  # Technical name (e.g., "bot_beta")
+                    "display_name": ai_entity.display_name,  # UI name (e.g., "Bot Beta")
+                    "avatar_url": None,  # AI entities don't have avatars
+                    "status": ai_entity.status.value,
+                    "is_ai": True,
+                    "last_active": None,  # AI entities don't have last_active
+                }
+            )
+
         return {
             "room_id": room_id,
             "room_name": room.name,
-            "total_users": len(room_users),
-            "users": room_users,
+            "total_participants": len(participants),
+            "participants": participants,
         }
 
     async def update_user_status(self, current_user: User, new_status: UserStatus) -> dict:
@@ -244,24 +260,31 @@ class RoomService:
             "user": current_user.username,
         }
 
-    async def send_room_message(self, current_user: User, room_id: int, content: str) -> Message:
+    async def send_room_message(
+        self,
+        current_user: User,
+        room_id: int,
+        content: str,
+        in_reply_to_message_id: int | None = None,
+    ) -> Message:
         """
         Send message to room with validation.
         :param current_user: User sending message
         :param room_id: Target room ID
         :param content: Message content
+        :param in_reply_to_message_id: Optional message to reply to
         :return: Created message
         """
         room = await self._get_room_or_404(room_id)
 
         if current_user.current_room_id != room_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User must be in room '{room.name}' to send messages",
-            )
+            raise UserNotInRoomException(f"User must be in room '{room.name}' to send messages")
 
         message = await self.message_repo.create_room_message(
-            sender_id=current_user.id, room_id=room_id, content=content
+            room_id=room_id,
+            content=content,
+            sender_user_id=current_user.id,
+            in_reply_to_message_id=in_reply_to_message_id,
         )
 
         # Translation logic
@@ -269,15 +292,13 @@ class RoomService:
             room_users = await self.room_repo.get_users_in_room(room_id)
 
             target_languages = list(
-                set(
-                    [
-                        user.preferred_language.upper()
-                        for user in room_users
-                        if user.preferred_language
-                        and user.preferred_language != current_user.preferred_language
-                        and user.id != current_user.id
-                    ]
-                )
+                {
+                    user.preferred_language.upper()
+                    for user in room_users
+                    if user.preferred_language
+                    and user.preferred_language != current_user.preferred_language
+                    and user.id != current_user.id
+                }
             )
 
             if target_languages:
@@ -314,16 +335,20 @@ class RoomService:
         await self._get_room_or_404(room_id)
 
         if current_user.current_room_id != room_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User must join the room before viewing messages",
-            )
+            raise UserNotInRoomException("User must join the room before viewing messages")
 
         messages, total_count = await self.message_repo.get_room_messages(
             room_id=room_id,
             page=page,
             page_size=page_size,
         )
+
+        # Set sender_username for each message
+        for message in messages:
+            if message.sender_user_id:
+                message.sender_username = message.sender_user.username
+            elif message.sender_ai_id:
+                message.sender_username = message.sender_ai.display_name
 
         # Apply translations if user has preferred language
         if current_user.preferred_language:
@@ -356,11 +381,8 @@ class RoomService:
         return messages
 
     async def _get_room_or_404(self, room_id: int) -> Room:
-        """Get room by ID or raise 404."""
+        """Get room by ID or raise NotFoundException."""
         room = await self.room_repo.get_by_id(room_id)
         if not room:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Room with id {room_id} not found",
-            )
+            raise RoomNotFoundException(room_id)
         return room

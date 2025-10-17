@@ -1,7 +1,7 @@
 """
-Unit tests for AIMemoryRepository.
+Integration tests for AIMemoryRepository.
 
-Tests focus on CRUD operations and memory retrieval using SQLite in-memory database.
+Tests focus on CRUD operations and memory retrieval using PostgreSQL with pgvector.
 """
 
 import pytest
@@ -12,9 +12,9 @@ from app.repositories.ai_entity_repository import AIEntityRepository
 from app.repositories.ai_memory_repository import AIMemoryRepository
 
 
-@pytest.mark.unit
+@pytest.mark.integration
 class TestAIMemoryRepository:
-    """Unit tests for AIMemoryRepository CRUD operations."""
+    """Integration tests for AIMemoryRepository CRUD operations with PostgreSQL."""
 
     async def test_create_memory_success(self, db_session):
         """Test successful AI memory creation."""

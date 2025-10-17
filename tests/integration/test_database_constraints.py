@@ -32,7 +32,7 @@ class TestDatabaseConstraints:
 
         # Act & Assert - both NULL violates XOR constraint
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content="Test message",
             room_id=None,
             conversation_id=None,
@@ -55,7 +55,7 @@ class TestDatabaseConstraints:
 
         # Act & Assert - both set violates XOR constraint
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content="Test message",
             room_id=room.id,
             conversation_id=conversation.id,
@@ -75,7 +75,7 @@ class TestDatabaseConstraints:
 
         # Act
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content="Room message",
             room_id=room.id,
             conversation_id=None,
@@ -99,7 +99,7 @@ class TestDatabaseConstraints:
 
         # Act
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content="Conversation message",
             room_id=None,
             conversation_id=conversation.id,
@@ -132,9 +132,9 @@ class TestDatabaseConstraints:
         # Arrange
         room = await room_factory.create(db_session)
 
-        # Act & Assert - invalid sender_id (user doesn't exist)
+        # Act & Assert - invalid sender_user_id (user doesn't exist)
         message = Message(
-            sender_id=99999,  # Non-existent user
+            sender_user_id=99999,  # Non-existent user
             content="Test message",
             room_id=room.id,
         )
@@ -152,7 +152,7 @@ class TestDatabaseConstraints:
 
         # Act & Assert - invalid room_id (room doesn't exist)
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content="Test message",
             room_id=99999,  # Non-existent room
         )
@@ -170,7 +170,7 @@ class TestDatabaseConstraints:
 
         # Act & Assert - invalid conversation_id
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content="Test message",
             conversation_id=99999,  # Non-existent conversation
         )
@@ -220,7 +220,7 @@ class TestDatabaseConstraints:
         room = await room_factory.create(db_session)
 
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content="Room message",
             room_id=room.id,
         )
@@ -304,7 +304,7 @@ class TestDatabaseConstraints:
 
         # Act & Assert
         message = Message(
-            sender_id=user.id,
+            sender_user_id=user.id,
             content=None,  # NULL content should fail
             room_id=room.id,
         )

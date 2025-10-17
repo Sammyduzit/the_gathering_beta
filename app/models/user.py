@@ -36,7 +36,12 @@ class User(Base):
     current_room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
     current_room = relationship("Room", back_populates="users")
     conversation_participations = relationship("ConversationParticipant", back_populates="user")
-    sent_messages = relationship("Message", back_populates="sender", lazy="dynamic")
+    sent_messages = relationship(
+        "Message",
+        back_populates="sender_user",
+        foreign_keys="Message.sender_user_id",
+        lazy="raise",
+    )
 
     def __repr__(self):
         return f"<User (id={self.id}, username='{self.username}')>"

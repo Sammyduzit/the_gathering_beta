@@ -234,7 +234,7 @@ class MessageFactory(BaseFactory):
             room = await RoomFactory.create(session)
 
         room_defaults = {
-            "sender_id": sender.id,
+            "sender_user_id": sender.id,
             "room_id": room.id,
         }
         return await cls.create(session, **room_defaults, **overrides)
@@ -254,7 +254,7 @@ class MessageFactory(BaseFactory):
             conversation = await ConversationFactory.create(session)
 
         conversation_defaults = {
-            "sender_id": sender.id,
+            "sender_user_id": sender.id,
             "conversation_id": conversation.id,
         }
         return await cls.create(session, **conversation_defaults, **overrides)

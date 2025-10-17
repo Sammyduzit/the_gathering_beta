@@ -38,7 +38,9 @@ class TestRelationships:
         await message_factory.create_room_message(db_session, sender=user, room=room, content="Msg 3")
 
         # Act - Count messages via SQL (testing dynamic relationship behavior)
-        messages_count = await db_session.scalar(select(func.count(Message.id)).where(Message.sender_id == user.id))
+        messages_count = await db_session.scalar(
+            select(func.count(Message.id)).where(Message.sender_user_id == user.id)
+        )
 
         # Assert
         assert messages_count == 3
@@ -89,7 +91,7 @@ class TestRelationships:
         assert messages_count == 2
 
     async def test_message_sender_backref(self, db_session, user_factory, room_factory, message_factory):
-        """Test Message -> User (sender) back-populates relationship."""
+        """Test Message -> User (sender_user) back-populates relationship."""
         # Arrange
         user = await user_factory.create(db_session)
         room = await room_factory.create(db_session)
@@ -97,14 +99,14 @@ class TestRelationships:
 
         # Act - Access sender through message
         result = await db_session.execute(
-            select(Message).where(Message.id == message.id).options(selectinload(Message.sender))
+            select(Message).where(Message.id == message.id).options(selectinload(Message.sender_user))
         )
         message_with_sender = result.scalar_one()
 
         # Assert
-        assert message_with_sender.sender is not None
-        assert message_with_sender.sender.id == user.id
-        assert message_with_sender.sender.username == user.username
+        assert message_with_sender.sender_user is not None
+        assert message_with_sender.sender_user.id == user.id
+        assert message_with_sender.sender_user.username == user.username
 
     async def test_user_current_room_relationship(self, db_session, user_factory, room_factory):
         """Test User -> Room (current_room) relationship."""
@@ -166,7 +168,7 @@ class TestRelationships:
 
         # Assert
         assert len(participants) == 3
-        participant_usernames = [p.username for p in participants]
+        participant_usernames = [p.participant_name for p in participants]
         assert "user1" in participant_usernames
         assert "user2" in participant_usernames
         assert "user3" in participant_usernames
@@ -221,13 +223,16 @@ class TestRelationships:
         from sqlalchemy.orm import joinedload
 
         result = await db_session.execute(
-            select(Message).join(Message.sender).where(User.username == "alice").options(joinedload(Message.sender))
+            select(Message)
+            .join(Message.sender_user)
+            .where(User.username == "alice")
+            .options(joinedload(Message.sender_user))
         )
         alice_messages = result.scalars().all()
 
         # Assert
         assert len(alice_messages) == 2
-        assert all(msg.sender.username == "alice" for msg in alice_messages)
+        assert all(msg.sender_user.username == "alice" for msg in alice_messages)
 
     async def test_relationship_count_aggregation(self, db_session, user_factory, room_factory, message_factory):
         """Test counting related entities using relationship."""
@@ -242,7 +247,7 @@ class TestRelationships:
         # Act - Count messages via relationship
         from sqlalchemy import func
 
-        result = await db_session.execute(select(func.count(Message.id)).where(Message.sender_id == user.id))
+        result = await db_session.execute(select(func.count(Message.id)).where(Message.sender_user_id == user.id))
         message_count = result.scalar()
 
         # Assert
@@ -266,7 +271,7 @@ class TestRelationships:
         # Assert - Message still exists and references same user
         result = await db_session.execute(select(Message).where(Message.id == original_message_id))
         updated_message = result.scalar_one()
-        assert updated_message.sender_id == user.id
+        assert updated_message.sender_user_id == user.id
 
     async def test_relationship_null_foreign_key_handling(
         self, db_session, user_factory, room_factory, message_factory

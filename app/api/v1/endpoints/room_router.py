@@ -1,14 +1,18 @@
+from arq.connections import ArqRedis
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
 
+from app.core.arq_pool import get_arq_pool
 from app.core.auth_dependencies import get_current_active_user, get_current_admin_user
 from app.core.background_tasks import async_bg_task_manager
+from app.core.config import settings
+from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
 from app.schemas.chat_schemas import MessageCreate, MessageResponse
 from app.schemas.room_schemas import RoomCreate, RoomResponse
 from app.schemas.room_user_schemas import (
     RoomJoinResponse,
     RoomLeaveResponse,
-    RoomUsersListResponse,
+    RoomParticipantsResponse,
     UserStatusUpdate,
 )
 from app.services.background_service import BackgroundService
@@ -37,6 +41,7 @@ async def create_room(
     room_data: RoomCreate,
     current_admin: User = Depends(get_current_admin_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomResponse:
     """
     Create a new room.
@@ -59,6 +64,7 @@ async def update_room(
     room_data: RoomCreate,
     current_admin: User = Depends(get_current_admin_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomResponse:
     """
     Update existing room data.
@@ -82,6 +88,7 @@ async def delete_room(
     room_id: int,
     current_admin: User = Depends(get_current_admin_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Close room with cleanup, kick users and archive conversations.
@@ -136,6 +143,7 @@ async def join_room(
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
     background_service: BackgroundService = Depends(get_background_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomJoinResponse:
     """
     User joins room.
@@ -175,6 +183,7 @@ async def leave_room(
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
     background_service: BackgroundService = Depends(get_background_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> RoomLeaveResponse:
     """
     User leaves room.
@@ -207,20 +216,21 @@ async def leave_room(
     return leave_response
 
 
-@router.get("/{room_id}/users", response_model=RoomUsersListResponse)
-async def get_room_users(
+@router.get("/{room_id}/participants", response_model=RoomParticipantsResponse)
+async def get_room_participants(
     room_id: int,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
-) -> RoomUsersListResponse:
+) -> RoomParticipantsResponse:
     """
-    Get list of users currently in a room.
+    Get all participants (humans + AI) currently in a room.
+    Returns unified list consistent with conversation participants structure.
     :param room_id: Room ID
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
-    :return: List of users in room
+    :return: Unified list of all room participants
     """
-    return await room_service.get_room_users(room_id)
+    return await room_service.get_room_participants(room_id)
 
 
 @router.patch("/users/status")
@@ -228,6 +238,7 @@ async def update_user_status(
     status_update: UserStatusUpdate,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
+    _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
     Update current user status.
@@ -247,16 +258,20 @@ async def send_room_message(
     room_service: RoomService = Depends(get_room_service),
     background_service: BackgroundService = Depends(get_background_service),
     background_tasks: BackgroundTasks = BackgroundTasks(),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
+    _csrf: None = Depends(validate_csrf),
 ) -> MessageResponse:
     """
     Send message to room, visible for every member.
     Background tasks handle translation and notifications.
+    ARQ task triggers AI response if AI is present in room.
     :param room_id: Target room ID
     :param message_data: Message content
     :param background_tasks: FastAPI background tasks
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
     :param background_service: Background service for async tasks
+    :param arq_pool: ARQ Redis pool for AI response jobs
     :return: Created message object
     """
     # Send message immediately
@@ -264,6 +279,14 @@ async def send_room_message(
 
     # Get room info for translation settings
     room = await room_service.get_room_by_id(room_id)
+
+    # Trigger AI response check if AI is in room
+    if room.has_ai and settings.is_ai_available and arq_pool:
+        await arq_pool.enqueue_job(
+            "check_and_generate_ai_response",
+            message_id=message_response["id"],
+            room_id=room_id,
+        )
 
     # Schedule background translation if enabled
     if room.is_translation_enabled:

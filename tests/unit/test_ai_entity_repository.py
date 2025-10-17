@@ -6,7 +6,7 @@ Tests focus on CRUD operations and query methods using SQLite in-memory database
 
 import pytest
 
-from app.models.ai_entity import AIEntity
+from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.repositories.ai_entity_repository import AIEntityRepository
 
 
@@ -29,7 +29,7 @@ class TestAIEntityRepository:
         assert created_entity.id is not None
         assert created_entity.name == "assistant"
         assert created_entity.display_name == "AI Assistant"
-        assert created_entity.is_active is True
+        assert created_entity.status == AIEntityStatus.OFFLINE
 
     async def test_get_by_id_success(self, db_session):
         """Test successful entity retrieval by ID."""
@@ -72,22 +72,32 @@ class TestAIEntityRepository:
 
         assert found_entity is None
 
-    async def test_get_active_entities(self, db_session):
-        """Test retrieval of active entities only."""
+    async def test_get_available_entities(self, db_session):
+        """Test retrieval of available entities (online and not deleted)."""
         repo = AIEntityRepository(db_session)
 
-        active_entity = AIEntity(name="active", display_name="Active Bot", system_prompt="Active", model_name="gpt-4")
-        inactive_entity = AIEntity(
-            name="inactive", display_name="Inactive Bot", system_prompt="Inactive", model_name="gpt-4", is_active=False
+        online_entity = AIEntity(
+            name="online",
+            display_name="Online Bot",
+            system_prompt="Online",
+            model_name="gpt-4",
+            status=AIEntityStatus.ONLINE,
+        )
+        offline_entity = AIEntity(
+            name="offline",
+            display_name="Offline Bot",
+            system_prompt="Offline",
+            model_name="gpt-4",
+            status=AIEntityStatus.OFFLINE,
         )
 
-        await repo.create(active_entity)
-        await repo.create(inactive_entity)
+        await repo.create(online_entity)
+        await repo.create(offline_entity)
 
-        active_entities = await repo.get_active_entities()
+        available_entities = await repo.get_available_entities()
 
-        assert len(active_entities) == 1
-        assert active_entities[0].name == "active"
+        assert len(available_entities) == 1
+        assert available_entities[0].name == "online"
 
     async def test_name_exists(self, db_session):
         """Test name existence check."""
@@ -123,16 +133,18 @@ class TestAIEntityRepository:
         assert updated.display_name == "Updated Name"
 
     async def test_soft_delete_entity(self, db_session):
-        """Test soft delete sets entity inactive."""
+        """Test soft delete sets entity is_active=False and status=OFFLINE."""
         repo = AIEntityRepository(db_session)
         entity = AIEntity(name="deletable", display_name="Delete Me", system_prompt="Delete", model_name="gpt-4")
         created = await repo.create(entity)
 
         deleted = await repo.delete(created.id)
+
+        # After soft delete, get_by_id returns None (filters is_active=False)
         found_entity = await repo.get_by_id(created.id)
 
         assert deleted is True
-        assert found_entity.is_active is False
+        assert found_entity is None  # Soft deleted entities are not returned
 
     async def test_delete_nonexistent_entity(self, db_session):
         """Test delete returns False for nonexistent entity."""
