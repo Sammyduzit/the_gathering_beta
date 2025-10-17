@@ -36,9 +36,7 @@ class TestConversationMessages:
             .values(current_room_id=room.id)
         )
         await db_session.execute(
-            update(AIEntity)
-            .where(AIEntity.id == created_ai_entity.id)
-            .values(current_room_id=room.id)
+            update(AIEntity).where(AIEntity.id == created_ai_entity.id).values(current_room_id=room.id)
         )
         await db_session.commit()
 
@@ -72,9 +70,7 @@ class TestConversationMessages:
         assert sent_message["conversation_id"] == conversation_id
 
         # Step 4: Fetch message history
-        history_response = await authenticated_user_client.get(
-            f"/api/v1/conversations/{conversation_id}/messages"
-        )
+        history_response = await authenticated_user_client.get(f"/api/v1/conversations/{conversation_id}/messages")
         assert history_response.status_code == 200, history_response.text
         history = history_response.json()
         assert isinstance(history, dict)

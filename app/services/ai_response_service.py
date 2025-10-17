@@ -153,9 +153,7 @@ class AIResponseService:
                 in_reply_to_message_id=in_reply_to_message_id,
             )
 
-            logger.info(
-                f"AI '{ai_entity.name}' generated response in room {room_id}: {len(response_content)} chars"
-            )
+            logger.info(f"AI '{ai_entity.name}' generated response in room {room_id}: {len(response_content)} chars")
 
             return message
 
@@ -249,8 +247,7 @@ class AIResponseService:
             should_respond = random.random() < probability
             if should_respond:
                 logger.info(
-                    f"AI '{ai_entity.name}' probabilistic response triggered "
-                    f"(p={probability}) in room {room_id}"
+                    f"AI '{ai_entity.name}' probabilistic response triggered (p={probability}) in room {room_id}"
                 )
             return should_respond
 

@@ -223,9 +223,7 @@ async def ai_health_check():
 
     # Overall status
     health_status["status"] = (
-        "healthy"
-        if health_status["redis_connected"] and health_status["openai_configured"]
-        else "degraded"
+        "healthy" if health_status["redis_connected"] and health_status["openai_configured"] else "degraded"
     )
 
     return health_status

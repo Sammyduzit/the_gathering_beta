@@ -135,9 +135,7 @@ class TestTokenRotation:
         csrf_token = login_response.cookies.get("tg_csrf")
 
         # Logout
-        logout_response = await async_client.post(
-            "/api/v1/auth/logout", headers={"X-CSRF-Token": csrf_token}
-        )
+        logout_response = await async_client.post("/api/v1/auth/logout", headers={"X-CSRF-Token": csrf_token})
         assert logout_response.status_code == 200
 
         # Try to use latest token after logout
@@ -160,7 +158,7 @@ class TestTokenRotation:
         family_ids = []
         for i in range(5):
             refresh_response = await async_client.post("/api/v1/auth/refresh")
-            assert refresh_response.status_code == 200, f"Refresh {i+1} failed"
+            assert refresh_response.status_code == 200, f"Refresh {i + 1} failed"
 
             refresh_token = refresh_response.cookies.get("tg_refresh")
             payload = verify_token(refresh_token)

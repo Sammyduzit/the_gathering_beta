@@ -334,9 +334,6 @@ class VectorMemoryRetriever(IMemoryRetriever):
             filtered = [m for m in filtered if m.conversation_id != exclude_conversation_id]
 
         if memory_type is not None:
-            filtered = [
-                m for m in filtered
-                if m.memory_metadata and m.memory_metadata.get("type") == memory_type
-            ]
+            filtered = [m for m in filtered if m.memory_metadata and m.memory_metadata.get("type") == memory_type]
 
         return filtered

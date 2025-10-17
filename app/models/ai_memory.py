@@ -55,7 +55,12 @@ class AIMemory(Base):
         Index("ai_memories_user_type_conv_idx", "user_id", "memory_metadata", "conversation_id"),
         Index("ai_memories_entity_user_idx", "entity_id", "user_id"),
         Index("ai_memories_created_at_idx", "created_at"),
-        Index("ai_memories_embedding_idx", "embedding", postgresql_using="ivfflat", postgresql_ops={"embedding": "vector_cosine_ops"}),
+        Index(
+            "ai_memories_embedding_idx",
+            "embedding",
+            postgresql_using="ivfflat",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     def __repr__(self):

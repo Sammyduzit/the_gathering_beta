@@ -74,9 +74,7 @@ class PersonalityMemoryService:
 
         # Create AIMemory per chunk
         memories = []
-        for i, (chunk, keywords, embedding) in enumerate(
-            zip(chunks, chunk_keywords, embeddings)
-        ):
+        for i, (chunk, keywords, embedding) in enumerate(zip(chunks, chunk_keywords, embeddings)):
             summary = chunk[:200] + "..." if len(chunk) > 200 else chunk
 
             memory = AIMemory(

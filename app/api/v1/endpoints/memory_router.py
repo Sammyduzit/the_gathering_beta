@@ -307,7 +307,11 @@ async def search_memories(
     return memories
 
 
-@router.post("/admin/ai-entities/{entity_id}/personality", response_model=PersonalityUploadResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/admin/ai-entities/{entity_id}/personality",
+    response_model=PersonalityUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def upload_personality(
     entity_id: int,
     request: PersonalityUploadRequest,

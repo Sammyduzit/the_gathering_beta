@@ -240,10 +240,12 @@ class ConversationService:
                 "id": participant.user_id if participant.user_id else participant.ai_entity_id,
                 "username": participant.participant_name if participant.user_id else participant.ai_entity.name,
                 "display_name": participant.participant_name,
-                "status":(
+                "status": (
                     participant.user.status.value
                     if participant.user_id
-                    else participant.ai_entity.status.value if participant.ai_entity else "offline"
+                    else participant.ai_entity.status.value
+                    if participant.ai_entity
+                    else "offline"
                 ),
                 "avatar_url": participant.user.avatar_url if participant.user_id else None,
                 "is_ai": participant.is_ai,
@@ -437,9 +439,7 @@ class ConversationService:
                 "display_name": p.participant_name,
                 "avatar_url": p.user.avatar_url if p.user_id else None,
                 "status": (
-                    p.user.status.value
-                    if p.user_id
-                    else p.ai_entity.status.value if p.ai_entity else "offline"
+                    p.user.status.value if p.user_id else p.ai_entity.status.value if p.ai_entity else "offline"
                 ),
                 "is_ai": p.is_ai,
             }

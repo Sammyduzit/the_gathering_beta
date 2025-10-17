@@ -91,6 +91,7 @@ async def integration_engine():
     async with engine.begin() as conn:
         # Enable pgvector extension before creating tables
         from sqlalchemy import text
+
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
 

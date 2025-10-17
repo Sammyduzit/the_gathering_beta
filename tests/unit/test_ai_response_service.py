@@ -31,9 +31,7 @@ class TestAIResponseService:
         mock_context_service.build_full_context.return_value = (messages, memory_context)
         mock_ai_provider.generate_response.return_value = "Hi testuser! How can I help?"
 
-        created_message = Message(
-            id=1, content="Hi testuser! How can I help?", conversation_id=1, sender_ai_id=1
-        )
+        created_message = Message(id=1, content="Hi testuser! How can I help?", conversation_id=1, sender_ai_id=1)
         mock_message_repo.create_conversation_message.return_value = created_message
 
         # Act

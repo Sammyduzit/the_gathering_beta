@@ -232,9 +232,7 @@ async def created_ai_entity(async_db_session, sample_ai_entity_data):
     async_db_session.add(ai_entity)
     await async_db_session.commit()
 
-    ai_entity = await async_db_session.scalar(
-        select(AIEntity).where(AIEntity.id == ai_entity.id)
-    )
+    ai_entity = await async_db_session.scalar(select(AIEntity).where(AIEntity.id == ai_entity.id))
     async_db_session.expunge(ai_entity)
     return ai_entity
 
@@ -250,9 +248,7 @@ async def created_room(async_db_session, sample_room_data):
     async_db_session.add(room)
     await async_db_session.commit()
 
-    room = await async_db_session.scalar(
-        select(Room).where(Room.id == room.id)
-    )
+    room = await async_db_session.scalar(select(Room).where(Room.id == room.id))
     async_db_session.expunge(room)
     return room
 
@@ -272,8 +268,6 @@ async def created_conversation(async_db_session, created_room, test_user):
     async_db_session.add(conversation)
     await async_db_session.commit()
 
-    conversation = await async_db_session.scalar(
-        select(Conversation).where(Conversation.id == conversation.id)
-    )
+    conversation = await async_db_session.scalar(select(Conversation).where(Conversation.id == conversation.id))
     async_db_session.expunge(conversation)
     return conversation

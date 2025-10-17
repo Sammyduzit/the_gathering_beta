@@ -63,11 +63,7 @@ class ConversationNotFoundException(NotFoundException):
     """Conversation with given ID does not exist."""
 
     def __init__(self, conversation_id: int | None = None):
-        message = (
-            f"Conversation with ID {conversation_id} not found"
-            if conversation_id
-            else "Conversation not found"
-        )
+        message = f"Conversation with ID {conversation_id} not found" if conversation_id else "Conversation not found"
         super().__init__(message=message, error_code="CONVERSATION_NOT_FOUND")
 
 

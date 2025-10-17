@@ -156,9 +156,7 @@ class TestAuthWorkflows:
         detail = response.json()["detail"].lower()
         assert "authent" in detail  # Matches "authenticated" or "authentication"
 
-    async def test_admin_permission_required(
-        self, authenticated_user_client, authenticated_admin_client
-    ):
+    async def test_admin_permission_required(self, authenticated_user_client, authenticated_admin_client):
         """Test that admin-only endpoints reject regular users."""
         # Act - Regular user tries to create room (admin-only)
         response = await authenticated_user_client.post(

@@ -46,10 +46,7 @@ class ShortTermMemoryService:
         recent = messages[-20:] if len(messages) > 20 else messages
 
         # Filter: Only user messages (not system, not AI)
-        user_messages = [
-            m for m in recent
-            if m.sender_user_id is not None and m.message_type != "system"
-        ]
+        user_messages = [m for m in recent if m.sender_user_id is not None and m.message_type != "system"]
 
         if not user_messages:
             # No user messages, create minimal memory
@@ -74,11 +71,7 @@ class ShortTermMemoryService:
 
         # Create simple summary (first 200 chars of first user message)
         first_message = user_messages[0].content
-        summary = (
-            first_message[:200] + "..."
-            if len(first_message) > 200
-            else first_message
-        )
+        summary = first_message[:200] + "..." if len(first_message) > 200 else first_message
 
         # Create memory
         memory = AIMemory(

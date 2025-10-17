@@ -33,11 +33,7 @@ class TestConversationDetails:
             current_room_id=room.id,
         )
         # Update primary user (testuser) to same room
-        await db_session.execute(
-            update(User)
-            .where(User.username == "testuser")
-            .values(current_room_id=room.id)
-        )
+        await db_session.execute(update(User).where(User.username == "testuser").values(current_room_id=room.id))
         await db_session.commit()
 
         # Step 1: Create private conversation via primary user
@@ -89,14 +85,10 @@ class TestConversationDetails:
         )
 
         await db_session.execute(
-            update(User)
-            .where(User.username == created_admin.username)
-            .values(current_room_id=room.id)
+            update(User).where(User.username == created_admin.username).values(current_room_id=room.id)
         )
         await db_session.execute(
-            update(AIEntity)
-            .where(AIEntity.id == created_ai_entity.id)
-            .values(current_room_id=room.id)
+            update(AIEntity).where(AIEntity.id == created_ai_entity.id).values(current_room_id=room.id)
         )
         await db_session.commit()
 

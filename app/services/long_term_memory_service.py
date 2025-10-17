@@ -65,10 +65,7 @@ class LongTermMemoryService:
             return []
 
         # Combine all message content
-        combined_text = "\n\n".join([
-            f"{m.sender_user_id or 'AI'}: {m.content}"
-            for m in messages
-        ])
+        combined_text = "\n\n".join([f"{m.sender_user_id or 'AI'}: {m.content}" for m in messages])
 
         # Chunk text
         chunks = self.chunking_service.chunk_text(combined_text)
@@ -88,9 +85,7 @@ class LongTermMemoryService:
 
         # Create AIMemory per chunk
         memories = []
-        for i, (chunk, keywords, embedding) in enumerate(
-            zip(chunks, chunk_keywords, embeddings)
-        ):
+        for i, (chunk, keywords, embedding) in enumerate(zip(chunks, chunk_keywords, embeddings)):
             summary = chunk[:200] + "..." if len(chunk) > 200 else chunk
 
             memory = AIMemory(
