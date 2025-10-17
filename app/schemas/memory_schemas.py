@@ -56,3 +56,20 @@ class MemoryListResponse(BaseModel):
     total_pages: int = Field(description="Total number of pages")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PersonalityUploadRequest(BaseModel):
+    """Schema for uploading personality knowledge base."""
+
+    text: str = Field(min_length=1, description="Text content to upload")
+    category: str = Field(min_length=1, max_length=50, description="Category (e.g., books, docs)")
+    metadata: dict | None = Field(None, description="Additional metadata (e.g., book_title, chapter)")
+
+
+class PersonalityUploadResponse(BaseModel):
+    """Schema for personality upload response."""
+
+    created_memories: int = Field(description="Number of memories created")
+    memory_ids: list[int] = Field(description="List of created memory IDs")
+    category: str = Field(description="Category of uploaded content")
+    chunks: int = Field(description="Number of chunks created")

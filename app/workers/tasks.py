@@ -19,7 +19,11 @@ from app.services.ai_context_service import AIContextService
 from app.services.ai_response_service import AIResponseService
 from app.services.heuristic_summarizer import HeuristicMemorySummarizer
 from app.services.keyword_retriever import KeywordMemoryRetriever
+from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.memory_builder_service import MemoryBuilderService
+from app.services.openai_embedding_service import OpenAIEmbeddingService
+from app.services.short_term_memory_service import ShortTermMemoryService
+from app.services.text_chunking_service import TextChunkingService
 from app.services.yake_extractor import YakeKeywordExtractor
 
 logger = structlog.get_logger(__name__)
@@ -203,24 +207,34 @@ async def check_and_generate_ai_response(
                 conversation_id=conversation_id,
             )
 
-            # Fire-and-forget: Enqueue memory creation task for conversations
-            if conversation_id:
+            # Create short-term memory after AI response (inline, fast)
+            if conversation_id and message.sender_user_id:
                 try:
-                    await ctx["redis"].enqueue_job(
-                        "create_conversation_memory_task",
-                        ai_entity.id,
-                        conversation_id,
-                        ai_message.id,
+                    short_term_service = ShortTermMemoryService(memory_repo=memory_repo)
+
+                    # Get recent messages for memory creation
+                    recent_messages = await message_repo.get_conversation_messages(
+                        conversation_id=conversation_id,
+                        limit=20,
                     )
+
+                    await short_term_service.create_short_term_memory(
+                        entity_id=ai_entity.id,
+                        user_id=message.sender_user_id,
+                        conversation_id=conversation_id,
+                        messages=recent_messages,
+                    )
+
                     logger.debug(
-                        "memory_creation_enqueued",
+                        "short_term_memory_created",
                         ai_entity_id=ai_entity.id,
+                        user_id=message.sender_user_id,
                         conversation_id=conversation_id,
                     )
                 except Exception as e:
-                    # Non-critical: log warning if enqueue fails, don't fail the task
+                    # Non-critical: log warning, don't fail the task
                     logger.warning(
-                        "memory_creation_enqueue_failed",
+                        "short_term_memory_creation_failed",
                         error=str(e),
                         conversation_id=conversation_id,
                     )
@@ -336,3 +350,82 @@ async def create_conversation_memory_task(
             conversation_id=conversation_id,
         )
         return {"error": str(e), "skipped": True}
+
+
+async def create_long_term_memory_task(
+    ctx: dict,
+    ai_entity_id: int,
+    user_id: int,
+    conversation_id: int,
+) -> dict:
+    """
+    ARQ task: Create long-term memory archive from finalized conversation.
+
+    This task:
+    - Fetches ALL messages from conversation
+    - Chunks text
+    - Generates embeddings (batch)
+    - Creates multiple AIMemory entries (one per chunk)
+
+    Args:
+        ctx: ARQ context with db_manager
+        ai_entity_id: AI entity ID
+        user_id: User ID for user-specific memory
+        conversation_id: Conversation ID to archive
+
+    Returns:
+        Dict with memory count and IDs on success
+    """
+    job_id = str(uuid4())
+    db_session_context.set(job_id)
+
+    db_manager: ARQDatabaseManager = ctx["db_manager"]
+
+    try:
+        async for session in db_manager.get_session():
+            message_repo = MessageRepository(session)
+            memory_repo = AIMemoryRepository(session)
+
+            # Initialize services
+            embedding_service = OpenAIEmbeddingService(
+                api_key=settings.openai_api_key,
+                model=settings.embedding_model,
+                dimensions=settings.embedding_dimensions,
+            )
+            chunking_service = TextChunkingService()
+            long_term_service = LongTermMemoryService(
+                memory_repo=memory_repo,
+                message_repo=message_repo,
+                embedding_service=embedding_service,
+                chunking_service=chunking_service,
+            )
+
+            # Create long-term archive
+            memories = await long_term_service.create_long_term_archive(
+                entity_id=ai_entity_id,
+                user_id=user_id,
+                conversation_id=conversation_id,
+            )
+
+            logger.info(
+                "long_term_memory_created",
+                ai_entity_id=ai_entity_id,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                memory_count=len(memories),
+            )
+
+            return {
+                "memory_count": len(memories),
+                "memory_ids": [m.id for m in memories],
+            }
+
+    except Exception as e:
+        logger.error(
+            "long_term_memory_creation_failed",
+            error=str(e),
+            ai_entity_id=ai_entity_id,
+            user_id=user_id,
+            conversation_id=conversation_id,
+        )
+        raise Retry(defer=ctx["job_try"] * 10)  # Retry with backoff

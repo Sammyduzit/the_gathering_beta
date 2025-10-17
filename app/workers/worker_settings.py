@@ -5,7 +5,11 @@ from arq.connections import RedisSettings
 
 from app.core.arq_db_manager import ARQDatabaseManager
 from app.core.config import settings
-from app.workers.tasks import check_and_generate_ai_response, create_conversation_memory_task
+from app.workers.tasks import (
+    check_and_generate_ai_response,
+    create_conversation_memory_task,
+    create_long_term_memory_task,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -32,6 +36,7 @@ class WorkerSettings:
     functions = [
         check_and_generate_ai_response,
         create_conversation_memory_task,
+        create_long_term_memory_task,
     ]
 
     redis_settings = RedisSettings.from_dsn(settings.redis_url)

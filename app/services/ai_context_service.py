@@ -139,99 +139,94 @@ class AIContextService:
     async def get_ai_memories(
         self,
         ai_entity_id: int,
+        user_id: int,
+        conversation_id: int | None,
+        query: str,
         keywords: list[str] | None = None,
         max_entries: int = MAX_MEMORY_ENTRIES,
     ) -> str:
         """
-        Retrieve AI entity's memories as formatted context.
+        Retrieve AI entity's memories using tiered retrieval.
 
-        Uses injected memory retriever for enhanced retrieval strategy.
-        Falls back to direct repository access if no retriever provided.
-
-        Process:
-        1. Retrieve candidates (over-fetch for filtering)
-        2. Filter and rank candidates
-        3. Update access tracking
-        4. Format for LLM context
+        Uses 3-layer retrieval with cross-layer RRF fusion:
+        - Short-term: Recent conversation context
+        - Long-term: Past conversations with user
+        - Personality: Global knowledge base
 
         Args:
             ai_entity_id: AI entity ID
-            keywords: Optional keywords for keyword-based filtering
-            max_entries: Maximum number of memory entries to retrieve
+            user_id: User ID for personalized memories
+            conversation_id: Current conversation ID
+            query: Query text for semantic search
+            keywords: Optional keywords (deprecated, query used instead)
+            max_entries: Maximum entries (controlled by config)
 
         Returns:
             Formatted memory context string
         """
-        # Retrieve memory candidates
-        if self.memory_retriever:
-            # Use retriever for enhanced retrieval (keyword-based or vector)
-            # Over-fetch candidates (4x) for better filtering
-            candidates = await self.memory_retriever.retrieve_candidates(
-                entity_id=ai_entity_id,
-                keywords=keywords,
-                limit=max_entries * 4,
-            )
-        else:
-            # Fallback: Direct repository access
-            candidates = await self.memory_repo.get_entity_memories(
-                entity_id=ai_entity_id,
-                limit=max_entries * 4,
-            )
-
-        if not candidates:
+        if not self.memory_retriever:
             return ""
 
-        # Filter and rank candidates
-        memories = await self._filter_and_rank(candidates, max_entries)
+        # Tiered retrieval with cross-layer RRF
+        memories = await self.memory_retriever.retrieve_tiered(
+            entity_id=ai_entity_id,
+            user_id=user_id,
+            conversation_id=conversation_id,
+            query=query,
+        )
 
         if not memories:
             return ""
 
-        # Update access tracking for selected memories
+        # Update access tracking
         await self._update_access_tracking(memories)
 
-        # Format memories as context
-        memory_lines = ["# Previous Memories:"]
-        for memory in memories:
-            importance_marker = "!" * int(memory.importance_score)  # Visual importance indicator
-            memory_lines.append(f"{importance_marker} {memory.summary}")
-
-        memory_context = "\n".join(memory_lines)
+        # Format tiered context
+        memory_context = self._format_tiered_context(memories)
 
         logger.info(
-            f"Retrieved {len(memories)} memories for AI entity {ai_entity_id} "
-            f"(keywords: {keywords}, importance scores: {[m.importance_score for m in memories]})"
+            f"Retrieved {len(memories)} tiered memories for AI entity {ai_entity_id} "
+            f"(user: {user_id}, conversation: {conversation_id})"
         )
 
         return memory_context
 
-    async def _filter_and_rank(
-        self,
-        candidates: list[AIMemory],
-        limit: int,
-    ) -> list[AIMemory]:
+    def _format_tiered_context(self, memories: list[AIMemory]) -> str:
         """
-        Filter and rank memory candidates.
-
-        Current implementation: Simple importance-based ranking.
-        Future: LLM-based relevance verification.
+        Format mixed-layer memories, grouped by type for clarity.
 
         Args:
-            candidates: List of memory candidates
-            limit: Maximum number of memories to return
+            memories: Mixed memories from all layers
 
         Returns:
-            Filtered and ranked list of memories
+            Formatted memory context string
         """
-        # Sort by importance score (descending)
-        ranked = sorted(
-            candidates,
-            key=lambda m: m.importance_score,
-            reverse=True,
-        )
+        # Group by type
+        short_term = [m for m in memories if m.memory_metadata and m.memory_metadata.get("type") == "short_term"]
+        long_term = [m for m in memories if m.memory_metadata and m.memory_metadata.get("type") == "long_term"]
+        personality = [m for m in memories if m.memory_metadata and m.memory_metadata.get("type") == "personality"]
 
-        # Return top N
-        return ranked[:limit]
+        lines = []
+
+        # Short-term
+        if short_term:
+            lines.append("# Recent Context (this conversation):")
+            for mem in short_term:
+                lines.append(f"- {mem.summary}")
+
+        # Long-term
+        if long_term:
+            lines.append("\n# Past Interactions:")
+            for mem in long_term:
+                lines.append(f"- {mem.summary}")
+
+        # Personality
+        if personality:
+            lines.append("\n# Personality & Knowledge:")
+            for mem in personality:
+                lines.append(f"- {mem.summary}")
+
+        return "\n".join(lines)
 
     async def _update_access_tracking(self, memories: list[AIMemory]) -> None:
         """
@@ -262,6 +257,7 @@ class AIContextService:
         conversation_id: int | None,
         room_id: int | None,
         ai_entity: AIEntity,
+        user_id: int,
         include_memories: bool = True,
     ) -> tuple[list[dict[str, str]], str | None]:
         """
@@ -271,6 +267,7 @@ class AIContextService:
             conversation_id: Conversation ID (for private/group chats)
             room_id: Room ID (for public room messages)
             ai_entity: AI entity that will respond
+            user_id: User ID for personalized memories
             include_memories: Whether to include AI memories in system prompt
 
         Returns:
@@ -291,7 +288,14 @@ class AIContextService:
 
         # Get memory context if enabled
         memory_context = None
-        if include_memories:
-            memory_context = await self.get_ai_memories(ai_entity.id)
+        if include_memories and messages:
+            # Use last user message as query for semantic search
+            query = messages[-1]["content"] if messages else ""
+            memory_context = await self.get_ai_memories(
+                ai_entity_id=ai_entity.id,
+                user_id=user_id,
+                conversation_id=conversation_id,
+                query=query,
+            )
 
         return messages, memory_context

@@ -299,22 +299,69 @@ async def delete_conversation(
     conversation_id: int,
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
+    ai_entity_repo: AIEntityRepository = Depends(get_ai_entity_repository),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
     _csrf: None = Depends(validate_csrf),
 ) -> None:
     """
-    Archive conversation (soft delete).
+    Archive conversation (soft delete) and create long-term memory.
 
     Sets is_active=false to archive the conversation.
-    Archived conversations are hidden from main list but data is preserved.
+    Enqueues background task to create long-term memory for AI entity.
+
+    Note: Currently only supports private chats (1 user + 1 AI).
+    TODO: Extend for group conversations.
 
     Only participants can archive conversations.
 
     :param conversation_id: Conversation ID
     :param current_user: Current authenticated user
     :param conversation_service: Service instance handling conversation logic
+    :param ai_entity_repo: AI entity repository for looking up AI
+    :param arq_pool: ARQ Redis pool for background tasks
     :return: 204 No Content on success
     """
+    # Get conversation details before archiving
+    conversation_detail = await conversation_service.get_conversation_by_id(
+        current_user=current_user,
+        conversation_id=conversation_id,
+    )
+
+    # Archive conversation
     await conversation_service.delete_conversation(
         current_user=current_user,
         conversation_id=conversation_id,
     )
+
+    # Enqueue long-term memory creation if AI participant exists
+    if settings.ai_features_enabled:
+        participants = conversation_detail.get("participants", [])
+
+        # Find AI participant
+        ai_participant = next((p for p in participants if p.get("ai_entity_id")), None)
+
+        if ai_participant:
+            try:
+                # Find human user participant (private chat assumption)
+                user_participant = next((p for p in participants if p.get("user_id")), None)
+
+                if user_participant:
+                    await arq_pool.enqueue_job(
+                        "create_long_term_memory_task",
+                        ai_participant["ai_entity_id"],
+                        user_participant["user_id"],
+                        conversation_id,
+                    )
+                    logger.info(
+                        "long_term_memory_enqueued",
+                        ai_entity_id=ai_participant["ai_entity_id"],
+                        user_id=user_participant["user_id"],
+                        conversation_id=conversation_id,
+                    )
+            except Exception as e:
+                # Non-critical: log warning, don't fail the archive
+                logger.warning(
+                    "long_term_memory_enqueue_failed",
+                    error=str(e),
+                    conversation_id=conversation_id,
+                )

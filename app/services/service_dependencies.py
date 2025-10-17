@@ -26,14 +26,21 @@ from app.repositories.repository_dependencies import (
 )
 from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
+from app.interfaces.embedding_service import IEmbeddingService
 from app.services.ai_entity_service import AIEntityService
 from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService
 from app.services.heuristic_summarizer import HeuristicMemorySummarizer
 from app.services.keyword_retriever import KeywordMemoryRetriever
+from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.memory_builder_service import MemoryBuilderService
+from app.services.openai_embedding_service import OpenAIEmbeddingService
+from app.services.personality_memory_service import PersonalityMemoryService
 from app.services.room_service import RoomService
+from app.services.short_term_memory_service import ShortTermMemoryService
+from app.services.text_chunking_service import TextChunkingService
 from app.services.translation_service import TranslationService
+from app.services.vector_memory_retriever import VectorMemoryRetriever
 from app.services.yake_extractor import YakeKeywordExtractor
 
 
@@ -190,20 +197,49 @@ def get_memory_summarizer() -> IMemorySummarizer:
     return HeuristicMemorySummarizer()
 
 
+def get_embedding_service() -> IEmbeddingService:
+    """
+    Create embedding service for vector search.
+
+    :return: Embedding service instance
+    """
+    return OpenAIEmbeddingService(
+        api_key=settings.openai_api_key,
+        model=settings.embedding_model,
+        dimensions=settings.embedding_dimensions,
+    )
+
+
+def get_text_chunking_service() -> TextChunkingService:
+    """
+    Create text chunking service.
+
+    :return: Text chunking service instance
+    """
+    return TextChunkingService(
+        chunk_size=500,
+        chunk_overlap=50,
+    )
+
+
 def get_memory_retriever(
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    embedding_service: IEmbeddingService = Depends(get_embedding_service),
 ) -> IMemoryRetriever:
     """
     Create memory retriever implementation based on feature flags.
 
-    Feature flags (future):
-    - ENABLE_VECTOR_SEARCH: Switch to vector-based or hybrid retrieval
-
     :param memory_repo: AI memory repository instance
-    :return: Memory retriever instance (default: Keyword-based)
+    :param embedding_service: Embedding service instance
+    :return: Memory retriever instance (Vector if enabled, else Keyword)
     """
-    # Future: Check settings.ENABLE_VECTOR_SEARCH for vector implementation
-    return KeywordMemoryRetriever(memory_repo=memory_repo)
+    if settings.enable_vector_search:
+        return VectorMemoryRetriever(
+            memory_repo=memory_repo,
+            embedding_service=embedding_service,
+        )
+    else:
+        return KeywordMemoryRetriever(memory_repo=memory_repo)
 
 
 def get_memory_builder_service(
@@ -233,4 +269,59 @@ def get_memory_builder_service(
         entity_repo=entity_repo,
         keyword_extractor=keyword_extractor,
         summarizer=summarizer,
+    )
+
+
+def get_short_term_memory_service(
+    memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+) -> ShortTermMemoryService:
+    """
+    Create ShortTermMemoryService instance.
+
+    :param memory_repo: AI memory repository instance
+    :return: ShortTermMemoryService instance
+    """
+    return ShortTermMemoryService(memory_repo=memory_repo)
+
+
+def get_long_term_memory_service(
+    memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    message_repo: IMessageRepository = Depends(get_message_repository),
+    embedding_service: IEmbeddingService = Depends(get_embedding_service),
+    chunking_service: TextChunkingService = Depends(get_text_chunking_service),
+) -> LongTermMemoryService:
+    """
+    Create LongTermMemoryService instance.
+
+    :param memory_repo: AI memory repository instance
+    :param message_repo: Message repository instance
+    :param embedding_service: Embedding service instance
+    :param chunking_service: Text chunking service instance
+    :return: LongTermMemoryService instance
+    """
+    return LongTermMemoryService(
+        memory_repo=memory_repo,
+        message_repo=message_repo,
+        embedding_service=embedding_service,
+        chunking_service=chunking_service,
+    )
+
+
+def get_personality_memory_service(
+    memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    embedding_service: IEmbeddingService = Depends(get_embedding_service),
+    chunking_service: TextChunkingService = Depends(get_text_chunking_service),
+) -> PersonalityMemoryService:
+    """
+    Create PersonalityMemoryService instance.
+
+    :param memory_repo: AI memory repository instance
+    :param embedding_service: Embedding service instance
+    :param chunking_service: Text chunking service instance
+    :return: PersonalityMemoryService instance
+    """
+    return PersonalityMemoryService(
+        memory_repo=memory_repo,
+        embedding_service=embedding_service,
+        chunking_service=chunking_service,
     )

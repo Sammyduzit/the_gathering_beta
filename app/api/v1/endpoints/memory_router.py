@@ -15,7 +15,16 @@ from app.models.ai_memory import AIMemory
 from app.models.user import User
 from app.repositories.ai_memory_repository import IAIMemoryRepository
 from app.repositories.repository_dependencies import get_ai_memory_repository
-from app.schemas.memory_schemas import MemoryCreate, MemoryListResponse, MemoryResponse, MemoryUpdate
+from app.schemas.memory_schemas import (
+    MemoryCreate,
+    MemoryListResponse,
+    MemoryResponse,
+    MemoryUpdate,
+    PersonalityUploadRequest,
+    PersonalityUploadResponse,
+)
+from app.services.personality_memory_service import PersonalityMemoryService
+from app.services.service_dependencies import get_personality_memory_service
 from app.services.yake_extractor import YakeKeywordExtractor
 
 router = APIRouter(prefix="/memories", tags=["memories"])
@@ -296,3 +305,57 @@ async def search_memories(
     )
 
     return memories
+
+
+@router.post("/admin/ai-entities/{entity_id}/personality", response_model=PersonalityUploadResponse, status_code=status.HTTP_201_CREATED)
+async def upload_personality(
+    entity_id: int,
+    request: PersonalityUploadRequest,
+    current_admin: User = Depends(get_current_admin_user),
+    personality_service: PersonalityMemoryService = Depends(get_personality_memory_service),
+    _csrf: None = Depends(validate_csrf),
+) -> PersonalityUploadResponse:
+    """
+    Upload personality knowledge base for AI entity (Admin only).
+
+    Creates global personality memories (not user-specific).
+    Text is chunked and embedded for semantic search.
+
+    Args:
+        entity_id: AI entity ID
+        request: Upload request with text, category, and metadata
+        current_admin: Current authenticated admin
+        personality_service: Personality memory service instance
+
+    Returns:
+        Upload result with memory count and IDs
+
+    Raises:
+        HTTPException: 400 if upload fails
+    """
+    if not request.text or not request.text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Text content cannot be empty",
+        )
+
+    try:
+        memories = await personality_service.upload_personality(
+            entity_id=entity_id,
+            text=request.text,
+            category=request.category,
+            metadata=request.metadata or {},
+        )
+
+        return PersonalityUploadResponse(
+            created_memories=len(memories),
+            memory_ids=[m.id for m in memories],
+            category=request.category,
+            chunks=len(memories),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Personality upload failed: {str(e)}",
+        )
