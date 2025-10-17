@@ -21,6 +21,20 @@ class IAIMemoryRepository(BaseRepository[AIMemory]):
         """Simple keyword-based memory search."""
         pass
 
+    @abstractmethod
+    async def vector_search(
+        self,
+        entity_id: int,
+        embedding: list[float],
+        user_id: int | None = None,
+        conversation_id: int | None = None,
+        exclude_conversation_id: int | None = None,
+        memory_type: str | None = None,
+        limit: int = 20,
+    ) -> list[AIMemory]:
+        """Vector similarity search using pgvector."""
+        pass
+
 
 class AIMemoryRepository(IAIMemoryRepository):
     """SQLAlchemy implementation of AI Memory repository."""
@@ -96,3 +110,53 @@ class AIMemoryRepository(IAIMemoryRepository):
     async def exists(self, id: int) -> bool:
         memory = await self.get_by_id(id)
         return memory is not None
+
+    async def vector_search(
+        self,
+        entity_id: int,
+        embedding: list[float],
+        user_id: int | None = None,
+        conversation_id: int | None = None,
+        exclude_conversation_id: int | None = None,
+        memory_type: str | None = None,
+        limit: int = 20,
+    ) -> list[AIMemory]:
+        """
+        Vector similarity search using pgvector cosine distance.
+
+        Args:
+            entity_id: AI entity ID
+            embedding: Query embedding vector
+            user_id: Filter by user (for short-term/long-term)
+            conversation_id: Filter by conversation
+            exclude_conversation_id: Exclude specific conversation
+            memory_type: Filter by type (short_term, long_term, personality)
+            limit: Maximum results
+
+        Returns:
+            List of memories ordered by similarity (ascending distance)
+        """
+        query = select(AIMemory).where(AIMemory.entity_id == entity_id)
+
+        # Filter by user_id if provided
+        if user_id is not None:
+            query = query.where(AIMemory.user_id == user_id)
+
+        # Filter by conversation_id if provided
+        if conversation_id is not None:
+            query = query.where(AIMemory.conversation_id == conversation_id)
+
+        # Exclude conversation if provided
+        if exclude_conversation_id is not None:
+            query = query.where(AIMemory.conversation_id != exclude_conversation_id)
+
+        # Filter by memory type if provided
+        if memory_type is not None:
+            query = query.where(AIMemory.memory_metadata["type"].astext == memory_type)
+
+        # Order by cosine distance (ascending = most similar first)
+        query = query.order_by(AIMemory.embedding.cosine_distance(embedding))
+        query = query.limit(limit)
+
+        result = await self.db.execute(query)
+        return list(result.scalars().all())

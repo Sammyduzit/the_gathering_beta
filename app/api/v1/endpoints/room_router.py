@@ -12,7 +12,7 @@ from app.schemas.room_schemas import RoomCreate, RoomResponse
 from app.schemas.room_user_schemas import (
     RoomJoinResponse,
     RoomLeaveResponse,
-    RoomUsersListResponse,
+    RoomParticipantsResponse,
     UserStatusUpdate,
 )
 from app.services.background_service import BackgroundService
@@ -216,20 +216,21 @@ async def leave_room(
     return leave_response
 
 
-@router.get("/{room_id}/users", response_model=RoomUsersListResponse)
-async def get_room_users(
+@router.get("/{room_id}/participants", response_model=RoomParticipantsResponse)
+async def get_room_participants(
     room_id: int,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
-) -> RoomUsersListResponse:
+) -> RoomParticipantsResponse:
     """
-    Get list of users currently in a room.
+    Get all participants (humans + AI) currently in a room.
+    Returns unified list consistent with conversation participants structure.
     :param room_id: Room ID
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
-    :return: List of users in room
+    :return: Unified list of all room participants
     """
-    return await room_service.get_room_users(room_id)
+    return await room_service.get_room_participants(room_id)
 
 
 @router.patch("/users/status")

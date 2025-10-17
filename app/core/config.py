@@ -29,6 +29,34 @@ class Settings(BaseSettings):
     redis_url: str
     ai_features_enabled: bool = True
 
+    # RAG & Vector Search Configuration
+    enable_vector_search: bool = True
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    vector_search_weight: float = 0.7
+    keyword_search_weight: float = 0.3
+
+    # Memory retrieval limits
+    total_memory_limit: int = 7
+
+    # Guaranteed minimums per layer (for cross-layer RRF)
+    guaranteed_short_term: int = 1
+    guaranteed_long_term: int = 0
+    guaranteed_personality: int = 0
+
+    # Layer weights for cross-layer RRF
+    short_term_weight: float = 2.0
+    long_term_weight: float = 1.0
+    personality_weight: float = 1.0
+
+    # Retrieval candidate limits per layer (over-fetch for RRF)
+    short_term_candidates: int = 5
+    long_term_candidates: int = 5
+    personality_candidates: int = 5
+
+    # TTL for short-term memories (in days)
+    short_term_ttl_days: int = 7
+
     # Cookie Security Configuration
     cookie_domain: str | None = None
     cookie_secure: bool = DEFAULT_COOKIE_SECURE

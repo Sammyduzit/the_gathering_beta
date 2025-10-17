@@ -11,6 +11,7 @@ from app.core.exceptions import (
 from app.models.message import Message
 from app.models.room import Room
 from app.models.user import User, UserStatus
+from app.repositories.ai_entity_repository import IAIEntityRepository
 from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.message_translation_repository import IMessageTranslationRepository
@@ -32,6 +33,7 @@ class RoomService:
         conversation_repo: IConversationRepository,
         message_translation_repo: IMessageTranslationRepository,
         translation_service: TranslationService,
+        ai_entity_repo: IAIEntityRepository,
     ):
         self.room_repo = room_repo
         self.user_repo = user_repo
@@ -39,6 +41,7 @@ class RoomService:
         self.conversation_repo = conversation_repo
         self.message_translation_repo = message_translation_repo
         self.translation_service = translation_service
+        self.ai_entity_repo = ai_entity_repo
 
     async def get_all_rooms(self) -> list[Room]:
         """Get all active rooms."""
@@ -193,31 +196,52 @@ class RoomService:
             "room_name": room.name,
         }
 
-    async def get_room_users(self, room_id: int) -> dict:
+    async def get_room_participants(self, room_id: int) -> dict:
         """
-        Get users in room with validation.
+        Get all participants (humans + AI) in room with validation.
+        Returns unified list of participants consistent with conversation participants structure.
         :param room_id: Room ID
-        :return: Room users data
+        :return: Room participants data including both humans and AI
         """
         room = await self._get_room_or_404(room_id)
+
+        # Get human users
         users = await self.room_repo.get_users_in_room(room_id)
 
-        room_users = [
+        # Build participant list with human users
+        participants = [
             {
                 "id": user.id,
                 "username": user.username,
+                "display_name": user.username,  # For humans, username = display_name
                 "avatar_url": user.avatar_url,
                 "status": user.status.value,
+                "is_ai": False,
                 "last_active": user.last_active,
             }
             for user in users
         ]
 
+        # Get AI entity if present in room
+        ai_entity = await self.ai_entity_repo.get_ai_in_room(room_id)
+        if ai_entity:
+            participants.append(
+                {
+                    "id": ai_entity.id,
+                    "username": ai_entity.name,  # Technical name (e.g., "bot_beta")
+                    "display_name": ai_entity.display_name,  # UI name (e.g., "Bot Beta")
+                    "avatar_url": None,  # AI entities don't have avatars
+                    "status": ai_entity.status.value,
+                    "is_ai": True,
+                    "last_active": None,  # AI entities don't have last_active
+                }
+            )
+
         return {
             "room_id": room_id,
             "room_name": room.name,
-            "total_users": len(room_users),
-            "users": room_users,
+            "total_participants": len(participants),
+            "participants": participants,
         }
 
     async def update_user_status(self, current_user: User, new_status: UserStatus) -> dict:

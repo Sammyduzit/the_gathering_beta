@@ -99,6 +99,7 @@ def get_room_service(
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),
     message_translation_repo: IMessageTranslationRepository = Depends(get_message_translation_repository),
     translation_service: TranslationService = Depends(get_translation_service),
+    ai_entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
 ) -> RoomService:
     """
     Create RoomService instance with repository dependencies.
@@ -108,6 +109,7 @@ def get_room_service(
     :param conversation_repo: Conversation repository instance
     :param message_translation_repo: MessageTranslation repository instance
     :param translation_service: Translation service instance
+    :param ai_entity_repo: AI entity repository instance
     :return: RoomService instance
     """
     return RoomService(
@@ -117,6 +119,7 @@ def get_room_service(
         conversation_repo=conversation_repo,
         message_translation_repo=message_translation_repo,
         translation_service=translation_service,
+        ai_entity_repo=ai_entity_repo,
     )
 
 
