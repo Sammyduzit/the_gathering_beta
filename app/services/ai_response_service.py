@@ -268,9 +268,7 @@ class AIResponseService:
         logger.warning(f"Unknown room response strategy: {strategy} for AI '{ai_entity.name}'")
         return False
 
-    def _should_respond_in_conversation(
-        self, ai_entity: AIEntity, message: Message, conversation_id: int
-    ) -> bool:
+    def _should_respond_in_conversation(self, ai_entity: AIEntity, message: Message, conversation_id: int) -> bool:
         """
         Determine if AI should respond in a conversation based on conversation response strategy.
 
