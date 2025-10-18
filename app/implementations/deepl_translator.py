@@ -129,7 +129,7 @@ class DeepLTranslator(TranslatorInterface):
                 for lang in target_langs:
                     all_langs.add(lang.code.lower())
 
-                self._supported_languages = sorted(list(all_langs))
+                self._supported_languages = sorted(all_langs)
             except Exception as e:
                 logger.error(f"Failed to get supported languages: {e}")
                 # Return common languages as fallback
@@ -152,7 +152,7 @@ class DeepLTranslator(TranslatorInterface):
         # Try to get account usage info as a health check
         self.client.get_usage()
 
-    async def dispose(self) -> None:
+    def dispose(self) -> None:
         """Clean up resources."""
         if self.executor:
             self.executor.shutdown(wait=True)

@@ -29,6 +29,145 @@ from app.services.yake_extractor import YakeKeywordExtractor
 logger = structlog.get_logger(__name__)
 
 
+async def _lookup_ai_entity(
+    ai_entity_repo: AIEntityRepository,
+    ai_entity_id: int | None,
+    room_id: int | None,
+    conversation_id: int | None,
+) -> AIEntity | None:
+    """
+    Lookup AI entity from ID or context (room/conversation).
+
+    Args:
+        ai_entity_repo: AI entity repository
+        ai_entity_id: Direct AI entity ID (if provided)
+        room_id: Room ID for lookup (if no direct ID)
+        conversation_id: Conversation ID for lookup (if no direct ID)
+
+    Returns:
+        AIEntity if found, None otherwise
+    """
+    if ai_entity_id:
+        return await ai_entity_repo.get_by_id(ai_entity_id)
+    elif room_id:
+        return await ai_entity_repo.get_ai_in_room(room_id)
+    elif conversation_id:
+        return await ai_entity_repo.get_ai_in_conversation(conversation_id)
+    return None
+
+
+async def _generate_response_for_target(
+    response_service,
+    room_id: int | None,
+    conversation_id: int | None,
+    ai_entity: AIEntity,
+    message_id: int,
+    sender_user_id: int | None,
+):
+    """
+    Generate AI response for room or conversation.
+
+    Args:
+        response_service: AI response service
+        room_id: Room ID (for room responses)
+        conversation_id: Conversation ID (for conversation responses)
+        ai_entity: AI entity generating response
+        message_id: Message ID to reply to
+        sender_user_id: User ID who sent the message
+
+    Returns:
+        Generated Message object
+    """
+    if room_id:
+        return await response_service.generate_room_response(
+            room_id=room_id,
+            ai_entity=ai_entity,
+            user_id=sender_user_id,
+            include_memories=True,
+            in_reply_to_message_id=message_id,
+        )
+    else:
+        return await response_service.generate_conversation_response(
+            conversation_id=conversation_id,
+            ai_entity=ai_entity,
+            user_id=sender_user_id,
+            include_memories=True,
+            in_reply_to_message_id=message_id,
+        )
+
+
+async def _handle_post_generation_checks(ai_entity: AIEntity, room_id: int | None, session, message_repo) -> bool:
+    """
+    Validate AI entity after response generation (race condition protection).
+
+    Args:
+        ai_entity: AI entity to validate
+        room_id: Room ID if in room context
+        session: Database session
+        message_repo: Message repository
+
+    Returns:
+        True if validation passed, False if AI became invalid during generation
+    """
+    await session.refresh(ai_entity)
+    return _validate_ai_can_respond(ai_entity, room_id)
+
+
+async def _create_inline_memory(
+    conversation_id: int | None,
+    sender_user_id: int | None,
+    ai_entity: AIEntity,
+    message_repo,
+    memory_repo,
+) -> None:
+    """
+    Create short-term memory after AI response (non-critical, inline).
+
+    Args:
+        conversation_id: Conversation ID
+        sender_user_id: User ID for personalized memory
+        ai_entity: AI entity
+        message_repo: Message repository
+        memory_repo: Memory repository
+
+    Note:
+        Logs warning on failure but doesn't raise (non-critical operation)
+    """
+    if not (conversation_id and sender_user_id):
+        return
+
+    try:
+        short_term_service = ShortTermMemoryService(memory_repo=memory_repo)
+
+        # Get recent messages for memory creation
+        recent_messages, _ = await message_repo.get_conversation_messages(
+            conversation_id=conversation_id,
+            page=1,
+            page_size=20,
+        )
+
+        await short_term_service.create_short_term_memory(
+            entity_id=ai_entity.id,
+            user_id=sender_user_id,
+            conversation_id=conversation_id,
+            messages=recent_messages,
+        )
+
+        logger.debug(
+            "short_term_memory_created",
+            ai_entity_id=ai_entity.id,
+            user_id=sender_user_id,
+            conversation_id=conversation_id,
+        )
+    except Exception as e:
+        # Non-critical: log warning, don't fail the task
+        logger.warning(
+            "short_term_memory_creation_failed",
+            error=str(e),
+            conversation_id=conversation_id,
+        )
+
+
 def _validate_ai_can_respond(ai_entity: AIEntity, room_id: int | None) -> bool:
     """
     Validate that AI entity can respond in current context.
@@ -105,13 +244,7 @@ async def check_and_generate_ai_response(
             memory_repo = AIMemoryRepository(session)
 
             # Get AI entity (from ID or lookup)
-            ai_entity = None
-            if ai_entity_id:
-                ai_entity = await ai_entity_repo.get_by_id(ai_entity_id)
-            elif room_id:
-                ai_entity = await ai_entity_repo.get_ai_in_room(room_id)
-            elif conversation_id:
-                ai_entity = await ai_entity_repo.get_ai_in_conversation(conversation_id)
+            ai_entity = await _lookup_ai_entity(ai_entity_repo, ai_entity_id, room_id, conversation_id)
 
             if not ai_entity:
                 logger.info(
@@ -171,28 +304,18 @@ async def check_and_generate_ai_response(
                 return {"skipped": "Strategy check failed"}
 
             # Generate response (5-30s duration)
-            if room_id:
-                ai_message = await response_service.generate_room_response(
-                    room_id=room_id,
-                    ai_entity=ai_entity,
-                    user_id=message.sender_user_id,  # Pass for potential future room memories
-                    include_memories=True,
-                    in_reply_to_message_id=message_id,
-                )
-            else:
-                ai_message = await response_service.generate_conversation_response(
-                    conversation_id=conversation_id,
-                    ai_entity=ai_entity,
-                    user_id=message.sender_user_id,  # Required for personalized memories
-                    include_memories=True,
-                    in_reply_to_message_id=message_id,
-                )
+            ai_message = await _generate_response_for_target(
+                response_service=response_service,
+                room_id=room_id,
+                conversation_id=conversation_id,
+                ai_entity=ai_entity,
+                message_id=message_id,
+                sender_user_id=message.sender_user_id,
+            )
 
             # POST-CHECK: Re-validate AI still active (prevents race conditions)
-            await session.refresh(ai_entity)
-            if not _validate_ai_can_respond(ai_entity, room_id):
-                # AI was set offline or left room during generation
-                # Delete the generated message
+            if not await _handle_post_generation_checks(ai_entity, room_id, session, message_repo):
+                # AI was set offline or left room during generation - delete the message
                 await message_repo.delete(ai_message.id)
                 logger.warning(
                     "ai_response_cancelled",
@@ -209,38 +332,14 @@ async def check_and_generate_ai_response(
                 conversation_id=conversation_id,
             )
 
-            # Create short-term memory after AI response (inline, fast)
-            if conversation_id and message.sender_user_id:
-                try:
-                    short_term_service = ShortTermMemoryService(memory_repo=memory_repo)
-
-                    # Get recent messages for memory creation
-                    recent_messages, _ = await message_repo.get_conversation_messages(
-                        conversation_id=conversation_id,
-                        page=1,
-                        page_size=20,
-                    )
-
-                    await short_term_service.create_short_term_memory(
-                        entity_id=ai_entity.id,
-                        user_id=message.sender_user_id,
-                        conversation_id=conversation_id,
-                        messages=recent_messages,
-                    )
-
-                    logger.debug(
-                        "short_term_memory_created",
-                        ai_entity_id=ai_entity.id,
-                        user_id=message.sender_user_id,
-                        conversation_id=conversation_id,
-                    )
-                except Exception as e:
-                    # Non-critical: log warning, don't fail the task
-                    logger.warning(
-                        "short_term_memory_creation_failed",
-                        error=str(e),
-                        conversation_id=conversation_id,
-                    )
+            # Create short-term memory after AI response (inline, fast, non-critical)
+            await _create_inline_memory(
+                conversation_id=conversation_id,
+                sender_user_id=message.sender_user_id,
+                ai_entity=ai_entity,
+                message_repo=message_repo,
+                memory_repo=memory_repo,
+            )
 
             return {
                 "ai_message_id": ai_message.id,

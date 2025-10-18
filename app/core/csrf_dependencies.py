@@ -13,7 +13,7 @@ CSRF_EXEMPT_PATHS = {
 }
 
 
-async def validate_csrf(request: Request) -> None:
+def validate_csrf(request: Request) -> None:
     """
     Validate CSRF token for state-changing operations using Double-Submit Cookie pattern.
 

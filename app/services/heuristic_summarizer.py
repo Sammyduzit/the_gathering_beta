@@ -95,7 +95,7 @@ class HeuristicMemorySummarizer(IMemorySummarizer):
             elif msg.sender_ai_id and hasattr(msg, "sender_ai") and msg.sender_ai:
                 participants.add(msg.sender_ai.display_name)
 
-        return sorted(list(participants))
+        return sorted(participants)
 
     def _determine_topic(self, messages: list[Message]) -> str:
         """

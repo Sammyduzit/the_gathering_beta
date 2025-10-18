@@ -13,6 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
+from app.core.constants import ONDELETE_CASCADE, ONDELETE_RESTRICT, ONDELETE_SET_NULL
 from app.core.database import Base
 
 
@@ -42,12 +43,12 @@ class Message(Base):
     # Polymorphic sender (User XOR AI)
     sender_user_id = Column(
         Integer,
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("users.id", ondelete=ONDELETE_SET_NULL),
         nullable=True,
     )
     sender_ai_id = Column(
         Integer,
-        ForeignKey("ai_entities.id", ondelete="SET NULL"),
+        ForeignKey("ai_entities.id", ondelete=ONDELETE_SET_NULL),
         nullable=True,
     )
 
@@ -55,13 +56,13 @@ class Message(Base):
     message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
     sent_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
-    room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True)
+    room_id = Column(Integer, ForeignKey("rooms.id", ondelete=ONDELETE_SET_NULL), nullable=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete=ONDELETE_CASCADE), nullable=True)
 
     # Threading Support (Reply-To)
     in_reply_to_message_id = Column(
         Integer,
-        ForeignKey("messages.id", ondelete="RESTRICT"),
+        ForeignKey("messages.id", ondelete=ONDELETE_RESTRICT),
         nullable=True,
         index=True,
     )

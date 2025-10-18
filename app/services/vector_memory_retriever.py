@@ -30,23 +30,6 @@ class VectorMemoryRetriever(IMemoryRetriever):
             top=10,
         )
 
-    async def retrieve(
-        self,
-        entity_id: int,
-        query: str,
-        room_id: int | None = None,
-        limit: int = 5,
-    ) -> list[AIMemory]:
-        """Simple retrieval (backward compatibility)."""
-        return await self._hybrid_search_single_layer(
-            entity_id=entity_id,
-            query=query,
-            user_id=None,
-            conversation_id=None,
-            memory_type=None,
-            limit=limit,
-        )
-
     async def retrieve_tiered(
         self,
         entity_id: int,

@@ -187,7 +187,7 @@ class MemoryBuilderService:
 
         # Build content structure
         content = {
-            "participants": sorted(list(participants)),
+            "participants": sorted(participants),
             "topic": topic,
             "key_facts": [],  # Placeholder for future LLM extraction
             "context": f"Conversation with {len(messages)} messages",

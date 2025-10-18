@@ -103,33 +103,22 @@ class AIEntityService:
 
         # Handle status change (auto-leave room if set to OFFLINE)
         if status is not None and status != entity.status:
-            if status == AIEntityStatus.OFFLINE and entity.current_room_id:
-                await self._remove_from_room(entity)
-            entity.status = status
+            await self._handle_status_update(entity, status)
 
         # Handle room assignment if explicitly provided
         if current_room_id is not ...:
-            if current_room_id is None:
-                # Remove from current room
-                if entity.current_room_id:
-                    await self._remove_from_room(entity)
-            else:
-                # Assign to new room
-                await self._assign_to_room(entity, current_room_id)
+            await self._handle_room_update(entity, current_room_id)
 
         # Update other fields
-        if display_name is not None:
-            entity.display_name = display_name
-        if system_prompt is not None:
-            entity.system_prompt = system_prompt
-        if model_name is not None:
-            entity.model_name = model_name
-        if temperature is not None:
-            entity.temperature = temperature
-        if max_tokens is not None:
-            entity.max_tokens = max_tokens
-        if config is not None:
-            entity.config = config
+        self._update_entity_fields(
+            entity,
+            display_name=display_name,
+            system_prompt=system_prompt,
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            config=config,
+        )
 
         return await self.ai_entity_repo.update(entity)
 
@@ -275,6 +264,78 @@ class AIEntityService:
 
         # Clear room assignment
         entity.current_room_id = None
+
+    async def _handle_status_update(self, entity: AIEntity, new_status: AIEntityStatus) -> None:
+        """
+        Handle status change with auto-leave logic.
+
+        Args:
+            entity: AI entity to update
+            new_status: New status to set
+
+        Side Effects:
+            - Removes entity from room if status is OFFLINE and entity is in a room
+            - Updates entity.status
+        """
+        if new_status == AIEntityStatus.OFFLINE and entity.current_room_id:
+            await self._remove_from_room(entity)
+        entity.status = new_status
+
+    async def _handle_room_update(self, entity: AIEntity, new_room_id: int | None) -> None:
+        """
+        Handle room assignment or removal.
+
+        Args:
+            entity: AI entity to update
+            new_room_id: New room ID (None = leave room, int = assign to room)
+
+        Raises:
+            RoomNotFoundException: If room doesn't exist
+            InvalidOperationException: If room already has AI or AI is offline
+        """
+        if new_room_id is None:
+            if entity.current_room_id:
+                await self._remove_from_room(entity)
+        else:
+            await self._assign_to_room(entity, new_room_id)
+
+    def _update_entity_fields(
+        self,
+        entity: AIEntity,
+        display_name: str | None = None,
+        system_prompt: str | None = None,
+        model_name: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        config: dict | None = None,
+    ) -> None:
+        """
+        Update entity fields if provided.
+
+        Args:
+            entity: AI entity to update
+            display_name: New display name (if provided)
+            system_prompt: New system prompt (if provided)
+            model_name: New model name (if provided)
+            temperature: New temperature (if provided)
+            max_tokens: New max tokens (if provided)
+            config: New config (if provided)
+
+        Side Effects:
+            Updates entity fields in-place
+        """
+        if display_name is not None:
+            entity.display_name = display_name
+        if system_prompt is not None:
+            entity.system_prompt = system_prompt
+        if model_name is not None:
+            entity.model_name = model_name
+        if temperature is not None:
+            entity.temperature = temperature
+        if max_tokens is not None:
+            entity.max_tokens = max_tokens
+        if config is not None:
+            entity.config = config
 
     async def _generate_farewell_message(
         self,

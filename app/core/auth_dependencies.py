@@ -12,7 +12,7 @@ logger = structlog.get_logger(__name__)
 security = HTTPBearer(auto_error=False)
 
 
-async def get_token(
+def get_token(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> str:
@@ -76,7 +76,7 @@ async def get_current_user(
     return user
 
 
-async def get_current_active_user(
+def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """
@@ -87,7 +87,7 @@ async def get_current_active_user(
     return current_user
 
 
-async def get_current_admin_user(
+def get_current_admin_user(
     current_user: User = Depends(get_current_active_user),
 ) -> User:
     """

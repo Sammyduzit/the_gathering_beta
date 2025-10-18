@@ -186,9 +186,9 @@ class AIResponseService:
 
         # Delegate to appropriate strategy handler
         if room_id:
-            return await self._should_respond_in_room(ai_entity, latest_message, room_id)
+            return self._should_respond_in_room(ai_entity, latest_message, room_id)
         elif conversation_id:
-            return await self._should_respond_in_conversation(ai_entity, latest_message, conversation_id)
+            return self._should_respond_in_conversation(ai_entity, latest_message, conversation_id)
         else:
             logger.warning("should_ai_respond called without room_id or conversation_id")
             return False
@@ -210,7 +210,7 @@ class AIResponseService:
             logger.error(f"AI provider availability check failed: {e}")
             return False
 
-    async def _should_respond_in_room(self, ai_entity: AIEntity, message: Message, room_id: int) -> bool:
+    def _should_respond_in_room(self, ai_entity: AIEntity, message: Message, room_id: int) -> bool:
         """
         Determine if AI should respond in a room based on room response strategy.
 
@@ -268,7 +268,7 @@ class AIResponseService:
         logger.warning(f"Unknown room response strategy: {strategy} for AI '{ai_entity.name}'")
         return False
 
-    async def _should_respond_in_conversation(
+    def _should_respond_in_conversation(
         self, ai_entity: AIEntity, message: Message, conversation_id: int
     ) -> bool:
         """

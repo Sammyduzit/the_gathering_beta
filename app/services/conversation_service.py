@@ -35,6 +35,26 @@ class ConversationService:
         self.translation_service = translation_service
         self.ai_entity_repo = ai_entity_repo
 
+    @staticmethod
+    def _get_message_preview(message: Message | None, max_length: int = 50) -> str | None:
+        """
+        Generate message preview with truncation.
+
+        Args:
+            message: Message object or None
+            max_length: Maximum length before truncation
+
+        Returns:
+            Truncated message preview or None if no message
+        """
+        if not message:
+            return None
+
+        if len(message.content) > max_length:
+            return message.content[:max_length] + "..."
+
+        return message.content
+
     async def create_conversation(
         self,
         current_user: User,
@@ -200,13 +220,7 @@ class ConversationService:
             # Get latest message for preview
             latest_message_obj = await self.message_repo.get_latest_conversation_message(conv.id)
             latest_message_at = latest_message_obj.sent_at if latest_message_obj else None
-            latest_message_preview = (
-                latest_message_obj.content[:50] + "..."
-                if latest_message_obj and len(latest_message_obj.content) > 50
-                else latest_message_obj.content
-                if latest_message_obj
-                else None
-            )
+            latest_message_preview = self._get_message_preview(latest_message_obj)
 
             conversation_list.append(
                 {

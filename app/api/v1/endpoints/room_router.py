@@ -7,7 +7,7 @@ from app.core.background_tasks import async_bg_task_manager
 from app.core.config import settings
 from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
-from app.schemas.chat_schemas import MessageCreate, MessageResponse
+from app.schemas.chat_schemas import MessageCreate, MessageResponse, PaginatedMessagesResponse
 from app.schemas.room_schemas import RoomCreate, RoomResponse
 from app.schemas.room_user_schemas import (
     RoomJoinResponse,
@@ -319,22 +319,33 @@ async def send_room_message(
     return message_response
 
 
-@router.get("/{room_id}/messages", response_model=list[MessageResponse])
+@router.get("/{room_id}/messages", response_model=PaginatedMessagesResponse)
 async def get_room_messages(
     room_id: int,
     page: int = 1,
     page_size: int = 50,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
-) -> list[MessageResponse]:
+) -> PaginatedMessagesResponse:
     """
-    Get room message history.
+    Get room message history with pagination metadata.
     :param room_id: Room ID to get messages from
     :param page: Page number
     :param page_size: Messages per page
     :param current_user: Current authenticated User
     :param room_service: Service instance handling room logic
-    :return: List of room messages
+    :return: Paginated message response with metadata
     """
     messages, total_count = await room_service.get_room_messages(current_user, room_id, page, page_size)
-    return messages
+
+    total_pages = (total_count + page_size - 1) // page_size
+    has_more = page < total_pages
+
+    return PaginatedMessagesResponse(
+        messages=messages,
+        total=total_count,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        has_more=has_more,
+    )

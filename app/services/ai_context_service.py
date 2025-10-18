@@ -7,7 +7,7 @@ Retrieves message history and AI memory to provide context for LLM responses.
 import logging
 from datetime import datetime, timezone
 
-from app.core.constants import MAX_CONTEXT_MESSAGES, MAX_MEMORY_ENTRIES
+from app.core.constants import MAX_CONTEXT_MESSAGES
 from app.interfaces.memory_retriever import IMemoryRetriever
 from app.models.ai_entity import AIEntity
 from app.models.ai_memory import AIMemory
@@ -143,7 +143,6 @@ class AIContextService:
         conversation_id: int | None,
         query: str,
         keywords: list[str] | None = None,
-        max_entries: int = MAX_MEMORY_ENTRIES,
     ) -> str:
         """
         Retrieve AI entity's memories using tiered retrieval.
@@ -159,10 +158,12 @@ class AIContextService:
             conversation_id: Current conversation ID
             query: Query text for semantic search
             keywords: Optional keywords (deprecated, query used instead)
-            max_entries: Maximum entries (controlled by config)
 
         Returns:
             Formatted memory context string
+
+        Note:
+            Memory limits are controlled by settings (short_term_candidates, long_term_candidates, etc.)
         """
         if not self.memory_retriever:
             return ""
@@ -286,7 +287,7 @@ class AIContextService:
         memory_context = None
         if include_memories and messages and user_id:
             # Use last user message as query for semantic search
-            query = messages[-1]["content"] if messages else ""
+            query = messages[-1]["content"]
             memory_context = await self.get_ai_memories(
                 ai_entity_id=ai_entity.id,
                 user_id=user_id,

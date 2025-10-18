@@ -1,6 +1,6 @@
 import yake
 
-from app.interfaces.embedding_service import IEmbeddingService
+from app.interfaces.embedding_service import EmbeddingServiceError, IEmbeddingService
 from app.models.ai_memory import AIMemory
 from app.repositories.ai_memory_repository import AIMemoryRepository
 from app.repositories.message_repository import MessageRepository
@@ -81,7 +81,7 @@ class LongTermMemoryService:
             embeddings = await self.embedding_service.embed_batch(chunks)
         except Exception as e:
             # Fail fast: Embedding error = Memory creation fails
-            raise Exception(f"Long-term memory creation failed: {e}")
+            raise EmbeddingServiceError(f"Long-term memory creation failed: {e}", original_error=e)
 
         # Create AIMemory per chunk
         memories = []

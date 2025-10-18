@@ -170,8 +170,7 @@ class ConversationRepository(IConversationRepository):
         if user_id:
             if await self.is_participant(conversation_id, user_id):
                 raise ValueError("User is already a participant in this conversation")
-
-        if ai_entity_id:
+        elif ai_entity_id:
             # Check if AI already in conversation
             query = select(ConversationParticipant).where(
                 and_(

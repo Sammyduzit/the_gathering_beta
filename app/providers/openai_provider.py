@@ -52,6 +52,64 @@ class OpenAIProvider(IAIProvider):
             max_tokens=default_max_tokens,
         )
 
+    def _build_messages(
+        self, messages: list[dict[str, str]], system_prompt: str | None = None
+    ) -> list[SystemMessage | HumanMessage]:
+        """
+        Build LangChain message list from message dicts.
+
+        Args:
+            messages: List of message dicts with 'role' and 'content' keys
+            system_prompt: Optional system prompt to prepend
+
+        Returns:
+            List of LangChain message objects
+        """
+        lc_messages = []
+
+        # Add system prompt if provided
+        if system_prompt:
+            lc_messages.append(SystemMessage(content=system_prompt))
+
+        # Convert messages to LangChain format
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+
+            if role == "system":
+                lc_messages.append(SystemMessage(content=content))
+            else:  # user or assistant
+                lc_messages.append(HumanMessage(content=content))
+
+        return lc_messages
+
+    def _get_llm_override(
+        self, temperature: float | None = None, max_tokens: int | None = None, streaming: bool = False, **kwargs
+    ) -> ChatOpenAI:
+        """
+        Get LLM instance with parameter overrides if needed.
+
+        Args:
+            temperature: Override default temperature
+            max_tokens: Override default max_tokens
+            streaming: Enable streaming mode
+            **kwargs: Additional OpenAI-specific parameters
+
+        Returns:
+            ChatOpenAI instance (either default or with overrides)
+        """
+        if temperature is None and max_tokens is None and not streaming:
+            return self.llm
+
+        return ChatOpenAI(
+            api_key=self.api_key,
+            model=self.model_name,
+            temperature=temperature if temperature is not None else self.default_temperature,
+            max_tokens=max_tokens if max_tokens is not None else self.default_max_tokens,
+            streaming=streaming,
+            **kwargs,
+        )
+
     async def generate_response(
         self,
         messages: list[dict[str, str]],
@@ -77,33 +135,9 @@ class OpenAIProvider(IAIProvider):
             AIProviderError: If OpenAI API call fails
         """
         try:
-            # Build LangChain message list
-            lc_messages = []
-
-            # Add system prompt if provided
-            if system_prompt:
-                lc_messages.append(SystemMessage(content=system_prompt))
-
-            # Convert messages to LangChain format
-            for msg in messages:
-                role = msg.get("role", "user")
-                content = msg.get("content", "")
-
-                if role == "system":
-                    lc_messages.append(SystemMessage(content=content))
-                else:  # user or assistant
-                    lc_messages.append(HumanMessage(content=content))
-
-            # Create LLM with overrides if provided
-            llm = self.llm
-            if temperature is not None or max_tokens is not None:
-                llm = ChatOpenAI(
-                    api_key=self.api_key,
-                    model=self.model_name,
-                    temperature=temperature if temperature is not None else self.default_temperature,
-                    max_tokens=max_tokens if max_tokens is not None else self.default_max_tokens,
-                    **kwargs,
-                )
+            # Build message list and get LLM instance
+            lc_messages = self._build_messages(messages, system_prompt)
+            llm = self._get_llm_override(temperature, max_tokens, **kwargs)
 
             # Generate response
             response = await llm.ainvoke(lc_messages)
@@ -138,34 +172,9 @@ class OpenAIProvider(IAIProvider):
             AIProviderError: If OpenAI API call fails
         """
         try:
-            # Build LangChain message list
-            lc_messages = []
-
-            # Add system prompt if provided
-            if system_prompt:
-                lc_messages.append(SystemMessage(content=system_prompt))
-
-            # Convert messages to LangChain format
-            for msg in messages:
-                role = msg.get("role", "user")
-                content = msg.get("content", "")
-
-                if role == "system":
-                    lc_messages.append(SystemMessage(content=content))
-                else:
-                    lc_messages.append(HumanMessage(content=content))
-
-            # Create LLM with overrides if provided
-            llm = self.llm
-            if temperature is not None or max_tokens is not None:
-                llm = ChatOpenAI(
-                    api_key=self.api_key,
-                    model=self.model_name,
-                    temperature=temperature if temperature is not None else self.default_temperature,
-                    max_tokens=max_tokens if max_tokens is not None else self.default_max_tokens,
-                    streaming=True,
-                    **kwargs,
-                )
+            # Build message list and get LLM instance with streaming enabled
+            lc_messages = self._build_messages(messages, system_prompt)
+            llm = self._get_llm_override(temperature, max_tokens, streaming=True, **kwargs)
 
             # Stream response
             async for chunk in llm.astream(lc_messages):
