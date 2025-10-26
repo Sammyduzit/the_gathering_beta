@@ -457,22 +457,21 @@ async def create_conversation_memory_task(
 async def create_long_term_memory_task(
     ctx: dict,
     ai_entity_id: int,
-    user_id: int,
     conversation_id: int,
 ) -> dict:
     """
     ARQ task: Create long-term memory archive from finalized conversation.
 
     This task:
+    - Fetches ALL participants from conversation
     - Fetches ALL messages from conversation
     - Chunks text
     - Generates embeddings (batch)
-    - Creates multiple AIMemory entries (one per chunk)
+    - Creates multiple AIMemory entries (one per chunk) with all participant user IDs
 
     Args:
         ctx: ARQ context with db_manager
         ai_entity_id: AI entity ID
-        user_id: User ID for user-specific memory
         conversation_id: Conversation ID to archive
 
     Returns:
@@ -485,8 +484,23 @@ async def create_long_term_memory_task(
 
     try:
         async for session in db_manager.get_session():
+            from app.repositories.conversation_repository import ConversationRepository
+
             message_repo = MessageRepository(session)
             memory_repo = AIMemoryRepository(session)
+            conversation_repo = ConversationRepository(session)
+
+            # Fetch all human participants from conversation
+            participants = await conversation_repo.get_participants(conversation_id)
+            user_ids = [p.user_id for p in participants if p.user_id is not None]
+
+            if not user_ids:
+                logger.warning(
+                    "long_term_memory_skipped_no_users",
+                    ai_entity_id=ai_entity_id,
+                    conversation_id=conversation_id,
+                )
+                return {"memory_count": 0, "memory_ids": []}
 
             # Initialize services
             embedding_service = OpenAIEmbeddingService(
@@ -502,17 +516,17 @@ async def create_long_term_memory_task(
                 chunking_service=chunking_service,
             )
 
-            # Create long-term archive
+            # Create long-term archive with all participant user IDs
             memories = await long_term_service.create_long_term_archive(
                 entity_id=ai_entity_id,
-                user_id=user_id,
+                user_ids=user_ids,
                 conversation_id=conversation_id,
             )
 
             logger.info(
                 "long_term_memory_created",
                 ai_entity_id=ai_entity_id,
-                user_id=user_id,
+                user_ids=user_ids,
                 conversation_id=conversation_id,
                 memory_count=len(memories),
             )
@@ -527,7 +541,6 @@ async def create_long_term_memory_task(
             "long_term_memory_creation_failed",
             error=str(e),
             ai_entity_id=ai_entity_id,
-            user_id=user_id,
             conversation_id=conversation_id,
         )
         raise Retry(defer=ctx["job_try"] * 10)  # Retry with backoff

@@ -308,7 +308,7 @@ class VectorMemoryRetriever(IMemoryRetriever):
         filtered = results
 
         if user_id is not None:
-            filtered = [m for m in filtered if m.user_id == user_id]
+            filtered = [m for m in filtered if user_id in m.user_ids]
 
         if conversation_id is not None:
             filtered = [m for m in filtered if m.conversation_id == conversation_id]

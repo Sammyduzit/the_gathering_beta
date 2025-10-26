@@ -138,9 +138,9 @@ class AIMemoryRepository(IAIMemoryRepository):
         """
         query = select(AIMemory).where(AIMemory.entity_id == entity_id)
 
-        # Filter by user_id if provided
+        # Filter by user_id if provided (check if user_id is in user_ids array)
         if user_id is not None:
-            query = query.where(AIMemory.user_id == user_id)
+            query = query.where(AIMemory.user_ids.contains([user_id]))
 
         # Filter by conversation_id if provided
         if conversation_id is not None:

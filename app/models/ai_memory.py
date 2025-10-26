@@ -1,5 +1,5 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, Text
+from sqlalchemy import ARRAY, JSON, Column, DateTime, Float, ForeignKey, Index, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -14,7 +14,7 @@ class AIMemory(Base):
 
     id = Column(Integer, primary_key=True)
     entity_id = Column(Integer, ForeignKey("ai_entities.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    user_ids = Column(ARRAY(Integer), nullable=False, server_default="{}")
 
     # Context linking
     room_id = Column(Integer, ForeignKey("rooms.id", ondelete="CASCADE"), nullable=True)
@@ -52,8 +52,12 @@ class AIMemory(Base):
         Index("idx_ai_memory_entity_room", "entity_id", "room_id"),
         Index("idx_ai_memory_keywords", "keywords", postgresql_using="gin"),
         Index("idx_ai_memory_access_count", "access_count"),
-        Index("ai_memories_user_type_conv_idx", "user_id", "memory_metadata", "conversation_id"),
-        Index("ai_memories_entity_user_idx", "entity_id", "user_id"),
+        Index(
+            "idx_ai_memory_user_ids",
+            "user_ids",
+            postgresql_using="gin",
+            postgresql_ops={"user_ids": "array_ops"},
+        ),
         Index("ai_memories_created_at_idx", "created_at"),
         Index(
             "ai_memories_embedding_idx",

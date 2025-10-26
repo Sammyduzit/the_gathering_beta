@@ -1,4 +1,5 @@
 import structlog
+from typing import TYPE_CHECKING
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -19,6 +20,9 @@ from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.room_repository import IRoomRepository
 
+if TYPE_CHECKING:
+    from app.services.conversation_service import ConversationService
+
 logger = structlog.get_logger(__name__)
 
 
@@ -32,12 +36,14 @@ class AIEntityService:
         cooldown_repo: IAICooldownRepository,
         room_repo: IRoomRepository,
         message_repo: IMessageRepository,
+        conversation_service: "ConversationService",
     ):
         self.ai_entity_repo = ai_entity_repo
         self.conversation_repo = conversation_repo
         self.cooldown_repo = cooldown_repo
         self.room_repo = room_repo
         self.message_repo = message_repo
+        self.conversation_service = conversation_service
 
     async def get_all_entities(self) -> list[AIEntity]:
         """Get all AI entities."""
@@ -176,8 +182,12 @@ class AIEntityService:
         if not conversation:
             raise ConversationNotFoundException(conversation_id)
 
-        # Remove AI from conversation
+        # Remove AI from conversation and enqueue long-term memory creation
         await self.conversation_repo.remove_participant(conversation_id, ai_entity_id=ai_entity_id)
+        await self.conversation_service._enqueue_long_term_memory_for_ai(
+            conversation_id=conversation_id,
+            ai_entity_id=ai_entity_id,
+        )
 
         return {
             "message": f"AI entity '{entity.display_name}' removed from conversation",
@@ -459,8 +469,12 @@ Generate ONLY the farewell message, nothing else."""
             )
             await self.message_repo.create(farewell_msg)
 
-            # Leave conversation
+            # Leave conversation and enqueue long-term memory creation
             await self.conversation_repo.remove_participant(conversation.id, ai_entity_id=entity_id)
+            await self.conversation_service._enqueue_long_term_memory_for_ai(
+                conversation_id=conversation.id,
+                ai_entity_id=entity_id,
+            )
 
             summary["conversation_goodbyes"].append(
                 {

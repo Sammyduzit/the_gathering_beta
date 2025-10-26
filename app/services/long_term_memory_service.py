@@ -31,7 +31,7 @@ class LongTermMemoryService:
     async def create_long_term_archive(
         self,
         entity_id: int,
-        user_id: int,
+        user_ids: list[int],
         conversation_id: int,
     ) -> list[AIMemory]:
         """
@@ -45,7 +45,7 @@ class LongTermMemoryService:
 
         Args:
             entity_id: AI entity ID
-            user_id: User ID for user-specific memory
+            user_ids: List of user IDs (participants in conversation)
             conversation_id: Conversation ID
 
         Returns:
@@ -90,7 +90,7 @@ class LongTermMemoryService:
 
             memory = AIMemory(
                 entity_id=entity_id,
-                user_id=user_id,
+                user_ids=user_ids,
                 conversation_id=conversation_id,
                 summary=summary,
                 memory_content={"full_text": chunk},

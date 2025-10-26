@@ -81,6 +81,10 @@ def get_conversation_service(
 ) -> ConversationService:
     """
     Create ConversationService instance with repository dependencies.
+
+    Note: arq_pool is set to None here and will be injected by the endpoint if needed.
+    This avoids circular dependency issues.
+
     :param conversation_repo: Conversation repository instance
     :param message_repo: Message repository instance
     :param user_repo: User repository instance
@@ -96,6 +100,7 @@ def get_conversation_service(
         room_repo=room_repo,
         translation_service=translation_service,
         ai_entity_repo=ai_entity_repo,
+        arq_pool=None,  # Will be set by endpoint if needed
     )
 
 
@@ -152,14 +157,17 @@ def get_ai_entity_service(
     cooldown_repo: IAICooldownRepository = Depends(get_ai_cooldown_repository),
     room_repo: IRoomRepository = Depends(get_room_repository),
     message_repo: IMessageRepository = Depends(get_message_repository),
+    conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> AIEntityService:
     """
-    Create AIEntityService instance with repository dependencies.
+    Create AIEntityService instance with repository and service dependencies.
+
     :param ai_entity_repo: AI entity repository instance
     :param conversation_repo: Conversation repository instance
     :param cooldown_repo: AI cooldown repository instance
     :param room_repo: Room repository instance
     :param message_repo: Message repository instance
+    :param conversation_service: Conversation service for memory management
     :return: AIEntityService instance
     """
     return AIEntityService(
@@ -168,6 +176,7 @@ def get_ai_entity_service(
         cooldown_repo=cooldown_repo,
         room_repo=room_repo,
         message_repo=message_repo,
+        conversation_service=conversation_service,
     )
 
 

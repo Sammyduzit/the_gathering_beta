@@ -1,3 +1,7 @@
+import structlog
+from arq import ArqRedis
+
+from app.core.config import settings
 from app.core.exceptions import (
     ConversationNotFoundException,
     ConversationValidationException,
@@ -15,6 +19,8 @@ from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
 from app.services.translation_service import TranslationService
 
+logger = structlog.get_logger(__name__)
+
 
 class ConversationService:
     """Service for conversation business logic using Repository Pattern."""
@@ -27,6 +33,7 @@ class ConversationService:
         room_repo: IRoomRepository,
         translation_service: TranslationService,
         ai_entity_repo: IAIEntityRepository,
+        arq_pool: ArqRedis | None = None,
     ):
         self.conversation_repo = conversation_repo
         self.message_repo = message_repo
@@ -34,6 +41,7 @@ class ConversationService:
         self.room_repo = room_repo
         self.translation_service = translation_service
         self.ai_entity_repo = ai_entity_repo
+        self.arq_pool = arq_pool
 
     @staticmethod
     def _get_message_preview(message: Message | None, max_length: int = 50) -> str | None:
@@ -421,6 +429,13 @@ class ConversationService:
             removed = await self.conversation_repo.remove_participant(conversation_id, ai_entity_id=ai_entity.id)
             if not removed:
                 raise UserNotFoundException(f"AI '{username}' is not a participant in this conversation")
+
+            # Enqueue long-term memory creation if AI features enabled
+            await self._enqueue_long_term_memory_for_ai(
+                conversation_id=conversation_id,
+                ai_entity_id=ai_entity.id,
+            )
+
             return {
                 "message": f"Participant '{username}' removed from conversation",
                 "participant_type": "ai",
@@ -428,6 +443,52 @@ class ConversationService:
             }
 
         raise UserNotFoundException(f"Participant '{username}' not found")
+
+    async def _enqueue_long_term_memory_for_ai(
+        self,
+        conversation_id: int,
+        ai_entity_id: int,
+    ) -> None:
+        """
+        Enqueue background task to create long-term memory when AI leaves conversation.
+
+        This method is called whenever an AI entity is removed from a conversation
+        (via goodbye, admin removal, etc.) to preserve the conversation in the AI's memory.
+
+        The task will automatically fetch all participants from the conversation.
+
+        Args:
+            conversation_id: The conversation the AI is leaving
+            ai_entity_id: The AI entity's ID
+        """
+        if not settings.ai_features_enabled or not self.arq_pool:
+            logger.debug(
+                "long_term_memory_skipped",
+                reason="ai_features_disabled_or_no_arq_pool",
+                conversation_id=conversation_id,
+                ai_entity_id=ai_entity_id,
+            )
+            return
+
+        try:
+            await self.arq_pool.enqueue_job(
+                "create_long_term_memory_task",
+                ai_entity_id,
+                conversation_id,
+            )
+            logger.info(
+                "long_term_memory_enqueued_on_ai_remove",
+                ai_entity_id=ai_entity_id,
+                conversation_id=conversation_id,
+            )
+        except Exception as e:
+            # Non-critical: log warning, don't fail the removal
+            logger.warning(
+                "long_term_memory_enqueue_failed_on_ai_remove",
+                error=str(e),
+                conversation_id=conversation_id,
+                ai_entity_id=ai_entity_id,
+            )
 
     async def get_conversation_detail(self, current_user: User, conversation_id: int) -> dict:
         """

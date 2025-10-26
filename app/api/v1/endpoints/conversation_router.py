@@ -239,6 +239,7 @@ async def remove_participant_from_conversation(
     username: str,
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
+    arq_pool: ArqRedis = Depends(get_arq_pool),
     _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
@@ -251,8 +252,12 @@ async def remove_participant_from_conversation(
     :param username: Username of human or AI to remove
     :param current_user: Current authenticated user
     :param conversation_service: Service instance handling conversation logic
+    :param arq_pool: ARQ Redis pool for background tasks
     :return: Success response with removal info
     """
+    # Inject arq_pool into service for memory task enqueueing
+    conversation_service.arq_pool = arq_pool
+
     return await conversation_service.remove_participant(
         conversation_id=conversation_id,
         username=username,
@@ -342,22 +347,16 @@ async def delete_conversation(
 
         if ai_participant:
             try:
-                # Find human user participant (private chat assumption)
-                user_participant = next((p for p in participants if p.get("user_id")), None)
-
-                if user_participant:
-                    await arq_pool.enqueue_job(
-                        "create_long_term_memory_task",
-                        ai_participant["ai_entity_id"],
-                        user_participant["user_id"],
-                        conversation_id,
-                    )
-                    logger.info(
-                        "long_term_memory_enqueued",
-                        ai_entity_id=ai_participant["ai_entity_id"],
-                        user_id=user_participant["user_id"],
-                        conversation_id=conversation_id,
-                    )
+                await arq_pool.enqueue_job(
+                    "create_long_term_memory_task",
+                    ai_participant["ai_entity_id"],
+                    conversation_id,
+                )
+                logger.info(
+                    "long_term_memory_enqueued",
+                    ai_entity_id=ai_participant["ai_entity_id"],
+                    conversation_id=conversation_id,
+                )
             except Exception as e:
                 # Non-critical: log warning, don't fail the archive
                 logger.warning(
