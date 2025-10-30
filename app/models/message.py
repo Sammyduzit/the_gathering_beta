@@ -115,8 +115,8 @@ class Message(Base):
         return self.sender_user_id if self.sender_user_id else self.sender_ai_id
 
     @property
-    def sender_name(self) -> str:
-        """Get sender display name regardless of type."""
+    def sender_username(self) -> str:
+        """Get sender username regardless of type (user.username or ai.display_name)."""
         if self.sender_user_id:
             return self.sender_user.username
         return self.sender_ai.display_name

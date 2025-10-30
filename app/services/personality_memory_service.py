@@ -35,7 +35,7 @@ class PersonalityMemoryService:
         """
         Upload personality knowledge from text (books, documents, etc).
 
-        - Global memory (user_id = NULL, conversation_id = NULL)
+        - Global memory (user_ids = [], conversation_id = NULL)
         - Chunks text into manageable pieces
         - Extracts keywords per chunk
         - Generates embeddings per chunk (batch)
@@ -79,7 +79,7 @@ class PersonalityMemoryService:
 
             memory = AIMemory(
                 entity_id=entity_id,
-                user_id=None,  # Global (not user-specific)
+                user_ids=[],  # Global (not user-specific)
                 conversation_id=None,  # Not conversation-bound
                 summary=summary,
                 memory_content={"full_text": chunk},

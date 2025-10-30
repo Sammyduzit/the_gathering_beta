@@ -39,7 +39,7 @@ class MemoryResponse(BaseModel):
     importance_score: float
     embedding: dict | None
     access_count: int
-    metadata: dict | None
+    memory_metadata: dict | None
     created_at: datetime
     last_accessed: datetime
 

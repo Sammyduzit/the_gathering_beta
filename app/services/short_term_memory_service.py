@@ -20,7 +20,7 @@ class ShortTermMemoryService:
     async def create_short_term_memory(
         self,
         entity_id: int,
-        user_id: int,
+        user_ids: list[int],
         conversation_id: int,
         messages: list[Message],
     ) -> AIMemory:
@@ -35,7 +35,7 @@ class ShortTermMemoryService:
 
         Args:
             entity_id: AI entity ID
-            user_id: User ID for user-specific memory
+            user_ids: List of user IDs (participants in conversation)
             conversation_id: Conversation ID
             messages: List of recent messages
 
@@ -52,7 +52,7 @@ class ShortTermMemoryService:
             # No user messages, create minimal memory
             memory = AIMemory(
                 entity_id=entity_id,
-                user_id=user_id,
+                user_ids=user_ids,
                 conversation_id=conversation_id,
                 summary="No recent user messages",
                 memory_content={"message_count": 0},
@@ -76,7 +76,7 @@ class ShortTermMemoryService:
         # Create memory
         memory = AIMemory(
             entity_id=entity_id,
-            user_id=user_id,
+            user_ids=user_ids,
             conversation_id=conversation_id,
             summary=summary,
             memory_content={

@@ -42,6 +42,7 @@ Thumbs.db
 
 # Development artifacts
 __old
+.archive/
 local_versions.txt
 *.log
 .claude/

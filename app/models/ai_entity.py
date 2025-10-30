@@ -126,5 +126,10 @@ class AIEntity(Base):
             raise ValueError(f"temperature must be 0.0-2.0, got {value}")
         return value
 
+    @property
+    def current_room_name(self) -> str | None:
+        """Get current room name if assigned."""
+        return self.current_room.name if self.current_room else None
+
     def __repr__(self):
         return f"<AIEntity(id={self.id}, name='{self.name}')>"

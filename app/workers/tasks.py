@@ -12,8 +12,10 @@ from app.interfaces.keyword_extractor import KeywordExtractionError
 from app.interfaces.memory_summarizer import MemorySummarizationError
 from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.providers.openai_provider import OpenAIProvider
+from app.repositories.ai_cooldown_repository import AICooldownRepository
 from app.repositories.ai_entity_repository import AIEntityRepository
 from app.repositories.ai_memory_repository import AIMemoryRepository
+from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
 from app.services.ai_context_service import AIContextService
 from app.services.ai_response_service import AIResponseService
@@ -54,6 +56,21 @@ async def _lookup_ai_entity(
     elif conversation_id:
         return await ai_entity_repo.get_ai_in_conversation(conversation_id)
     return None
+
+
+async def _get_conversation_user_ids(conversation_repo, conversation_id: int) -> list[int]:
+    """
+    Fetch all human participant user IDs from conversation.
+
+    Args:
+        conversation_repo: Conversation repository
+        conversation_id: Conversation ID
+
+    Returns:
+        List of user IDs (excludes AI participants)
+    """
+    participants = await conversation_repo.get_participants(conversation_id)
+    return [p.user_id for p in participants if p.user_id is not None]
 
 
 async def _generate_response_for_target(
@@ -115,29 +132,40 @@ async def _handle_post_generation_checks(ai_entity: AIEntity, room_id: int | Non
 
 async def _create_inline_memory(
     conversation_id: int | None,
-    sender_user_id: int | None,
     ai_entity: AIEntity,
     message_repo,
     memory_repo,
+    conversation_repo,
 ) -> None:
     """
     Create short-term memory after AI response (non-critical, inline).
 
     Args:
         conversation_id: Conversation ID
-        sender_user_id: User ID for personalized memory
         ai_entity: AI entity
         message_repo: Message repository
         memory_repo: Memory repository
+        conversation_repo: Conversation repository
 
     Note:
         Logs warning on failure but doesn't raise (non-critical operation)
     """
-    if not (conversation_id and sender_user_id):
+    if not conversation_id:
         return
 
     try:
         short_term_service = ShortTermMemoryService(memory_repo=memory_repo)
+
+        # Fetch all human participant user IDs
+        user_ids = await _get_conversation_user_ids(conversation_repo, conversation_id)
+
+        if not user_ids:
+            logger.warning(
+                "short_term_memory_skipped_no_users",
+                ai_entity_id=ai_entity.id,
+                conversation_id=conversation_id,
+            )
+            return
 
         # Get recent messages for memory creation
         recent_messages, _ = await message_repo.get_conversation_messages(
@@ -148,7 +176,7 @@ async def _create_inline_memory(
 
         await short_term_service.create_short_term_memory(
             entity_id=ai_entity.id,
-            user_id=sender_user_id,
+            user_ids=user_ids,
             conversation_id=conversation_id,
             messages=recent_messages,
         )
@@ -156,7 +184,7 @@ async def _create_inline_memory(
         logger.debug(
             "short_term_memory_created",
             ai_entity_id=ai_entity.id,
-            user_id=sender_user_id,
+            user_ids=user_ids,
             conversation_id=conversation_id,
         )
     except Exception as e:
@@ -242,6 +270,8 @@ async def check_and_generate_ai_response(
             ai_entity_repo = AIEntityRepository(session)
             message_repo = MessageRepository(session)
             memory_repo = AIMemoryRepository(session)
+            conversation_repo = ConversationRepository(session)
+            cooldown_repo = AICooldownRepository(session)
 
             # Get AI entity (from ID or lookup)
             ai_entity = await _lookup_ai_entity(ai_entity_repo, ai_entity_id, room_id, conversation_id)
@@ -335,10 +365,23 @@ async def check_and_generate_ai_response(
             # Create short-term memory after AI response (inline, fast, non-critical)
             await _create_inline_memory(
                 conversation_id=conversation_id,
-                sender_user_id=message.sender_user_id,
                 ai_entity=ai_entity,
                 message_repo=message_repo,
                 memory_repo=memory_repo,
+                conversation_repo=conversation_repo,
+            )
+
+            # Update cooldown timestamp after successful response
+            await cooldown_repo.upsert_cooldown(
+                ai_entity_id=ai_entity.id,
+                room_id=room_id,
+                conversation_id=conversation_id,
+            )
+            logger.info(
+                "ai_cooldown_updated",
+                ai_entity_id=ai_entity.id,
+                room_id=room_id,
+                conversation_id=conversation_id,
             )
 
             return {
@@ -484,15 +527,12 @@ async def create_long_term_memory_task(
 
     try:
         async for session in db_manager.get_session():
-            from app.repositories.conversation_repository import ConversationRepository
-
             message_repo = MessageRepository(session)
             memory_repo = AIMemoryRepository(session)
             conversation_repo = ConversationRepository(session)
 
-            # Fetch all human participants from conversation
-            participants = await conversation_repo.get_participants(conversation_id)
-            user_ids = [p.user_id for p in participants if p.user_id is not None]
+            # Fetch all human participant user IDs
+            user_ids = await _get_conversation_user_ids(conversation_repo, conversation_id)
 
             if not user_ids:
                 logger.warning(

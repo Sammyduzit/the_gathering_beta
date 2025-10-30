@@ -314,9 +314,6 @@ async def delete_conversation(
     Sets is_active=false to archive the conversation.
     Enqueues background task to create long-term memory for AI entity.
 
-    Note: Currently only supports private chats (1 user + 1 AI).
-    TODO: Extend for group conversations.
-
     Only participants can archive conversations.
 
     :param conversation_id: Conversation ID

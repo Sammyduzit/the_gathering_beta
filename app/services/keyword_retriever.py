@@ -193,7 +193,7 @@ class KeywordMemoryRetriever(IMemoryRetriever):
 
         # Apply user filter
         if user_id is not None:
-            filtered = [m for m in filtered if m.user_id == user_id]
+            filtered = [m for m in filtered if user_id in m.user_ids]
 
         # Apply conversation filter
         if conversation_id is not None:

@@ -1,10 +1,14 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.core.constants import MAX_AI_MAX_TOKENS, MAX_AI_TEMPERATURE, MIN_AI_MAX_TOKENS, MIN_AI_TEMPERATURE
 from app.core.validators import SanitizedString
 from app.models.ai_entity import AIEntityStatus
+
+if TYPE_CHECKING:
+    from app.models.ai_entity import AIEntity
 
 
 class AIEntityCreate(BaseModel):
@@ -30,7 +34,7 @@ class AIEntityUpdate(BaseModel):
     config: dict | None = None
     status: AIEntityStatus | None = Field(None, description="AI online/offline status")
     current_room_id: int | None = Field(
-        ..., description="Room assignment (None=leave room, int=assign to room, omit=no change)"
+        None, description="Room assignment (None=leave room, int=assign to room, omit=no change)"
     )
 
 
@@ -47,6 +51,7 @@ class AIEntityResponse(BaseModel):
     config: dict | None
     status: str
     current_room_id: int | None
+    current_room_name: str | None  # Populated from AIEntity.current_room_name @property
     created_at: datetime
     updated_at: datetime | None
 

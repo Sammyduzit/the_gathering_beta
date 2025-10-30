@@ -2,6 +2,7 @@ from abc import abstractmethod
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.ai_entity import AIEntity, AIEntityStatus
 
@@ -49,7 +50,11 @@ class AIEntityRepository(IAIEntityRepository):
         super().__init__(db)
 
     async def get_by_id(self, id: int) -> AIEntity | None:
-        query = select(AIEntity).where(AIEntity.id == id, AIEntity.is_active)
+        query = (
+            select(AIEntity)
+            .options(selectinload(AIEntity.current_room))
+            .where(AIEntity.id == id, AIEntity.is_active)
+        )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
@@ -59,13 +64,23 @@ class AIEntityRepository(IAIEntityRepository):
         return result.scalar_one_or_none()
 
     async def get_all(self, limit: int = 100, offset: int = 0) -> list[AIEntity]:
-        query = select(AIEntity).where(AIEntity.is_active).limit(limit).offset(offset)
+        query = (
+            select(AIEntity)
+            .options(selectinload(AIEntity.current_room))
+            .where(AIEntity.is_active)
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
     async def get_available_entities(self) -> list[AIEntity]:
         """Get all available AI entities (online and not deleted)."""
-        query = select(AIEntity).where(AIEntity.status == AIEntityStatus.ONLINE, AIEntity.is_active)
+        query = (
+            select(AIEntity)
+            .options(selectinload(AIEntity.current_room))
+            .where(AIEntity.status == AIEntityStatus.ONLINE, AIEntity.is_active)
+        )
         result = await self.db.execute(query)
         return list(result.scalars().all())
 

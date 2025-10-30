@@ -168,7 +168,6 @@ class ConversationService:
                     target_languages=target_languages,
                 )
 
-        message.sender_username = current_user.username
         return message
 
     async def get_messages(
@@ -194,13 +193,6 @@ class ConversationService:
             page_size=page_size,
             user_language=current_user.preferred_language,
         )
-
-        # Set sender_username for each message
-        for message in messages:
-            if message.sender_user_id:
-                message.sender_username = message.sender_user.username
-            elif message.sender_ai_id:
-                message.sender_username = message.sender_ai.display_name
 
         return messages, total_count
 
@@ -534,12 +526,8 @@ class ConversationService:
         if latest_message_obj:
             latest_message = {
                 "id": latest_message_obj.id,
-                "sender_id": latest_message_obj.sender_user_id or latest_message_obj.sender_ai_id,
-                "sender_username": (
-                    latest_message_obj.sender_user.username
-                    if latest_message_obj.sender_user_id
-                    else latest_message_obj.sender_ai.name
-                ),
+                "sender_id": latest_message_obj.sender_id,  # Uses @property
+                "sender_username": latest_message_obj.sender_username,  # Uses @property
                 "sender_display_name": (
                     latest_message_obj.sender_user.username
                     if latest_message_obj.sender_user_id
