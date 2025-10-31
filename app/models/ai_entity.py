@@ -131,7 +131,7 @@ class AIEntity(Base):
 
     @validates("response_probability")
     def validate_probability(self, key, value):
-        if not 0.0 <= value <= 1.0:
+        if value is not None and not 0.0 <= value <= 1.0:
             raise ValueError(f"response_probability must be 0.0-1.0, got {value}")
         return value
 

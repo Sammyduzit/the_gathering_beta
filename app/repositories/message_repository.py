@@ -131,16 +131,9 @@ class MessageRepository(IMessageRepository):
 
         self.db.add(new_message)
         await self.db.commit()
-        await self.db.refresh(new_message)
 
-        attrs: list[str] = []
-        if sender_user_id:
-            attrs.append("sender_user")
-        if sender_ai_id:
-            attrs.append("sender_ai")
-
-        if attrs:
-            await self.db.refresh(new_message, attribute_names=attrs)
+        # Eager load sender relationships (both user and AI, only one will be set)
+        await self.db.refresh(new_message, attribute_names=["sender_user", "sender_ai"])
 
         return new_message
 
@@ -165,16 +158,9 @@ class MessageRepository(IMessageRepository):
 
         self.db.add(new_message)
         await self.db.commit()
-        await self.db.refresh(new_message)
 
-        attrs: list[str] = []
-        if sender_user_id:
-            attrs.append("sender_user")
-        if sender_ai_id:
-            attrs.append("sender_ai")
-
-        if attrs:
-            await self.db.refresh(new_message, attribute_names=attrs)
+        # Eager load sender relationships (both user and AI, only one will be set)
+        await self.db.refresh(new_message, attribute_names=["sender_user", "sender_ai"])
 
         return new_message
 
