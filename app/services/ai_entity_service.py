@@ -1,5 +1,6 @@
-import structlog
 from typing import TYPE_CHECKING
+
+import structlog
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -66,8 +67,13 @@ class AIEntityService:
         display_name: str,
         system_prompt: str,
         model_name: str,
+        description: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        room_response_strategy: AIResponseStrategy | None = None,
+        conversation_response_strategy: AIResponseStrategy | None = None,
+        response_probability: float | None = None,
+        cooldown_seconds: int | None = None,
         config: dict | None = None,
     ) -> AIEntity:
         """Create new AI entity with validation."""
@@ -77,10 +83,15 @@ class AIEntityService:
         new_entity = AIEntity(
             name=name,
             display_name=display_name,
+            description=description,
             system_prompt=system_prompt,
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
+            room_response_strategy=room_response_strategy,
+            conversation_response_strategy=conversation_response_strategy,
+            response_probability=response_probability,
+            cooldown_seconds=cooldown_seconds,
             config=config,
             status=AIEntityStatus.OFFLINE,
         )
@@ -91,10 +102,15 @@ class AIEntityService:
         self,
         entity_id: int,
         display_name: str | None = None,
+        description: str | None = None,
         system_prompt: str | None = None,
         model_name: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        room_response_strategy: AIResponseStrategy | None = None,
+        conversation_response_strategy: AIResponseStrategy | None = None,
+        response_probability: float | None = None,
+        cooldown_seconds: int | None = None,
         config: dict | None = None,
         status: AIEntityStatus | None = None,
         current_room_id: int | None = ...,  # ... as sentinel: not provided
@@ -119,10 +135,15 @@ class AIEntityService:
         self._update_entity_fields(
             entity,
             display_name=display_name,
+            description=description,
             system_prompt=system_prompt,
             model_name=model_name,
             temperature=temperature,
             max_tokens=max_tokens,
+            room_response_strategy=room_response_strategy,
+            conversation_response_strategy=conversation_response_strategy,
+            response_probability=response_probability,
+            cooldown_seconds=cooldown_seconds,
             config=config,
         )
 
@@ -313,10 +334,15 @@ class AIEntityService:
         self,
         entity: AIEntity,
         display_name: str | None = None,
+        description: str | None = None,
         system_prompt: str | None = None,
         model_name: str | None = None,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        room_response_strategy: AIResponseStrategy | None = None,
+        conversation_response_strategy: AIResponseStrategy | None = None,
+        response_probability: float | None = None,
+        cooldown_seconds: int | None = None,
         config: dict | None = None,
     ) -> None:
         """
@@ -325,10 +351,15 @@ class AIEntityService:
         Args:
             entity: AI entity to update
             display_name: New display name (if provided)
+            description: New description (if provided)
             system_prompt: New system prompt (if provided)
             model_name: New model name (if provided)
             temperature: New temperature (if provided)
             max_tokens: New max tokens (if provided)
+            room_response_strategy: New room response strategy (if provided)
+            conversation_response_strategy: New conversation response strategy (if provided)
+            response_probability: New response probability (if provided)
+            cooldown_seconds: New cooldown seconds (if provided)
             config: New config (if provided)
 
         Side Effects:
@@ -336,6 +367,8 @@ class AIEntityService:
         """
         if display_name is not None:
             entity.display_name = display_name
+        if description is not None:
+            entity.description = description
         if system_prompt is not None:
             entity.system_prompt = system_prompt
         if model_name is not None:
@@ -344,6 +377,14 @@ class AIEntityService:
             entity.temperature = temperature
         if max_tokens is not None:
             entity.max_tokens = max_tokens
+        if room_response_strategy is not None:
+            entity.room_response_strategy = room_response_strategy
+        if conversation_response_strategy is not None:
+            entity.conversation_response_strategy = conversation_response_strategy
+        if response_probability is not None:
+            entity.response_probability = response_probability
+        if cooldown_seconds is not None:
+            entity.cooldown_seconds = cooldown_seconds
         if config is not None:
             entity.config = config
 

@@ -313,6 +313,7 @@ async def check_and_generate_ai_response(
                 ai_provider=ai_provider,
                 context_service=context_service,
                 message_repo=message_repo,
+                cooldown_repo=cooldown_repo,
             )
 
             # Check if AI should respond based on strategy

@@ -14,6 +14,7 @@ import structlog
 from app.interfaces.ai_provider import AIProviderError, IAIProvider
 from app.models.ai_entity import AIEntity, AIResponseStrategy
 from app.models.message import Message
+from app.repositories.ai_cooldown_repository import IAICooldownRepository
 from app.repositories.message_repository import IMessageRepository
 from app.services.ai_context_service import AIContextService
 
@@ -28,10 +29,12 @@ class AIResponseService:
         ai_provider: IAIProvider,
         context_service: AIContextService,
         message_repo: IMessageRepository,
+        cooldown_repo: IAICooldownRepository,
     ):
         self.ai_provider = ai_provider
         self.context_service = context_service
         self.message_repo = message_repo
+        self.cooldown_repo = cooldown_repo
 
     async def generate_conversation_response(
         self,
@@ -171,6 +174,11 @@ class AIResponseService:
         """
         Determine if AI should respond to a message based on configured strategies.
 
+        Checks performed in order:
+        1. Own message check (never respond to self)
+        2. Cooldown check (rate limiting)
+        3. Strategy check (MENTION_ONLY, PROBABILISTIC, etc.)
+
         Args:
             ai_entity: AI entity to check
             latest_message: Latest message in the conversation
@@ -180,11 +188,30 @@ class AIResponseService:
         Returns:
             True if AI should respond, False otherwise
         """
-        # Don't respond to own messages
+        # 1. Don't respond to own messages
         if latest_message.sender_ai_id == ai_entity.id:
             return False
 
-        # Delegate to appropriate strategy handler
+        # 2. Check cooldown (rate limiting)
+        if ai_entity.cooldown_seconds is not None:
+            is_on_cooldown = await self.cooldown_repo.is_on_cooldown(
+                ai_entity_id=ai_entity.id,
+                cooldown_seconds=ai_entity.cooldown_seconds,
+                room_id=room_id,
+                conversation_id=conversation_id,
+            )
+            if is_on_cooldown:
+                logger.info(
+                    "ai_response_skipped_cooldown",
+                    ai_entity_id=ai_entity.id,
+                    ai_name=ai_entity.name,
+                    cooldown_seconds=ai_entity.cooldown_seconds,
+                    room_id=room_id,
+                    conversation_id=conversation_id,
+                )
+                return False
+
+        # 3. Delegate to appropriate strategy handler
         if room_id:
             return self._should_respond_in_room(ai_entity, latest_message, room_id)
         elif conversation_id:

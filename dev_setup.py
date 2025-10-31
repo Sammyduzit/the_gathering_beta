@@ -154,6 +154,7 @@ async def create_test_ai_entities():
                     "room_response_strategy": AIResponseStrategy.ROOM_MENTION_ONLY,
                     "conversation_response_strategy": AIResponseStrategy.CONV_ON_QUESTIONS,
                     "response_probability": 0.3,
+                    "cooldown_seconds": 30,  # 30 seconds cooldown (moderate rate limiting)
                 },
                 {
                     "name": "bot_beta",
@@ -167,6 +168,7 @@ async def create_test_ai_entities():
                     "room_response_strategy": AIResponseStrategy.ROOM_ACTIVE,
                     "conversation_response_strategy": AIResponseStrategy.CONV_SMART,
                     "response_probability": 0.5,
+                    "cooldown_seconds": None,  # No cooldown (very active bot)
                 },
             ]
 
@@ -231,7 +233,8 @@ async def setup_complete_test_environment():
             status = "ONLINE " if ai["status"] == AIEntityStatus.ONLINE else "OFFLINE"
             name = ai["display_name"]
             strategy = ai["room_response_strategy"].value
-            line = f"  AI   : {name:<20} | Status: {status:<8} | Strategy: {strategy}"
+            cooldown = f"{ai['cooldown_seconds']}s" if ai.get("cooldown_seconds") else "None"
+            line = f"  AI   : {name:<20} | Status: {status:<8} | Strategy: {strategy:<20} | Cooldown: {cooldown}"
             print(line)
 
     print("═" * 68)

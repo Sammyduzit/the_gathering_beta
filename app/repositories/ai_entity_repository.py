@@ -51,9 +51,7 @@ class AIEntityRepository(IAIEntityRepository):
 
     async def get_by_id(self, id: int) -> AIEntity | None:
         query = (
-            select(AIEntity)
-            .options(selectinload(AIEntity.current_room))
-            .where(AIEntity.id == id, AIEntity.is_active)
+            select(AIEntity).options(selectinload(AIEntity.current_room)).where(AIEntity.id == id, AIEntity.is_active)
         )
         result = await self.db.execute(query)
         return result.scalar_one_or_none()

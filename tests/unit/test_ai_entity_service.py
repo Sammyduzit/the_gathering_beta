@@ -46,6 +46,13 @@ class TestAIEntityService:
         return AsyncMock()
 
     @pytest.fixture
+    def mock_conversation_service(self):
+        """Create mock conversation service."""
+        service = AsyncMock()
+        service._enqueue_long_term_memory_for_ai = AsyncMock()
+        return service
+
+    @pytest.fixture
     def service(
         self,
         mock_ai_repo,
@@ -53,6 +60,7 @@ class TestAIEntityService:
         mock_cooldown_repo,
         mock_room_repo,
         mock_message_repo,
+        mock_conversation_service,
     ):
         """Create service instance with mocked dependencies."""
         return AIEntityService(
@@ -61,6 +69,7 @@ class TestAIEntityService:
             cooldown_repo=mock_cooldown_repo,
             room_repo=mock_room_repo,
             message_repo=mock_message_repo,
+            conversation_service=mock_conversation_service,
         )
 
     async def test_get_all_entities(self, service, mock_ai_repo):

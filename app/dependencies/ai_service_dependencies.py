@@ -7,6 +7,7 @@ Provides factory functions for AI service instances with proper dependency wirin
 import logging
 
 from app.dependencies.provider_dependencies import get_ai_provider
+from app.repositories.ai_cooldown_repository import AICooldownRepository
 from app.repositories.ai_memory_repository import AIMemoryRepository
 from app.repositories.message_repository import MessageRepository
 from app.services.ai_context_service import AIContextService
@@ -43,6 +44,7 @@ def get_ai_context_service(
 def get_ai_response_service(
     context_service: AIContextService,
     message_repo: MessageRepository,
+    cooldown_repo: AICooldownRepository,
 ) -> AIResponseService | None:
     """
     Get AIResponseService instance with injected dependencies.
@@ -50,6 +52,7 @@ def get_ai_response_service(
     Args:
         context_service: AI context service for building conversation context
         message_repo: Message repository for saving AI responses
+        cooldown_repo: AI cooldown repository for rate limiting
 
     Returns:
         Configured AIResponseService instance or None if AI provider unavailable
@@ -64,4 +67,5 @@ def get_ai_response_service(
         ai_provider=ai_provider,
         context_service=context_service,
         message_repo=message_repo,
+        cooldown_repo=cooldown_repo,
     )

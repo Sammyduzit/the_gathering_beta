@@ -32,6 +32,17 @@ class IAICooldownRepository(BaseRepository[AICooldown]):
         """Atomic upsert of cooldown timestamp."""
         pass
 
+    @abstractmethod
+    async def is_on_cooldown(
+        self,
+        ai_entity_id: int,
+        cooldown_seconds: int,
+        room_id: int | None = None,
+        conversation_id: int | None = None,
+    ) -> bool:
+        """Check if AI entity is currently on cooldown in given context."""
+        pass
+
 
 class AICooldownRepository(IAICooldownRepository):
     """SQLAlchemy implementation of AI Cooldown repository."""
@@ -94,6 +105,38 @@ class AICooldownRepository(IAICooldownRepository):
             await self.db.commit()
             await self.db.refresh(cooldown)
             return cooldown
+
+    async def is_on_cooldown(
+        self,
+        ai_entity_id: int,
+        cooldown_seconds: int,
+        room_id: int | None = None,
+        conversation_id: int | None = None,
+    ) -> bool:
+        """
+        Check if AI entity is currently on cooldown in given context.
+
+        Args:
+            ai_entity_id: AI entity ID
+            cooldown_seconds: Cooldown duration in seconds
+            room_id: Room ID (for room context)
+            conversation_id: Conversation ID (for conversation context)
+
+        Returns:
+            True if on cooldown (cannot respond yet), False otherwise
+        """
+        cooldown = await self.get_cooldown(ai_entity_id, room_id, conversation_id)
+
+        if not cooldown:
+            # No cooldown record exists - can respond
+            return False
+
+        # Calculate time elapsed since last response
+        now = datetime.now(timezone.utc)
+        elapsed_seconds = (now - cooldown.last_response_at).total_seconds()
+
+        # On cooldown if elapsed time is less than required cooldown duration
+        return elapsed_seconds < cooldown_seconds
 
     async def create(self, cooldown: AICooldown) -> AICooldown:
         self.db.add(cooldown)

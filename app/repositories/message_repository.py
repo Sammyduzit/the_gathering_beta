@@ -132,6 +132,16 @@ class MessageRepository(IMessageRepository):
         self.db.add(new_message)
         await self.db.commit()
         await self.db.refresh(new_message)
+
+        attrs: list[str] = []
+        if sender_user_id:
+            attrs.append("sender_user")
+        if sender_ai_id:
+            attrs.append("sender_ai")
+
+        if attrs:
+            await self.db.refresh(new_message, attribute_names=attrs)
+
         return new_message
 
     async def create_conversation_message(
@@ -156,6 +166,16 @@ class MessageRepository(IMessageRepository):
         self.db.add(new_message)
         await self.db.commit()
         await self.db.refresh(new_message)
+
+        attrs: list[str] = []
+        if sender_user_id:
+            attrs.append("sender_user")
+        if sender_ai_id:
+            attrs.append("sender_ai")
+
+        if attrs:
+            await self.db.refresh(new_message, attribute_names=attrs)
+
         return new_message
 
     async def get_room_messages(

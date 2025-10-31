@@ -76,10 +76,15 @@ async def create_ai_entity(
     return await ai_service.create_entity(
         name=entity_data.name,
         display_name=entity_data.display_name,
+        description=entity_data.description,
         system_prompt=entity_data.system_prompt,
         model_name=entity_data.model_name,
         temperature=entity_data.temperature,
         max_tokens=entity_data.max_tokens,
+        room_response_strategy=entity_data.room_response_strategy,
+        conversation_response_strategy=entity_data.conversation_response_strategy,
+        response_probability=entity_data.response_probability,
+        cooldown_seconds=entity_data.cooldown_seconds,
         config=entity_data.config,
     )
 
@@ -110,10 +115,15 @@ async def update_ai_entity(
     return await ai_service.update_entity(
         entity_id=entity_id,
         display_name=entity_data.display_name,
+        description=entity_data.description,
         system_prompt=entity_data.system_prompt,
         model_name=entity_data.model_name,
         temperature=entity_data.temperature,
         max_tokens=entity_data.max_tokens,
+        room_response_strategy=entity_data.room_response_strategy,
+        conversation_response_strategy=entity_data.conversation_response_strategy,
+        response_probability=entity_data.response_probability,
+        cooldown_seconds=entity_data.cooldown_seconds,
         config=entity_data.config,
         status=entity_data.status,
         current_room_id=entity_data.current_room_id,

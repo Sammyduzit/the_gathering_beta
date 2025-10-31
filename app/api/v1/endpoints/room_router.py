@@ -250,7 +250,11 @@ async def update_user_status(
     return await room_service.update_user_status(current_user, status_update.status)
 
 
-@router.post("/{room_id}/messages", response_model=MessageResponse)
+@router.post(
+    "/{room_id}/messages",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def send_room_message(
     room_id: int,
     message_data: MessageCreate = Body(...),

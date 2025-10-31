@@ -11,7 +11,14 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy.sql import func
 
-from app.core.constants import DEFAULT_AI_MAX_TOKENS, DEFAULT_AI_MODEL, DEFAULT_AI_TEMPERATURE
+from app.core.constants import (
+    DEFAULT_AI_COOLDOWN_SECONDS,
+    DEFAULT_AI_MAX_TOKENS,
+    DEFAULT_AI_MODEL,
+    DEFAULT_AI_TEMPERATURE,
+    MAX_AI_COOLDOWN_SECONDS,
+    MIN_AI_COOLDOWN_SECONDS,
+)
 from app.core.database import Base
 
 
@@ -69,6 +76,14 @@ class AIEntity(Base):
         default=0.3,
     )
 
+    # Cooldown Configuration (rate limiting between responses)
+    cooldown_seconds = Column(
+        Integer,
+        nullable=True,
+        default=DEFAULT_AI_COOLDOWN_SECONDS,
+        comment="Minimum seconds between AI responses (None = no cooldown)",
+    )
+
     # Flexible config storage (JSONB for additional LangChain parameters)
     config = Column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"), nullable=True)
 
@@ -124,6 +139,14 @@ class AIEntity(Base):
     def validate_temperature(self, key, value):
         if value is not None and not 0.0 <= value <= 2.0:
             raise ValueError(f"temperature must be 0.0-2.0, got {value}")
+        return value
+
+    @validates("cooldown_seconds")
+    def validate_cooldown_seconds(self, key, value):
+        if value is not None and not (MIN_AI_COOLDOWN_SECONDS <= value <= MAX_AI_COOLDOWN_SECONDS):
+            raise ValueError(
+                f"cooldown_seconds must be {MIN_AI_COOLDOWN_SECONDS}-{MAX_AI_COOLDOWN_SECONDS}, got {value}"
+            )
         return value
 
     @property

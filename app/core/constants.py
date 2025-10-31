@@ -32,6 +32,11 @@ MAX_AI_TEMPERATURE = 2.0
 MIN_AI_MAX_TOKENS = 1
 MAX_AI_MAX_TOKENS = 32000
 
+# AI Cooldown Configuration
+DEFAULT_AI_COOLDOWN_SECONDS = None  # None = no cooldown by default
+MIN_AI_COOLDOWN_SECONDS = 0  # 0 = no cooldown
+MAX_AI_COOLDOWN_SECONDS = 3600  # 1 hour maximum
+
 # Note: Default system prompts are defined in app.core.ai_prompts
 # Use get_prompt_template() to retrieve predefined prompt templates
 

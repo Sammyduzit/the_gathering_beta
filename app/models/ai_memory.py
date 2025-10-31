@@ -14,7 +14,11 @@ class AIMemory(Base):
 
     id = Column(Integer, primary_key=True)
     entity_id = Column(Integer, ForeignKey("ai_entities.id", ondelete="CASCADE"), nullable=False)
-    user_ids = Column(ARRAY(Integer), nullable=False, server_default="{}")
+    user_ids = Column(
+        ARRAY(Integer).with_variant(JSON(), "sqlite"),
+        nullable=False,
+        default=list,
+    )
 
     # Context linking
     room_id = Column(Integer, ForeignKey("rooms.id", ondelete="CASCADE"), nullable=True)
