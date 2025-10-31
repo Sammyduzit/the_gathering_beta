@@ -1,5 +1,7 @@
 """Unit tests for AIResponseService."""
 
+from unittest.mock import AsyncMock
+
 import pytest
 
 from app.interfaces.ai_provider import AIProviderError
@@ -12,12 +14,21 @@ class TestAIResponseService:
     """Unit tests for AI response service."""
 
     @pytest.fixture
-    def service(self, mock_ai_provider, mock_context_service, mock_message_repo):
+    def mock_cooldown_repo(self):
+        """Create mock cooldown repository with sensible defaults."""
+        repo = AsyncMock()
+        repo.is_on_cooldown = AsyncMock(return_value=False)
+        repo.upsert_cooldown = AsyncMock()
+        return repo
+
+    @pytest.fixture
+    def service(self, mock_ai_provider, mock_context_service, mock_message_repo, mock_cooldown_repo):
         """Create service instance with mocked dependencies from conftest."""
         return AIResponseService(
             ai_provider=mock_ai_provider,
             context_service=mock_context_service,
             message_repo=mock_message_repo,
+            cooldown_repo=mock_cooldown_repo,
         )
 
     async def test_generate_conversation_response_success(
