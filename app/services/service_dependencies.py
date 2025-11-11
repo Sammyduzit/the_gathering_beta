@@ -32,9 +32,9 @@ from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService
 from app.services.heuristic_summarizer import HeuristicMemorySummarizer
 from app.services.keyword_retriever import KeywordMemoryRetriever
+from app.services.embedding_factory import create_embedding_service
 from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.memory_builder_service import MemoryBuilderService
-from app.services.openai_embedding_service import OpenAIEmbeddingService
 from app.services.personality_memory_service import PersonalityMemoryService
 from app.services.room_service import RoomService
 from app.services.short_term_memory_service import ShortTermMemoryService
@@ -210,13 +210,11 @@ def get_embedding_service() -> IEmbeddingService:
     """
     Create embedding service for vector search.
 
-    :return: Embedding service instance
+    Uses factory to select provider based on settings.embedding_provider (google/openai).
+
+    :return: Embedding service instance (Google or OpenAI)
     """
-    return OpenAIEmbeddingService(
-        api_key=settings.openai_api_key,
-        model=settings.embedding_model,
-        dimensions=settings.embedding_dimensions,
-    )
+    return create_embedding_service()
 
 
 def get_text_chunking_service() -> TextChunkingService:
@@ -298,6 +296,7 @@ def get_long_term_memory_service(
     message_repo: IMessageRepository = Depends(get_message_repository),
     embedding_service: IEmbeddingService = Depends(get_embedding_service),
     chunking_service: TextChunkingService = Depends(get_text_chunking_service),
+    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
 ) -> LongTermMemoryService:
     """
     Create LongTermMemoryService instance.
@@ -306,6 +305,7 @@ def get_long_term_memory_service(
     :param message_repo: Message repository instance
     :param embedding_service: Embedding service instance
     :param chunking_service: Text chunking service instance
+    :param keyword_extractor: Keyword extractor instance
     :return: LongTermMemoryService instance
     """
     return LongTermMemoryService(
@@ -313,6 +313,7 @@ def get_long_term_memory_service(
         message_repo=message_repo,
         embedding_service=embedding_service,
         chunking_service=chunking_service,
+        keyword_extractor=keyword_extractor,
     )
 
 

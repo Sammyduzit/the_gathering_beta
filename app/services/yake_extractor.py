@@ -8,43 +8,56 @@ No training, external corpus, or dictionaries required.
 import structlog
 import yake
 
+from app.core.config import settings
 from app.interfaces.keyword_extractor import IKeywordExtractor, KeywordExtractionError
+from app.services.stopwords_de import is_stopword
 
 logger = structlog.get_logger(__name__)
 
 
 class YakeKeywordExtractor(IKeywordExtractor):
-    """YAKE-based keyword extractor implementation."""
+    """YAKE-based keyword extractor implementation with improved German support."""
 
     def __init__(
         self,
-        language: str = "en",
-        max_ngram_size: int = 2,
-        deduplication_threshold: float = 0.9,
-        window_size: int = 1,
+        language: str | None = None,
+        max_ngram_size: int | None = None,
+        deduplication_threshold: float | None = None,
+        window_size: int | None = None,
+        top_n: int | None = None,
+        min_length: int | None = None,
     ):
         """
-        Initialize YAKE keyword extractor.
+        Initialize YAKE keyword extractor with config defaults.
 
         Args:
-            language: Language code (default: 'en')
-            max_ngram_size: Maximum n-gram size (1=unigrams, 2=bigrams, etc.)
-            deduplication_threshold: Similarity threshold for deduplication (0.0-1.0)
-            window_size: Context window size for co-occurrence
+            language: Language code (default: from settings.keyword_language)
+            max_ngram_size: Maximum n-gram size (default: from settings.keyword_max_ngrams)
+            deduplication_threshold: Similarity threshold (default: from settings.keyword_dedup_threshold)
+            window_size: Context window size (default: from settings.keyword_window_size)
+            top_n: Number of candidates to extract (default: from settings.keyword_top_n)
+            min_length: Minimum keyword length (default: from settings.keyword_min_length)
         """
-        self.language = language
-        self.max_ngram_size = max_ngram_size
-        self.deduplication_threshold = deduplication_threshold
-        self.window_size = window_size
+        # Use config defaults if not provided
+        self.language = language or settings.keyword_language
+        self.max_ngram_size = max_ngram_size if max_ngram_size is not None else settings.keyword_max_ngrams
+        self.deduplication_threshold = (
+            deduplication_threshold
+            if deduplication_threshold is not None
+            else settings.keyword_dedup_threshold
+        )
+        self.window_size = window_size if window_size is not None else settings.keyword_window_size
+        self.top_n = top_n if top_n is not None else settings.keyword_top_n
+        self.min_length = min_length if min_length is not None else settings.keyword_min_length
 
         # Initialize YAKE extractor
         self.extractor = yake.KeywordExtractor(
-            lan=language,
-            n=max_ngram_size,
-            dedupLim=deduplication_threshold,
+            lan=self.language,
+            n=self.max_ngram_size,
+            dedupLim=self.deduplication_threshold,
             dedupFunc="seqm",
-            windowsSize=window_size,
-            top=20,  # Extract more, filter later
+            windowsSize=self.window_size,
+            top=self.top_n,
         )
 
     async def extract_keywords(
@@ -97,10 +110,19 @@ class YakeKeywordExtractor(IKeywordExtractor):
 
     def _normalize_keywords(self, raw_keywords: list[tuple], max_keywords: int) -> list[str]:
         """
-        Normalize and filter extracted keywords.
+        Normalize and filter extracted keywords with improved quality.
+
+        Filters applied:
+        1. Length check (configurable minimum, default 2 for "AI", "KI")
+        2. No pure numbers
+        3. Score threshold (only keep reasonably scored keywords, score <= 0.5)
+        4. Stopword filtering (German stopwords if language="de")
+           - Single words: filtered if stopword
+           - N-grams: filtered if ANY word is a stopword (e.g., "zeigen die grenzen")
+        5. Deduplication
 
         Args:
-            raw_keywords: List of (keyword, score) tuples from YAKE
+            raw_keywords: List of (keyword, score) tuples from YAKE (lower score = more relevant)
             max_keywords: Maximum number of keywords to return
 
         Returns:
@@ -108,16 +130,45 @@ class YakeKeywordExtractor(IKeywordExtractor):
         """
         normalized = []
 
+        # Determine max acceptable score (YAKE: lower is better, typically 0-1 range)
+        # Only keep keywords with score <= 0.5 (reasonably good keywords)
+        max_score = 0.5
+
         for keyword, score in raw_keywords:
             # Lowercase and strip whitespace
             kw = keyword.lower().strip()
 
-            # Filter:
-            # - Minimum 3 characters (avoid 'is', 'at', etc.)
-            # - No pure numbers
-            # - No duplicates
-            if len(kw) >= 3 and not kw.isdigit() and kw not in normalized:
-                normalized.append(kw)
+            # Apply filters:
+            # 1. Minimum length (allow "ai", "ki" with min_length=2)
+            if len(kw) < self.min_length:
+                continue
+
+            # 2. No pure numbers
+            if kw.isdigit():
+                continue
+
+            # 3. Score threshold (lower is better in YAKE)
+            if score > max_score:
+                continue
+
+            # 4. Stopword filtering (only for German)
+            if self.language == "de":
+                # For single-word keywords, check if it's a stopword
+                if " " not in kw and is_stopword(kw):
+                    continue
+
+                # For n-grams, reject if ANY word is a stopword
+                # This filters: "zeigen die grenzen", "führt zu absurden", etc.
+                if " " in kw:
+                    words = kw.split()
+                    if any(is_stopword(word) for word in words):
+                        continue
+
+            # 5. No duplicates
+            if kw in normalized:
+                continue
+
+            normalized.append(kw)
 
             # Stop when we have enough
             if len(normalized) >= max_keywords:

@@ -1,6 +1,7 @@
 from abc import abstractmethod
+from datetime import datetime, timedelta
 
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_memory import AIMemory
@@ -160,3 +161,26 @@ class AIMemoryRepository(IAIMemoryRepository):
 
         result = await self.db.execute(query)
         return list(result.scalars().all())
+
+    async def delete_old_short_term_memories(self, ttl_days: int) -> int:
+        """
+        Delete short-term memories older than TTL.
+
+        Args:
+            ttl_days: Time-to-live in days (e.g., 7 for 7 days)
+
+        Returns:
+            Number of deleted memories
+        """
+        cutoff_date = datetime.now() - timedelta(days=ttl_days)
+
+        # Delete short-term memories older than cutoff
+        stmt = delete(AIMemory).where(
+            AIMemory.created_at < cutoff_date,
+            AIMemory.memory_metadata["type"].astext == "short_term",
+        )
+
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+
+        return result.rowcount or 0

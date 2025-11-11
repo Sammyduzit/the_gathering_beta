@@ -154,7 +154,7 @@ async def create_test_ai_entities():
                     "room_response_strategy": AIResponseStrategy.ROOM_MENTION_ONLY,
                     "conversation_response_strategy": AIResponseStrategy.CONV_ON_QUESTIONS,
                     "response_probability": 0.3,
-                    "cooldown_seconds": 30,  # 30 seconds cooldown (moderate rate limiting)
+                    "cooldown_seconds": 30,  # (moderate rate limiting)
                 },
                 {
                     "name": "bot_beta",

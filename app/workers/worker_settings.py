@@ -2,11 +2,13 @@
 
 import structlog
 from arq.connections import RedisSettings
+from arq.cron import cron
 
 from app.core.arq_db_manager import ARQDatabaseManager
 from app.core.config import settings
 from app.workers.tasks import (
     check_and_generate_ai_response,
+    cleanup_old_short_term_memories_task,
     create_conversation_memory_task,
     create_long_term_memory_task,
 )
@@ -37,6 +39,10 @@ class WorkerSettings:
         check_and_generate_ai_response,
         create_conversation_memory_task,
         create_long_term_memory_task,
+    ]
+
+    cron_jobs = [
+        cron(cleanup_old_short_term_memories_task, hour=3, minute=0),  # Daily at 3 AM
     ]
 
     redis_settings = RedisSettings.from_dsn(settings.redis_url)

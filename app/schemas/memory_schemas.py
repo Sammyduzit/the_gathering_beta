@@ -5,16 +5,14 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class MemoryCreate(BaseModel):
-    """Schema for creating a new AI memory."""
+class MemoryTextCreate(BaseModel):
+    """Schema for manual long-term memory creation (context-aware, admin-only)."""
 
     entity_id: int = Field(gt=0, description="AI entity ID")
-    conversation_id: int | None = Field(None, description="Conversation ID (XOR with room_id)")
-    room_id: int | None = Field(None, description="Room ID (XOR with conversation_id, unused for now)")
-    summary: str = Field(min_length=1, max_length=500, description="Memory summary (1-500 chars)")
-    memory_content: dict = Field(description="Structured memory content (participants, topic, etc.)")
+    conversation_id: int = Field(gt=0, description="Conversation ID (required)")
+    user_ids: list[int] = Field(min_length=1, description="Participant user IDs (from frontend)")
+    text: str = Field(min_length=1, max_length=500, description="Raw conversation text (max 500 chars)")
     keywords: list[str] | None = Field(None, description="Keywords (auto-extracted if None)")
-    importance_score: float = Field(default=1.0, ge=0.0, le=10.0, description="Importance score (0-10)")
 
 
 class MemoryUpdate(BaseModel):
@@ -37,7 +35,7 @@ class MemoryResponse(BaseModel):
     memory_content: dict
     keywords: list[str] | None
     importance_score: float
-    embedding: dict | None
+    embedding: list[float] | None  # pgvector array serialized as list
     access_count: int
     memory_metadata: dict | None
     created_at: datetime

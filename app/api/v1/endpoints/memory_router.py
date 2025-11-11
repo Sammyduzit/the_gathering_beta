@@ -11,18 +11,24 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.auth_dependencies import get_current_admin_user
 from app.core.csrf_dependencies import validate_csrf
+from app.interfaces.embedding_service import IEmbeddingService
 from app.models.ai_memory import AIMemory
 from app.models.user import User
 from app.repositories.ai_memory_repository import IAIMemoryRepository
-from app.repositories.repository_dependencies import get_ai_memory_repository
+from app.repositories.conversation_repository import IConversationRepository
+from app.repositories.repository_dependencies import (
+    get_ai_memory_repository,
+    get_conversation_repository,
+)
 from app.schemas.memory_schemas import (
-    MemoryCreate,
     MemoryListResponse,
     MemoryResponse,
+    MemoryTextCreate,
     MemoryUpdate,
     PersonalityUploadRequest,
     PersonalityUploadResponse,
 )
+from app.services.embedding_factory import create_embedding_service
 from app.services.personality_memory_service import PersonalityMemoryService
 from app.services.service_dependencies import get_personality_memory_service
 from app.services.yake_extractor import YakeKeywordExtractor
@@ -35,6 +41,7 @@ async def get_memories(
     entity_id: int | None = Query(None, description="Filter by AI entity ID"),
     conversation_id: int | None = Query(None, description="Filter by conversation ID"),
     room_id: int | None = Query(None, description="Filter by room ID"),
+    include_short_term: bool = Query(False, description="Include short-term memories (default: False)"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
     current_admin: User = Depends(get_current_admin_user),
@@ -43,17 +50,20 @@ async def get_memories(
     """
     Get AI memories with pagination and filtering (Admin only).
 
+    By default, short-term memories are excluded. Use include_short_term=true to show all.
+
     Args:
         entity_id: Optional AI entity ID filter
         conversation_id: Optional conversation ID filter
         room_id: Optional room ID filter
+        include_short_term: Include short-term memories (default: False)
         page: Page number (starts at 1)
         page_size: Items per page (max 100)
         current_admin: Current authenticated admin
         memory_repo: Memory repository instance
 
     Returns:
-        Paginated list of memories
+        Paginated list of memories (excludes short-term by default)
     """
     # Calculate offset
     offset = (page - 1) * page_size
@@ -73,6 +83,15 @@ async def get_memories(
         memories = await memory_repo.get_all(limit=page_size, offset=offset)
         # Simplified total count
         total = len(memories) + offset
+
+    # Filter out short-term memories unless explicitly requested
+    if not include_short_term:
+        memories = [
+            m
+            for m in memories
+            if not (m.memory_metadata and m.memory_metadata.get("type") == "short_term")
+        ]
+        total = len(memories)  # Adjust total after filtering
 
     total_pages = math.ceil(total / page_size) if total > 0 else 1
 
@@ -114,62 +133,86 @@ async def get_memory_by_id(
 
 @router.post("", response_model=MemoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_memory(
-    memory_data: MemoryCreate,
+    memory_data: MemoryTextCreate,
     current_admin: User = Depends(get_current_admin_user),
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    conversation_repo: IConversationRepository = Depends(get_conversation_repository),
     _csrf: None = Depends(validate_csrf),
 ) -> MemoryResponse:
     """
-    Create new AI memory manually (Admin only).
+    Create manual long-term memory (Admin only, context-aware).
 
-    Keywords are automatically extracted from summary if not provided.
+    Frontend provides entity_id, conversation_id, user_ids from context.
+    Backend creates embedding and extracts keywords automatically.
 
     Args:
-        memory_data: Memory creation data
+        memory_data: Memory creation data (text, entity_id, conversation_id, user_ids)
         current_admin: Current authenticated admin
         memory_repo: Memory repository instance
+        conversation_repo: Conversation repository instance
 
     Returns:
-        Created memory
+        Created memory with embedding
 
     Raises:
-        HTTPException: 400 if validation fails
+        HTTPException: 404 if conversation not found, 400 if validation fails
     """
-    # Validate XOR constraint: either conversation_id OR room_id, not both
-    if memory_data.conversation_id and memory_data.room_id:
+    # Validate conversation exists
+    conversation = await conversation_repo.get_by_id(memory_data.conversation_id)
+    if not conversation:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot specify both conversation_id and room_id",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Conversation {memory_data.conversation_id} not found",
         )
 
-    if not memory_data.conversation_id and not memory_data.room_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Must specify either conversation_id or room_id",
-        )
+    # Calculate chunk_index (max existing + 1)
+    existing_memories = await memory_repo.get_entity_memories(
+        entity_id=memory_data.entity_id,
+        limit=1000,  # Get all to find max chunk_index
+    )
+    conversation_memories = [
+        m for m in existing_memories if m.conversation_id == memory_data.conversation_id
+    ]
+
+    max_chunk_index = -1
+    for mem in conversation_memories:
+        if mem.memory_metadata and "chunk_index" in mem.memory_metadata:
+            max_chunk_index = max(max_chunk_index, mem.memory_metadata["chunk_index"])
+
+    chunk_index = max_chunk_index + 1
 
     # Auto-extract keywords if not provided
     keywords = memory_data.keywords
     if not keywords:
         extractor = YakeKeywordExtractor()
-        keywords = await extractor.extract_keywords(memory_data.summary, max_keywords=10)
+        keywords = await extractor.extract_keywords(memory_data.text, max_keywords=10)
+
+    # Create embedding from text
+    embedding_service = create_embedding_service()
+    embedding = await embedding_service.embed(memory_data.text)
+
+    # Create summary (first 200 chars)
+    summary = memory_data.text[:200] + "..." if len(memory_data.text) > 200 else memory_data.text
 
     # Build metadata
     memory_metadata = {
+        "type": "long_term",
+        "chunk_index": chunk_index,
         "created_by": "admin",
         "extractor_used": "yake" if not memory_data.keywords else "manual",
-        "version": 1,
     }
 
     # Create memory
     memory = AIMemory(
         entity_id=memory_data.entity_id,
+        user_ids=memory_data.user_ids,
         conversation_id=memory_data.conversation_id,
-        room_id=memory_data.room_id,
-        summary=memory_data.summary,
-        memory_content=memory_data.memory_content,
+        room_id=None,
+        summary=summary,
+        memory_content={"full_text": memory_data.text},
         keywords=keywords,
-        importance_score=memory_data.importance_score,
+        importance_score=1.0,
+        embedding=embedding,
         memory_metadata=memory_metadata,
     )
 

@@ -46,3 +46,5 @@ __old
 local_versions.txt
 *.log
 .claude/
+create_test_conversations.py
+NOTES.md

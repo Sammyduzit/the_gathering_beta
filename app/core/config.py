@@ -25,16 +25,26 @@ class Settings(BaseSettings):
 
     deepl_api_key: str
     openai_api_key: str | None = None
+    google_api_key: str | None = None
 
     redis_url: str
     ai_features_enabled: bool = True
 
     # RAG & Vector Search Configuration
     enable_vector_search: bool = True
-    embedding_model: str = "text-embedding-3-small"
+    embedding_provider: Literal["google", "openai"] = "google"  # Which provider to use for embeddings
+    embedding_model: str = "gemini-embedding-001"  # Default to Google Gemini
     embedding_dimensions: int = 1536
     vector_search_weight: float = 0.7
     keyword_search_weight: float = 0.3
+
+    # Keyword Extraction Configuration (YAKE)
+    keyword_language: str = "de"  # Language for keyword extraction (de=German, en=English)
+    keyword_max_ngrams: int = 3  # Maximum n-gram size (1=unigrams, 2=bigrams, 3=trigrams)
+    keyword_window_size: int = 3  # Context window size for co-occurrence analysis
+    keyword_dedup_threshold: float = 0.9  # Deduplication threshold (0.0-1.0)
+    keyword_min_length: int = 2  # Minimum keyword length (allows "AI", "KI")
+    keyword_top_n: int = 20  # Number of candidate keywords to extract before filtering
 
     # Memory retrieval limits
     total_memory_limit: int = 7

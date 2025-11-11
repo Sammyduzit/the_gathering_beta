@@ -1,6 +1,5 @@
-import yake
-
 from app.interfaces.embedding_service import EmbeddingServiceError, IEmbeddingService
+from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.models.ai_memory import AIMemory
 from app.repositories.ai_memory_repository import AIMemoryRepository
 from app.repositories.message_repository import MessageRepository
@@ -16,17 +15,23 @@ class LongTermMemoryService:
         message_repo: MessageRepository,
         embedding_service: IEmbeddingService,
         chunking_service: TextChunkingService,
+        keyword_extractor: IKeywordExtractor,
     ):
+        """
+        Initialize long-term memory service.
+
+        Args:
+            memory_repo: AI memory repository
+            message_repo: Message repository
+            embedding_service: Embedding service (Google/OpenAI)
+            chunking_service: Text chunking service
+            keyword_extractor: Keyword extractor (YAKE by default)
+        """
         self.memory_repo = memory_repo
         self.message_repo = message_repo
         self.embedding_service = embedding_service
         self.chunking_service = chunking_service
-        self.keyword_extractor = yake.KeywordExtractor(
-            lan="en",
-            n=2,
-            dedupLim=0.9,
-            top=10,
-        )
+        self.keyword_extractor = keyword_extractor
 
     async def create_long_term_archive(
         self,
@@ -64,8 +69,8 @@ class LongTermMemoryService:
         if not messages:
             return []
 
-        # Combine all message content
-        combined_text = "\n\n".join([f"{m.sender_user_id or 'AI'}: {m.content}" for m in messages])
+        # Combine all message content with usernames
+        combined_text = "\n\n".join([f"{m.sender_username}: {m.content}" for m in messages])
 
         # Chunk text
         chunks = self.chunking_service.chunk_text(combined_text)
@@ -73,8 +78,11 @@ class LongTermMemoryService:
         if not chunks:
             return []
 
-        # Extract keywords per chunk
-        chunk_keywords = [self._extract_keywords(chunk) for chunk in chunks]
+        # Extract keywords per chunk (async)
+        chunk_keywords = []
+        for chunk in chunks:
+            keywords = await self._extract_keywords(chunk)
+            chunk_keywords.append(keywords)
 
         # Generate embeddings per chunk (batch)
         try:
@@ -109,13 +117,21 @@ class LongTermMemoryService:
 
         return memories
 
-    def _extract_keywords(self, text: str) -> list[str]:
-        """Extract keywords from text using YAKE."""
+    async def _extract_keywords(self, text: str) -> list[str]:
+        """
+        Extract keywords from text using configured keyword extractor.
+
+        Args:
+            text: Text to extract keywords from
+
+        Returns:
+            List of extracted keywords (lowercase, normalized)
+        """
         if not text or not text.strip():
             return []
 
         try:
-            keywords = self.keyword_extractor.extract_keywords(text)
-            return [kw[0] for kw in keywords]
+            keywords = await self.keyword_extractor.extract_keywords(text, max_keywords=10)
+            return keywords
         except Exception:
             return []

@@ -23,7 +23,7 @@ from app.services.heuristic_summarizer import HeuristicMemorySummarizer
 from app.services.keyword_retriever import KeywordMemoryRetriever
 from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.memory_builder_service import MemoryBuilderService
-from app.services.openai_embedding_service import OpenAIEmbeddingService
+from app.services.embedding_factory import create_embedding_service
 from app.services.short_term_memory_service import ShortTermMemoryService
 from app.services.text_chunking_service import TextChunkingService
 from app.services.yake_extractor import YakeKeywordExtractor
@@ -543,18 +543,16 @@ async def create_long_term_memory_task(
                 )
                 return {"memory_count": 0, "memory_ids": []}
 
-            # Initialize services
-            embedding_service = OpenAIEmbeddingService(
-                api_key=settings.openai_api_key,
-                model=settings.embedding_model,
-                dimensions=settings.embedding_dimensions,
-            )
+            # Initialize services (provider selected via settings.embedding_provider)
+            embedding_service = create_embedding_service()
             chunking_service = TextChunkingService()
+            keyword_extractor = YakeKeywordExtractor()  # Uses config defaults
             long_term_service = LongTermMemoryService(
                 memory_repo=memory_repo,
                 message_repo=message_repo,
                 embedding_service=embedding_service,
                 chunking_service=chunking_service,
+                keyword_extractor=keyword_extractor,
             )
 
             # Create long-term archive with all participant user IDs
@@ -585,3 +583,50 @@ async def create_long_term_memory_task(
             conversation_id=conversation_id,
         )
         raise Retry(defer=ctx["job_try"] * 10)  # Retry with backoff
+
+
+async def cleanup_old_short_term_memories_task(ctx: dict) -> dict:
+    """
+    ARQ task (cron): Delete short-term memories older than TTL.
+
+    Runs daily at 3 AM to prevent short-term memory accumulation.
+    Short-term memories are temporary and should not persist beyond TTL.
+
+    Args:
+        ctx: ARQ context with db_manager
+
+    Returns:
+        Dict with deleted_count
+    """
+    job_id = str(uuid4())
+    db_session_context.set(job_id)
+
+    db_manager: ARQDatabaseManager = ctx["db_manager"]
+
+    try:
+        async for session in db_manager.get_session():
+            memory_repo = AIMemoryRepository(session)
+
+            # Delete old short-term memories
+            deleted_count = await memory_repo.delete_old_short_term_memories(
+                ttl_days=settings.short_term_ttl_days
+            )
+
+            logger.info(
+                "short_term_memories_cleaned_up",
+                deleted_count=deleted_count,
+                ttl_days=settings.short_term_ttl_days,
+            )
+
+            return {
+                "deleted_count": deleted_count,
+                "ttl_days": settings.short_term_ttl_days,
+            }
+
+    except Exception as e:
+        logger.error(
+            "short_term_cleanup_failed",
+            error=str(e),
+        )
+        # Don't retry - will run again tomorrow
+        return {"error": str(e), "deleted_count": 0}
