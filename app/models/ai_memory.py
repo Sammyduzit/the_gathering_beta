@@ -1,10 +1,16 @@
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
+
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, JSON, Column, DateTime, Float, ForeignKey, Index, Integer, Text
+from sqlalchemy import ARRAY, JSON, DateTime, Float, ForeignKey, Index, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.ai_entity import AIEntity
 
 
 class AIMemory(Base):
@@ -12,45 +18,41 @@ class AIMemory(Base):
 
     __tablename__ = "ai_memories"
 
-    id = Column(Integer, primary_key=True)
-    entity_id = Column(Integer, ForeignKey("ai_entities.id", ondelete="CASCADE"), nullable=False)
-    user_ids = Column(
-        ARRAY(Integer).with_variant(JSON(), "sqlite"),
-        nullable=False,
-        default=list,
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity_id: Mapped[int] = mapped_column(ForeignKey("ai_entities.id", ondelete="CASCADE"))
+    user_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer).with_variant(JSON(), "sqlite"), default=list)
 
     # Context linking
-    room_id = Column(Integer, ForeignKey("rooms.id", ondelete="CASCADE"), nullable=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=True)
+    room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), default=None)
+    conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), default=None)
 
     # Memory data (AI-readable summary + structured JSONB content)
-    summary = Column(Text, nullable=False)
-    memory_content = Column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"), nullable=False)
+    summary: Mapped[str] = mapped_column(Text)
+    memory_content: Mapped[dict[str, Any]] = mapped_column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"))
 
     # Retrieval metadata
-    keywords = Column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"), nullable=True)
-    importance_score = Column(Float, nullable=False, default=1.0)
+    keywords: Mapped[list[str] | None] = mapped_column(
+        JSON().with_variant(JSONB(none_as_null=True), "postgresql"), default=None
+    )
+    importance_score: Mapped[float] = mapped_column(Float, default=1.0)
 
     # Vector search support (pgvector for semantic search, PostgreSQL only)
-    embedding = Column(Vector(1536), nullable=True)
+    embedding: Mapped[Any | None] = mapped_column(Vector(1536), default=None)  # type: ignore
 
     # Access tracking for importance adjustment
-    access_count = Column(Integer, nullable=False, default=0)
+    access_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Flexible metadata (extractor version, creation method, etc.)
-    memory_metadata = Column(
-        JSON().with_variant(JSONB(none_as_null=True), "postgresql"),
-        nullable=True,
-        comment="Stores extractor_used, summarizer_used, version, confidence_score, etc.",
+    memory_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(JSONB(none_as_null=True), "postgresql"), default=None
     )
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    last_accessed = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_accessed: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    entity = relationship("AIEntity", back_populates="memories")
+    entity: Mapped["AIEntity"] = relationship(back_populates="memories")
 
     __table_args__ = (
         Index("idx_ai_memory_entity_room", "entity_id", "room_id"),

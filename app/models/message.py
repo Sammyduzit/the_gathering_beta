@@ -1,20 +1,20 @@
 import enum
+from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import (
-    CheckConstraint,
-    Column,
-    DateTime,
-    Enum,
-    ForeignKey,
-    Index,
-    Integer,
-    Text,
-)
-from sqlalchemy.orm import relationship
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, Index, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.constants import ONDELETE_CASCADE, ONDELETE_RESTRICT, ONDELETE_SET_NULL
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.ai_entity import AIEntity
+    from app.models.conversation import Conversation
+    from app.models.message_translation import MessageTranslation
+    from app.models.room import Room
+    from app.models.user import User
 
 
 class MessageType(enum.Enum):
@@ -38,56 +38,44 @@ class Message(Base):
 
     __tablename__ = "messages"
 
-    id = Column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
     # Polymorphic sender (User XOR AI)
-    sender_user_id = Column(
-        Integer,
-        ForeignKey("users.id", ondelete=ONDELETE_SET_NULL),
-        nullable=True,
+    sender_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete=ONDELETE_SET_NULL), default=None
     )
-    sender_ai_id = Column(
-        Integer,
-        ForeignKey("ai_entities.id", ondelete=ONDELETE_SET_NULL),
-        nullable=True,
+    sender_ai_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ai_entities.id", ondelete=ONDELETE_SET_NULL), default=None
     )
 
-    content = Column(Text, nullable=False)
-    message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
-    sent_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    content: Mapped[str] = mapped_column(Text)
+    message_type: Mapped[MessageType] = mapped_column(Enum(MessageType), default=MessageType.TEXT)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    room_id = Column(Integer, ForeignKey("rooms.id", ondelete=ONDELETE_SET_NULL), nullable=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete=ONDELETE_CASCADE), nullable=True)
+    room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete=ONDELETE_SET_NULL), default=None)
+    conversation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete=ONDELETE_CASCADE), default=None
+    )
 
     # Threading Support (Reply-To)
-    in_reply_to_message_id = Column(
-        Integer,
-        ForeignKey("messages.id", ondelete=ONDELETE_RESTRICT),
-        nullable=True,
-        index=True,
+    in_reply_to_message_id: Mapped[int | None] = mapped_column(
+        ForeignKey("messages.id", ondelete=ONDELETE_RESTRICT), default=None, index=True
     )
 
     # Polymorphic relationships
-    sender_user = relationship(
-        "User",
-        back_populates="sent_messages",
-        foreign_keys=[sender_user_id],
-        lazy="raise",
+    sender_user: Mapped["User | None"] = relationship(
+        back_populates="sent_messages", foreign_keys=[sender_user_id], lazy="raise"
     )
-    sender_ai = relationship(
-        "AIEntity",
-        back_populates="sent_messages",
-        foreign_keys=[sender_ai_id],
-        lazy="raise",
+    sender_ai: Mapped["AIEntity | None"] = relationship(
+        back_populates="sent_messages", foreign_keys=[sender_ai_id], lazy="raise"
     )
 
-    room = relationship("Room", back_populates="room_messages")
-    conversation = relationship("Conversation", back_populates="messages")
-    translations = relationship("MessageTranslation", back_populates="message", lazy="dynamic")
+    room: Mapped["Room | None"] = relationship(back_populates="room_messages")
+    conversation: Mapped["Conversation | None"] = relationship(back_populates="messages")
+    translations: Mapped[list["MessageTranslation"]] = relationship(back_populates="message", lazy="dynamic")
 
     # Self-Referential Relationship for Threading
-    in_reply_to = relationship(
-        "Message",
+    in_reply_to: Mapped["Message | None"] = relationship(
         remote_side=[id],
         backref="replies",
         lazy="raise",
@@ -112,14 +100,16 @@ class Message(Base):
     @property
     def sender_id(self) -> int:
         """Get sender ID regardless of type (User or AI)."""
-        return self.sender_user_id if self.sender_user_id else self.sender_ai_id
+        return self.sender_user_id if self.sender_user_id else self.sender_ai_id  # type: ignore
 
     @property
     def sender_username(self) -> str:
         """Get sender username regardless of type (user.username or ai.display_name)."""
-        if self.sender_user_id:
+        if self.sender_user_id and self.sender_user:
             return self.sender_user.username
-        return self.sender_ai.display_name
+        if self.sender_ai:
+            return self.sender_ai.display_name
+        return ""
 
     @property
     def is_from_ai(self) -> bool:
@@ -127,17 +117,17 @@ class Message(Base):
         return self.sender_ai_id is not None
 
     @property
-    def is_room_message(self):
+    def is_room_message(self) -> bool:
         """Check if message is for room-wide chat."""
         return self.room_id is not None
 
     @property
-    def is_conversation_message(self):
+    def is_conversation_message(self) -> bool:
         """Check if message is for private/group conversation."""
         return self.conversation_id is not None
 
     @property
-    def chat_target(self):
+    def chat_target(self) -> dict:
         """Get the target of this message (room or conversation ID)."""
         if self.is_room_message:
             return {"type": "room", "id": self.room_id}

@@ -1,8 +1,16 @@
-from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer, UniqueConstraint
-from sqlalchemy.orm import relationship
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.ai_entity import AIEntity
+    from app.models.conversation import Conversation
+    from app.models.user import User
 
 
 class ConversationParticipant(Base):
@@ -19,35 +27,23 @@ class ConversationParticipant(Base):
 
     __tablename__ = "conversation_participants"
 
-    id = Column(Integer, primary_key=True)
-    conversation_id = Column(
-        Integer,
-        ForeignKey("conversations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"))
 
     # Polymorphic: User OR AI (XOR constraint)
-    user_id = Column(
-        Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=True,
-    )
-    ai_entity_id = Column(
-        Integer,
-        ForeignKey("ai_entities.id", ondelete="CASCADE"),
-        nullable=True,
-    )
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), default=None)
+    ai_entity_id: Mapped[int | None] = mapped_column(ForeignKey("ai_entities.id", ondelete="CASCADE"), default=None)
 
-    joined_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    left_at = Column(DateTime(timezone=True), nullable=True)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    left_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
 
     # Farewell tracking for AI (prevents duplicate goodbyes)
-    farewell_sent = Column(Boolean, nullable=False, default=False)
+    farewell_sent: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationships
-    conversation = relationship("Conversation", back_populates="participants")
-    user = relationship("User", back_populates="conversation_participations")
-    ai_entity = relationship("AIEntity", back_populates="conversation_participations")
+    conversation: Mapped["Conversation"] = relationship(back_populates="participants")
+    user: Mapped["User | None"] = relationship(back_populates="conversation_participations")
+    ai_entity: Mapped["AIEntity | None"] = relationship(back_populates="conversation_participations")
 
     __table_args__ = (
         CheckConstraint(
@@ -65,9 +61,11 @@ class ConversationParticipant(Base):
     @property
     def participant_name(self) -> str:
         """Get participant name regardless of User or AI."""
-        if self.user_id:
+        if self.user_id and self.user:
             return self.user.username
-        return self.ai_entity.display_name
+        if self.ai_entity:
+            return self.ai_entity.display_name
+        return ""
 
     @property
     def is_ai(self) -> bool:
@@ -77,7 +75,7 @@ class ConversationParticipant(Base):
     @property
     def participant_id(self) -> int:
         """Get ID regardless of type."""
-        return self.user_id if self.user_id else self.ai_entity_id
+        return self.user_id if self.user_id else self.ai_entity_id  # type: ignore
 
     def __repr__(self):
         participant_type = "ai" if self.is_ai else "user"

@@ -1,10 +1,17 @@
 import enum
+from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.conversation_participant import ConversationParticipant
+    from app.models.message import Message
+    from app.models.room import Room
 
 
 class ConversationType(enum.Enum):
@@ -19,17 +26,17 @@ class Conversation(Base):
 
     __tablename__ = "conversations"
 
-    id = Column(Integer, primary_key=True)
-    room_id = Column(Integer, ForeignKey("rooms.id", ondelete="SET NULL"), nullable=False)
-    conversation_type = Column(Enum(ConversationType), nullable=False, default=ConversationType.PRIVATE)
-    max_participants = Column(Integer, nullable=True)  # 2 for private, NULL for group chat
+    id: Mapped[int] = mapped_column(primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id", ondelete="SET NULL"))
+    conversation_type: Mapped[ConversationType] = mapped_column(Enum(ConversationType), default=ConversationType.PRIVATE)
+    max_participants: Mapped[int | None] = mapped_column(default=None)  # 2 for private, NULL for group chat
 
-    is_active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=func.now())
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
-    room = relationship("Room", back_populates="conversations")
-    participants = relationship("ConversationParticipant", back_populates="conversation")
-    messages = relationship("Message", back_populates="conversation", lazy="dynamic")
+    room: Mapped["Room"] = relationship(back_populates="conversations")
+    participants: Mapped[list["ConversationParticipant"]] = relationship(back_populates="conversation")
+    messages: Mapped[list["Message"]] = relationship(back_populates="conversation", lazy="dynamic")
 
     def __repr__(self):
         return f"<Conversation(id={self.id}, type={self.conversation_type}, room_id={self.room_id})>"

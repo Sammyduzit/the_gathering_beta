@@ -1,10 +1,18 @@
 """AI Cooldown Model - Separate table for performance & atomicity."""
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint
-from sqlalchemy.orm import relationship
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.ai_entity import AIEntity
+    from app.models.conversation import Conversation
+    from app.models.room import Room
 
 
 class AICooldown(Base):
@@ -12,40 +20,22 @@ class AICooldown(Base):
 
     __tablename__ = "ai_cooldowns"
 
-    id = Column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
 
-    ai_entity_id = Column(
-        Integer,
-        ForeignKey("ai_entities.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
+    ai_entity_id: Mapped[int] = mapped_column(ForeignKey("ai_entities.id", ondelete="CASCADE"), index=True)
 
     # Context: EITHER Room OR Conversation (XOR enforced by unique constraint)
-    room_id = Column(
-        Integer,
-        ForeignKey("rooms.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
-    )
-    conversation_id = Column(
-        Integer,
-        ForeignKey("conversations.id", ondelete="CASCADE"),
-        nullable=True,
-        index=True,
+    room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), default=None, index=True)
+    conversation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), default=None, index=True
     )
 
-    last_response_at = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        index=True,
-    )
+    last_response_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
-    ai_entity = relationship("AIEntity", back_populates="cooldowns")
-    room = relationship("Room")
-    conversation = relationship("Conversation")
+    ai_entity: Mapped["AIEntity"] = relationship(back_populates="cooldowns")
+    room: Mapped["Room | None"] = relationship()
+    conversation: Mapped["Conversation | None"] = relationship()
 
     __table_args__ = (
         UniqueConstraint(

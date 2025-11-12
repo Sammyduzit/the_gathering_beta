@@ -5,10 +5,12 @@ Follows User model pattern with configuration for OpenAI/LangChain integration.
 """
 
 import enum
+from datetime import datetime
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.sql import func
 
 from app.core.constants import (
@@ -20,6 +22,13 @@ from app.core.constants import (
     MIN_AI_COOLDOWN_SECONDS,
 )
 from app.core.database import Base
+
+if TYPE_CHECKING:
+    from app.models.ai_cooldown import AICooldown
+    from app.models.ai_memory import AIMemory
+    from app.models.conversation_participant import ConversationParticipant
+    from app.models.message import Message
+    from app.models.room import Room
 
 
 class AIEntityStatus(enum.Enum):
@@ -46,87 +55,55 @@ class AIEntity(Base):
 
     __tablename__ = "ai_entities"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True, nullable=False, index=True)
-    display_name = Column(String(200), nullable=False)
-    description = Column(Text, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text, default=None)
 
     # LangChain/OpenAI Configuration
-    system_prompt = Column(Text, nullable=False)
-    model_name = Column(String(100), nullable=False, default=DEFAULT_AI_MODEL)
-    temperature = Column(Float, nullable=False, default=DEFAULT_AI_TEMPERATURE)
-    max_tokens = Column(Integer, nullable=False, default=DEFAULT_AI_MAX_TOKENS)
+    system_prompt: Mapped[str] = mapped_column(Text)
+    model_name: Mapped[str] = mapped_column(String(100), default=DEFAULT_AI_MODEL)
+    temperature: Mapped[float] = mapped_column(Float, default=DEFAULT_AI_TEMPERATURE)
+    max_tokens: Mapped[int] = mapped_column(default=DEFAULT_AI_MAX_TOKENS)
 
     # Response Strategies
-    room_response_strategy = Column(
-        Enum(AIResponseStrategy),
-        nullable=False,
-        default=AIResponseStrategy.ROOM_MENTION_ONLY,
-        index=True,
+    room_response_strategy: Mapped[AIResponseStrategy] = mapped_column(
+        Enum(AIResponseStrategy), default=AIResponseStrategy.ROOM_MENTION_ONLY, index=True
     )
-    conversation_response_strategy = Column(
-        Enum(AIResponseStrategy),
-        nullable=False,
-        default=AIResponseStrategy.CONV_ON_QUESTIONS,
-        index=True,
+    conversation_response_strategy: Mapped[AIResponseStrategy] = mapped_column(
+        Enum(AIResponseStrategy), default=AIResponseStrategy.CONV_ON_QUESTIONS, index=True
     )
-    response_probability = Column(
-        Float,
-        nullable=False,
-        default=0.3,
-    )
+    response_probability: Mapped[float] = mapped_column(Float, default=0.3)
 
     # Cooldown Configuration (rate limiting between responses)
-    cooldown_seconds = Column(
-        Integer,
-        nullable=True,
-        default=DEFAULT_AI_COOLDOWN_SECONDS,
-        comment="Minimum seconds between AI responses (None = no cooldown)",
-    )
+    cooldown_seconds: Mapped[int | None] = mapped_column(default=DEFAULT_AI_COOLDOWN_SECONDS)
 
     # Flexible config storage (JSONB for additional LangChain parameters)
-    config = Column(JSON().with_variant(JSONB(none_as_null=True), "postgresql"), nullable=True)
-
-    status = Column(
-        Enum(AIEntityStatus),
-        nullable=False,
-        default=AIEntityStatus.OFFLINE,
-        index=True,
+    config: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(JSONB(none_as_null=True), "postgresql"), default=None
     )
-    is_active = Column(Boolean, nullable=False, default=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    status: Mapped[AIEntityStatus] = mapped_column(Enum(AIEntityStatus), default=AIEntityStatus.OFFLINE, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), default=None)
 
     # Room presence
-    current_room_id = Column(
-        Integer,
-        ForeignKey("rooms.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
+    current_room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete="SET NULL"), default=None, index=True)
 
     # Relationships
-    current_room = relationship("Room", back_populates="ai_entities")
-    memories = relationship("AIMemory", back_populates="entity", lazy="raise")
-    sent_messages = relationship(
-        "Message",
-        back_populates="sender_ai",
-        foreign_keys="Message.sender_ai_id",
-        lazy="raise",
+    current_room: Mapped["Room | None"] = relationship(back_populates="ai_entities")
+    memories: Mapped[list["AIMemory"]] = relationship(back_populates="entity", lazy="raise")
+    sent_messages: Mapped[list["Message"]] = relationship(
+        back_populates="sender_ai", foreign_keys="Message.sender_ai_id", lazy="raise"
     )
-    conversation_participations = relationship(
-        "ConversationParticipant",
-        back_populates="ai_entity",
-        foreign_keys="ConversationParticipant.ai_entity_id",
-        lazy="raise",
+    conversation_participations: Mapped[list["ConversationParticipant"]] = relationship(
+        back_populates="ai_entity", foreign_keys="ConversationParticipant.ai_entity_id", lazy="raise"
     )
 
     # Cooldown Tracking
-    cooldowns = relationship(
-        "AICooldown",
-        back_populates="ai_entity",
-        lazy="raise",
-        cascade="all, delete-orphan",
+    cooldowns: Mapped[list["AICooldown"]] = relationship(
+        back_populates="ai_entity", lazy="raise", cascade="all, delete-orphan"
     )
 
     @validates("response_probability")
