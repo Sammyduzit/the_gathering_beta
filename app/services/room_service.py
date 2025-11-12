@@ -275,11 +275,10 @@ class RoomService:
         :param in_reply_to_message_id: Optional message to reply to
         :return: Created message
         """
-        room = await self._get_room_or_404(room_id)
+        # Validate access
+        room = await self._validate_user_in_room(current_user, room_id)
 
-        if current_user.current_room_id != room_id:
-            raise UserNotInRoomException(f"User must be in room '{room.name}' to send messages")
-
+        # Create message
         message = await self.message_repo.create_room_message(
             room_id=room_id,
             content=content,
@@ -287,38 +286,58 @@ class RoomService:
             in_reply_to_message_id=in_reply_to_message_id,
         )
 
-        # Translation logic
-        if room.is_translation_enabled:
-            room_users = await self.room_repo.get_users_in_room(room_id)
+        # Trigger translation if needed
+        await self._trigger_room_translation_if_needed(room, message, current_user, content)
 
-            target_languages = list(
-                {
-                    user.preferred_language.upper()
-                    for user in room_users
-                    if user.preferred_language
-                    and user.preferred_language != current_user.preferred_language
-                    and user.id != current_user.id
-                }
+        # Periodic cleanup
+        await self._cleanup_old_messages_if_needed(room_id, message.id)
+
+        return message
+
+    async def _validate_user_in_room(self, current_user: User, room_id: int):
+        """Validate that user is currently in the room."""
+        room = await self._get_room_or_404(room_id)
+        if current_user.current_room_id != room_id:
+            raise UserNotInRoomException(f"User must be in room '{room.name}' to send messages")
+        return room
+
+    async def _trigger_room_translation_if_needed(self, room, message: Message, current_user: User, content: str) -> None:
+        """Trigger translation for room message if translation is enabled."""
+        if not room.is_translation_enabled:
+            return
+
+        # Get target languages from room users
+        target_languages = await self._get_room_translation_target_languages(room.id, current_user)
+
+        if target_languages:
+            source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
+            await self.translation_service.translate_and_store_message(
+                message_id=message.id,
+                content=content,
+                source_language=source_lang,
+                target_languages=target_languages,
             )
 
-            if target_languages:
-                source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
+    async def _get_room_translation_target_languages(self, room_id: int, current_user: User) -> list[str]:
+        """Get list of unique target languages for translation from room users."""
+        room_users = await self.room_repo.get_users_in_room(room_id)
+        return list(
+            {
+                user.preferred_language.upper()
+                for user in room_users
+                if user.preferred_language
+                and user.preferred_language != current_user.preferred_language
+                and user.id != current_user.id
+            }
+        )
 
-                await self.translation_service.translate_and_store_message(
-                    message_id=message.id,
-                    content=content,
-                    source_language=source_lang,
-                    target_languages=target_languages,
-                )
-
-        # Periodic cleanup: Remove oldest messages when room messages exceed limit
+    async def _cleanup_old_messages_if_needed(self, room_id: int, message_id: int) -> None:
+        """Periodically cleanup old room messages to maintain limit."""
         try:
-            if message.id % MESSAGE_CLEANUP_FREQUENCY == 0:
+            if message_id % MESSAGE_CLEANUP_FREQUENCY == 0:
                 await self.message_repo.cleanup_old_room_messages(room_id, MAX_ROOM_MESSAGES)
         except SQLAlchemyError as e:
             logger.warning(f"Cleanup failed, but message sent successfully: {e}")
-
-        return message
 
     async def get_room_messages(
         self, current_user: User, room_id: int, page: int = 1, page_size: int = 50

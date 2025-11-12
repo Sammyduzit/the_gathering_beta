@@ -126,13 +126,10 @@ class ConversationService:
         :param in_reply_to_message_id: Optional message to reply to
         :return: Created message
         """
-        conversation = await self.conversation_repo.get_by_id(conversation_id)
-        if not conversation:
-            raise ConversationNotFoundException(conversation_id)
+        # Validate access
+        conversation = await self._validate_sender_access(current_user.id, conversation_id)
 
-        if not await self.conversation_repo.is_participant(conversation_id, current_user.id):
-            raise NotConversationParticipantException()
-
+        # Create message
         message = await self.message_repo.create_conversation_message(
             conversation_id=conversation_id,
             content=content,
@@ -140,35 +137,59 @@ class ConversationService:
             in_reply_to_message_id=in_reply_to_message_id,
         )
 
+        # Trigger translation if needed
+        await self._trigger_translation_if_needed(conversation, message, current_user, content)
+
+        return message
+
+    async def _validate_sender_access(self, user_id: int, conversation_id: int) -> Conversation:
+        """Validate that user has access to send messages in conversation."""
+        conversation = await self.conversation_repo.get_by_id(conversation_id)
+        if not conversation:
+            raise ConversationNotFoundException(conversation_id)
+
+        if not await self.conversation_repo.is_participant(conversation_id, user_id):
+            raise NotConversationParticipantException()
+
+        return conversation
+
+    async def _trigger_translation_if_needed(
+        self, conversation: Conversation, message: Message, current_user: User, content: str
+    ) -> None:
+        """Trigger translation for message if room has translation enabled."""
         # Load room async to check translation settings (avoid lazy loading)
         room = None
         if conversation.room_id:
             room = await self.room_repo.get_by_id(conversation.room_id)
 
-        if room and room.is_translation_enabled:
-            participants = await self.conversation_repo.get_participants(conversation_id)
-            target_languages = list(
-                {
-                    participant.user.preferred_language.upper()
-                    for participant in participants
-                    if participant.user_id  # Only user participants, not AI
-                    and participant.user.preferred_language
-                    and participant.user.preferred_language != current_user.preferred_language
-                    and participant.user_id != current_user.id
-                }
+        if not room or not room.is_translation_enabled:
+            return
+
+        # Get target languages from participants
+        target_languages = await self._get_translation_target_languages(conversation.id, current_user)
+
+        if target_languages:
+            source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
+            await self.translation_service.translate_and_store_message(
+                message_id=message.id,
+                content=content,
+                source_language=source_lang,
+                target_languages=target_languages,
             )
 
-            if target_languages:
-                source_lang = current_user.preferred_language.upper() if current_user.preferred_language else None
-
-                await self.translation_service.translate_and_store_message(
-                    message_id=message.id,
-                    content=content,
-                    source_language=source_lang,
-                    target_languages=target_languages,
-                )
-
-        return message
+    async def _get_translation_target_languages(self, conversation_id: int, current_user: User) -> list[str]:
+        """Get list of unique target languages for translation from conversation participants."""
+        participants = await self.conversation_repo.get_participants(conversation_id)
+        return list(
+            {
+                participant.user.preferred_language.upper()
+                for participant in participants
+                if participant.user_id  # Only user participants, not AI
+                and participant.user.preferred_language
+                and participant.user.preferred_language != current_user.preferred_language
+                and participant.user_id != current_user.id
+            }
+        )
 
     async def get_messages(
         self,
@@ -492,14 +513,35 @@ class ConversationService:
         # Validate access
         await self._validate_conversation_access(current_user.id, conversation_id)
 
-        # Get conversation
+        # Get conversation data
         conversation = await self.conversation_repo.get_by_id(conversation_id)
         if not conversation:
             raise ConversationNotFoundException(f"Conversation {conversation_id} not found")
 
-        # Get participants with full details
         participants = await self.conversation_repo.get_participants(conversation_id)
-        participant_details = [
+
+        # Format response components
+        participant_details = await self._format_participant_details(participants)
+        room_name = await self._get_room_name(conversation.room_id)
+        message_metadata = await self._get_message_metadata(conversation_id)
+        permissions = self._calculate_permissions(current_user, participants)
+
+        return {
+            "id": conversation.id,
+            "type": conversation.conversation_type.value,
+            "room_id": conversation.room_id,
+            "room_name": room_name,
+            "is_active": conversation.is_active,
+            "created_at": conversation.created_at,
+            "participants": participant_details,
+            "participant_count": len(participants),
+            **message_metadata,
+            "permissions": permissions,
+        }
+
+    async def _format_participant_details(self, participants) -> list[dict]:
+        """Format participant list with full details."""
+        return [
             {
                 "id": p.user_id if p.user_id else p.ai_entity_id,
                 "username": p.participant_name if p.user_id else p.ai_entity.name,
@@ -513,21 +555,22 @@ class ConversationService:
             for p in participants
         ]
 
-        # Get room name
-        room = await self.room_repo.get_by_id(conversation.room_id)
-        room_name = room.name if room else None
+    async def _get_room_name(self, room_id: int) -> str | None:
+        """Get room name by ID."""
+        room = await self.room_repo.get_by_id(room_id)
+        return room.name if room else None
 
-        # Get message metadata
+    async def _get_message_metadata(self, conversation_id: int) -> dict:
+        """Get message count and latest message."""
         message_count = await self.message_repo.count_conversation_messages(conversation_id)
         latest_message_obj = await self.message_repo.get_latest_conversation_message(conversation_id)
 
-        # Format latest message
         latest_message = None
         if latest_message_obj:
             latest_message = {
                 "id": latest_message_obj.id,
-                "sender_id": latest_message_obj.sender_id,  # Uses @property
-                "sender_username": latest_message_obj.sender_username,  # Uses @property
+                "sender_id": latest_message_obj.sender_id,
+                "sender_username": latest_message_obj.sender_username,
                 "sender_display_name": (
                     latest_message_obj.sender_user.username
                     if latest_message_obj.sender_user_id
@@ -539,26 +582,18 @@ class ConversationService:
                 "conversation_id": latest_message_obj.conversation_id,
             }
 
-        # Calculate permissions
+        return {
+            "message_count": message_count,
+            "latest_message": latest_message,
+        }
+
+    def _calculate_permissions(self, current_user: User, participants) -> dict:
+        """Calculate user permissions for conversation."""
         is_participant = any(p.user_id == current_user.id for p in participants)
-        permissions = {
+        return {
             "can_post": is_participant,
             "can_manage_participants": current_user.is_admin or is_participant,
             "can_leave": is_participant,
-        }
-
-        return {
-            "id": conversation.id,
-            "type": conversation.conversation_type.value,
-            "room_id": conversation.room_id,
-            "room_name": room_name,
-            "is_active": conversation.is_active,
-            "created_at": conversation.created_at,
-            "participants": participant_details,
-            "participant_count": len(participants),
-            "message_count": message_count,
-            "latest_message": latest_message,
-            "permissions": permissions,
         }
 
     async def update_conversation(
