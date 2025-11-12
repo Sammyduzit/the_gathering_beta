@@ -250,3 +250,33 @@ class TestAIContextService:
                 ai_entity=sample_ai_entity,
                 user_id=42,
             )
+
+    async def test_build_full_context_includes_memories_when_requested(
+        self, service, mock_message_repo, mock_memory_retriever, sample_ai_entity, sample_user
+    ):
+        """Ensure memories are fetched and appended when include_memories=True."""
+        msg = Message(id=1, content="Hi", sender_user_id=sample_user.id)
+        msg.sender_user = sample_user
+        mock_message_repo.get_conversation_messages.return_value = ([msg], 1)
+
+        mem = AIMemory(
+            id=99,
+            entity_id=sample_ai_entity.id,
+            summary="User likes coffee",
+            memory_content={},
+            importance_score=2.5,
+            memory_metadata={"type": "short_term"},
+        )
+        mock_memory_retriever.retrieve_tiered.return_value = [mem]
+
+        messages, memory_context = await service.build_full_context(
+            conversation_id=7,
+            room_id=None,
+            ai_entity=sample_ai_entity,
+            user_id=sample_user.id,
+            include_memories=True,
+        )
+
+        assert len(messages) == 1
+        assert "User likes coffee" in memory_context
+        mock_memory_retriever.retrieve_tiered.assert_called_once()

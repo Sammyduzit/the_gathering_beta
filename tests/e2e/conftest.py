@@ -59,7 +59,7 @@ redis_client_module = importlib.reload(redis_client_module)
 
 from app.core.auth_utils import hash_password
 from app.core.database import Base, get_db
-from app.core.redis_client import close_redis_client, create_redis_client
+from app.core.redis_client import close_redis_client, create_redis_client, get_redis
 from app.models.room import Room
 from app.models.user import User
 from main import app
@@ -192,8 +192,10 @@ async def redis_client():
     Requires Redis running on localhost:6380 (docker-compose.test.yml).
     """
     await create_redis_client()
-    yield
-    await close_redis_client()
+    try:
+        yield get_redis()
+    finally:
+        await close_redis_client()
 
 
 # ============================================================================
