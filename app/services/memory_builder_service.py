@@ -174,7 +174,7 @@ class MemoryBuilderService:
             if msg.sender_user_id and hasattr(msg, "sender_user") and msg.sender_user:
                 participants.add(msg.sender_user.username)
             elif msg.sender_ai_id and hasattr(msg, "sender_ai") and msg.sender_ai:
-                participants.add(msg.sender_ai.display_name)
+                participants.add(msg.sender_ai.username)
 
         # Determine topic from first user message
         topic = "general conversation"

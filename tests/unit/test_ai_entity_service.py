@@ -76,8 +76,8 @@ class TestAIEntityService:
         """Test getting all AI entities."""
         # Arrange
         mock_entities = [
-            AIEntity(id=1, name="ai1", display_name="AI 1", system_prompt="Test", model_name="gpt-4"),
-            AIEntity(id=2, name="ai2", display_name="AI 2", system_prompt="Test", model_name="gpt-4"),
+            AIEntity(id=1, username="ai1", system_prompt="Test", model_name="gpt-4"),
+            AIEntity(id=2, username="ai2", system_prompt="Test", model_name="gpt-4"),
         ]
         mock_ai_repo.get_all.return_value = mock_entities
 
@@ -94,8 +94,7 @@ class TestAIEntityService:
         mock_entities = [
             AIEntity(
                 id=1,
-                name="ai1",
-                display_name="AI 1",
+                username="ai1",
                 system_prompt="Test",
                 model_name="gpt-4",
                 status=AIEntityStatus.ONLINE,
@@ -114,7 +113,7 @@ class TestAIEntityService:
     async def test_get_entity_by_id_success(self, service, mock_ai_repo):
         """Test getting AI entity by ID successfully."""
         # Arrange
-        mock_entity = AIEntity(id=1, name="ai1", display_name="AI 1", system_prompt="Test", model_name="gpt-4")
+        mock_entity = AIEntity(id=1, username="ai1", system_prompt="Test", model_name="gpt-4")
         mock_ai_repo.get_by_id.return_value = mock_entity
 
         # Act
@@ -139,33 +138,31 @@ class TestAIEntityService:
     async def test_create_entity_success(self, service, mock_ai_repo):
         """Test creating AI entity successfully."""
         # Arrange
-        mock_ai_repo.name_exists.return_value = False
-        mock_entity = AIEntity(id=1, name="new_ai", display_name="New AI", system_prompt="Test", model_name="gpt-4")
+        mock_ai_repo.username_exists.return_value = False
+        mock_entity = AIEntity(id=1, username="new_ai", system_prompt="Test", model_name="gpt-4")
         mock_ai_repo.create.return_value = mock_entity
 
         # Act
         result = await service.create_entity(
-            name="new_ai",
-            display_name="New AI",
+            username="new_ai",
             system_prompt="Test",
             model_name="gpt-4",
         )
 
         # Assert
-        assert result.name == "new_ai"
-        mock_ai_repo.name_exists.assert_called_once_with("new_ai")
+        assert result.username == "new_ai"
+        mock_ai_repo.username_exists.assert_called_once_with("new_ai")
         mock_ai_repo.create.assert_called_once()
 
     async def test_create_entity_duplicate_name(self, service, mock_ai_repo):
         """Test creating AI entity with duplicate name raises DuplicateResourceException."""
         # Arrange
-        mock_ai_repo.name_exists.return_value = True
+        mock_ai_repo.username_exists.return_value = True
 
         # Act & Assert
         with pytest.raises(DuplicateResourceException) as exc_info:
             await service.create_entity(
-                name="existing_ai",
-                display_name="Existing AI",
+                username="existing_ai",
                 system_prompt="Test",
                 model_name="gpt-4",
             )
@@ -176,21 +173,21 @@ class TestAIEntityService:
     async def test_update_entity_success(self, service, mock_ai_repo):
         """Test updating AI entity successfully."""
         # Arrange
-        mock_entity = AIEntity(id=1, name="ai1", display_name="Old Name", system_prompt="Test", model_name="gpt-4")
+        mock_entity = AIEntity(id=1, username="ai1", system_prompt="Test", model_name="gpt-4")
         mock_ai_repo.get_by_id.return_value = mock_entity
         mock_ai_repo.update.return_value = mock_entity
 
         # Act
-        result = await service.update_entity(entity_id=1, display_name="New Name")
+        result = await service.update_entity(entity_id=1, username="updated_name")
 
         # Assert
-        assert result.display_name == "New Name"
+        assert result.username == "updated_name"
         mock_ai_repo.update.assert_called_once()
 
     async def test_delete_entity_success(self, service, mock_ai_repo):
         """Test deleting AI entity successfully."""
         # Arrange
-        mock_entity = AIEntity(id=1, name="ai1", display_name="AI 1", system_prompt="Test", model_name="gpt-4")
+        mock_entity = AIEntity(id=1, username="ai1", system_prompt="Test", model_name="gpt-4")
         mock_ai_repo.get_by_id.return_value = mock_entity
         mock_ai_repo.delete.return_value = True
 
@@ -208,8 +205,7 @@ class TestAIEntityService:
         mock_entities = [
             AIEntity(
                 id=1,
-                name="ai1",
-                display_name="AI 1",
+                username="ai1",
                 system_prompt="Test",
                 model_name="gpt-4",
                 status=AIEntityStatus.ONLINE,
@@ -231,8 +227,7 @@ class TestAIEntityService:
         # Arrange
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
@@ -260,8 +255,7 @@ class TestAIEntityService:
         # Arrange
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.OFFLINE,
@@ -273,15 +267,14 @@ class TestAIEntityService:
             await service.invite_to_conversation(conversation_id=1, ai_entity_id=1)
 
         assert exc_info.value.error_code == "AI_ENTITY_OFFLINE"
-        assert "AI 1" in str(exc_info.value)
+        assert "ai1" in str(exc_info.value)
 
     async def test_invite_to_conversation_not_found(self, service, mock_ai_repo, mock_conversation_repo):
         """Test inviting AI to non-existent conversation raises 404."""
         # Arrange
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
@@ -301,8 +294,7 @@ class TestAIEntityService:
         # Arrange
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
@@ -312,8 +304,7 @@ class TestAIEntityService:
         )
         existing_ai = AIEntity(
             id=2,
-            name="ai2",
-            display_name="AI 2",
+            username="ai2",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
@@ -333,7 +324,7 @@ class TestAIEntityService:
     async def test_remove_from_conversation_success(self, service, mock_ai_repo, mock_conversation_repo):
         """Test removing AI from conversation successfully."""
         # Arrange
-        mock_entity = AIEntity(id=1, name="ai1", display_name="AI 1", system_prompt="Test", model_name="gpt-4")
+        mock_entity = AIEntity(id=1, username="ai1", system_prompt="Test", model_name="gpt-4")
         mock_conversation = Conversation(
             id=1, room_id=1, conversation_type=ConversationType.PRIVATE, max_participants=2
         )
@@ -390,8 +381,7 @@ class TestAIEntityService:
         # Arrange
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
@@ -418,8 +408,7 @@ class TestAIEntityService:
         # Arrange
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
@@ -442,8 +431,7 @@ class TestAIEntityService:
         # Arrange
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.OFFLINE,  # Offline
@@ -467,8 +455,7 @@ class TestAIEntityService:
         mock_room = Room(id=1, name="Test Room", has_ai=True)
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
@@ -495,8 +482,7 @@ class TestAIEntityService:
         mock_room = Room(id=1, name="Test Room", has_ai=True)
         mock_entity = AIEntity(
             id=1,
-            name="ai1",
-            display_name="AI 1",
+            username="ai1",
             system_prompt="Test",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,

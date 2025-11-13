@@ -76,7 +76,7 @@ class AIContextService:
                 if msg.sender_ai_id == ai_entity.id:
                     sender_name = "You"  # AI's own previous messages
                 else:
-                    sender_name = msg.sender_ai.display_name  # Other AI entities
+                    sender_name = msg.sender_ai.username  # Other AI entities
             else:
                 sender_name = "Unknown"
 
@@ -84,7 +84,7 @@ class AIContextService:
             context_messages.append({"role": "user", "content": content})
 
         logger.info(
-            f"Built conversation context for AI '{ai_entity.name}' in conversation {conversation_id}: "
+            f"Built conversation context for AI '{ai_entity.username}' in conversation {conversation_id}: "
             f"{len(context_messages)} messages"
         )
 
@@ -125,14 +125,16 @@ class AIContextService:
                 if msg.sender_ai_id == ai_entity.id:
                     sender_name = "You"  # AI's own previous messages
                 else:
-                    sender_name = msg.sender_ai.display_name  # Other AI entities
+                    sender_name = msg.sender_ai.username  # Other AI entities
             else:
                 sender_name = "Unknown"
 
             content = f"{sender_name}: {msg.content}"
             context_messages.append({"role": "user", "content": content})
 
-        logger.info(f"Built room context for AI '{ai_entity.name}' in room {room_id}: {len(context_messages)} messages")
+        logger.info(
+            f"Built room context for AI '{ai_entity.username}' in room {room_id}: {len(context_messages)} messages"
+        )
 
         return context_messages
 

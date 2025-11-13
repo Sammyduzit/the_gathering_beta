@@ -59,8 +59,7 @@ def sample_conversation_data():
 def sample_ai_entity_data():
     """Standard AI entity data for all test types."""
     return {
-        "name": "test_ai",
-        "display_name": "Test AI",
+        "username": "test_ai",
         "system_prompt": "You are a test AI assistant",
         "model_name": "gpt-4",
     }

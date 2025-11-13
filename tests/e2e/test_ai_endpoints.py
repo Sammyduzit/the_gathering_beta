@@ -20,8 +20,7 @@ class TestAIEntityAdminEndpoints:
         create_response = await authenticated_admin_client.post(
             "/api/v1/ai/entities",
             json={
-                "name": "assistant_gpt4",
-                "display_name": "GPT-4 Assistant",
+                "username": "assistant_gpt4",
                 "system_prompt": "You are a helpful AI assistant.",
                 "model_name": "gpt-4",
                 "temperature": 0.7,
@@ -31,7 +30,7 @@ class TestAIEntityAdminEndpoints:
         assert create_response.status_code == 201, create_response.text
         created = create_response.json()
         ai_id = created["id"]
-        assert created["name"] == "assistant_gpt4"
+        assert created["username"] == "assistant_gpt4"
         assert created["status"] == "offline"
 
         # List (admin)
@@ -43,20 +42,20 @@ class TestAIEntityAdminEndpoints:
         # Detail (admin)
         detail_response = await authenticated_admin_client.get(f"/api/v1/ai/entities/{ai_id}")
         assert detail_response.status_code == 200, detail_response.text
-        assert detail_response.json()["name"] == "assistant_gpt4"
+        assert detail_response.json()["username"] == "assistant_gpt4"
 
-        # Patch (display_name + prompt)
+        # Patch (username + prompt)
         patch_response = await authenticated_admin_client.patch(
             f"/api/v1/ai/entities/{ai_id}",
             json={
-                "display_name": "Updated Assistant",
+                "username": "updated_assistant",
                 "system_prompt": "Updated prompt",
                 "current_room_id": None,
             },
         )
         assert patch_response.status_code == 200, patch_response.text
         patched = patch_response.json()
-        assert patched["display_name"] == "Updated Assistant"
+        assert patched["username"] == "updated_assistant"
         assert patched["system_prompt"] == "Updated prompt"
 
         # Delete
@@ -67,10 +66,10 @@ class TestAIEntityAdminEndpoints:
     async def test_non_admin_is_forbidden(self, authenticated_user_client):
         """Regular users should not access admin-only AI endpoints."""
         endpoints = [
-            ("POST", "/api/v1/ai/entities", {"name": "unauthorized", "display_name": "Hidden", "system_prompt": "x"}),
+            ("POST", "/api/v1/ai/entities", {"username": "unauthorized", "system_prompt": "x"}),
             ("GET", "/api/v1/ai/entities", None),
             ("GET", "/api/v1/ai/entities/1", None),
-            ("PATCH", "/api/v1/ai/entities/1", {"display_name": "Nope"}),
+            ("PATCH", "/api/v1/ai/entities/1", {"username": "nope"}),
             ("DELETE", "/api/v1/ai/entities/1", None),
             ("GET", "/api/v1/ai/rooms/1/available", None),
         ]

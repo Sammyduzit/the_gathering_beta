@@ -213,7 +213,6 @@ class RoomService:
             {
                 "id": user.id,
                 "username": user.username,
-                "display_name": user.username,  # For humans, username = display_name
                 "avatar_url": user.avatar_url,
                 "status": user.status.value,
                 "is_ai": False,
@@ -228,8 +227,7 @@ class RoomService:
             participants.append(
                 {
                     "id": ai_entity.id,
-                    "username": ai_entity.name,  # Technical name (e.g., "bot_beta")
-                    "display_name": ai_entity.display_name,  # UI name (e.g., "Bot Beta")
+                    "username": ai_entity.username,
                     "avatar_url": None,  # AI entities don't have avatars
                     "status": ai_entity.status.value,
                     "is_ai": True,

@@ -26,8 +26,7 @@ class TestAIEntityE2E:
         repo = AIEntityRepository(db_session)
 
         entity = AIEntity(
-            name="assistant",
-            display_name="AI Assistant",
+            username="assistant",
             description="Helpful AI assistant",
             system_prompt="You are a helpful assistant",
             model_name="gpt-4",
@@ -38,18 +37,18 @@ class TestAIEntityE2E:
         created = await repo.create(entity)
 
         assert created.id is not None
-        assert created.name == "assistant"
+        assert created.username == "assistant"
         assert created.model_name == "gpt-4"
         assert created.status == AIEntityStatus.OFFLINE
 
-    async def test_ai_entity_unique_name_constraint(self, db_session):
-        """Test unique constraint on AI entity name."""
+    async def test_ai_entity_unique_username_constraint(self, db_session):
+        """Test unique constraint on AI entity username."""
         repo = AIEntityRepository(db_session)
 
-        entity1 = AIEntity(name="duplicate", display_name="First", system_prompt="Test", model_name="gpt-4")
+        entity1 = AIEntity(username="duplicate", system_prompt="Test", model_name="gpt-4")
         await repo.create(entity1)
 
-        entity2 = AIEntity(name="duplicate", display_name="Second", system_prompt="Test", model_name="gpt-4")
+        entity2 = AIEntity(username="duplicate", system_prompt="Test", model_name="gpt-4")
 
         with pytest.raises(Exception):
             await repo.create(entity2)
@@ -59,8 +58,7 @@ class TestAIEntityE2E:
         repo = AIEntityRepository(db_session)
 
         entity = AIEntity(
-            name="configurable",
-            display_name="Configurable Bot",
+            username="configurable",
             system_prompt="Test",
             model_name="gpt-4",
             config={"streaming": True, "top_p": 0.9, "frequency_penalty": 0.5},
@@ -82,7 +80,7 @@ class TestAIMemoryE2E:
         entity_repo = AIEntityRepository(db_session)
         memory_repo = AIMemoryRepository(db_session)
 
-        entity = AIEntity(name="memory_bot", display_name="Memory Bot", system_prompt="Test", model_name="gpt-4")
+        entity = AIEntity(username="memory_bot", system_prompt="Test", model_name="gpt-4")
         created_entity = await entity_repo.create(entity)
 
         memory = AIMemory(
@@ -112,7 +110,7 @@ class TestAIMemoryE2E:
         entity_repo = AIEntityRepository(db_session)
         memory_repo = AIMemoryRepository(db_session)
 
-        entity = AIEntity(name="cascade_test", display_name="Cascade Test", system_prompt="Test", model_name="gpt-4")
+        entity = AIEntity(username="cascade_test", system_prompt="Test", model_name="gpt-4")
         created_entity = await entity_repo.create(entity)
 
         memory = AIMemory(
@@ -143,9 +141,7 @@ class TestAIMemoryE2E:
         entity_repo = AIEntityRepository(db_session)
         memory_repo = AIMemoryRepository(db_session)
 
-        entity = await entity_repo.create(
-            AIEntity(name="json_test", display_name="JSON Test", system_prompt="Test", model_name="gpt-4")
-        )
+        entity = await entity_repo.create(AIEntity(username="json_test", system_prompt="Test", model_name="gpt-4"))
 
         complex_memory = AIMemory(
             entity_id=entity.id,
@@ -174,9 +170,7 @@ class TestAIMemoryE2E:
         entity_repo = AIEntityRepository(db_session)
         memory_repo = AIMemoryRepository(db_session)
 
-        entity = await entity_repo.create(
-            AIEntity(name="ordered_test", display_name="Order Test", system_prompt="Test", model_name="gpt-4")
-        )
+        entity = await entity_repo.create(AIEntity(username="ordered_test", system_prompt="Test", model_name="gpt-4"))
 
         # Create memories with different importance scores
         for i, importance in enumerate([0.3, 0.9, 0.5, 0.7]):
@@ -203,9 +197,7 @@ class TestAIMemoryE2E:
         entity_repo = AIEntityRepository(db_session)
         memory_repo = AIMemoryRepository(db_session)
 
-        entity = await entity_repo.create(
-            AIEntity(name="search_test", display_name="Search Test", system_prompt="Test", model_name="gpt-4")
-        )
+        entity = await entity_repo.create(AIEntity(username="search_test", system_prompt="Test", model_name="gpt-4"))
 
         # Create memories with different keywords
         python_memory = AIMemory(

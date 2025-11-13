@@ -40,8 +40,7 @@ async def test_short_to_long_term_memory_flow(db_session, message_repo):
     user = await UserFactory.create(db_session)
 
     ai_entity = AIEntity(
-        name="memory_ai",
-        display_name="Memory AI",
+        username="memory_ai",
         description="Test AI",
         system_prompt="You summarize conversations.",
         model_name="gpt-4o-mini",

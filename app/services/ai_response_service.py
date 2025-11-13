@@ -91,7 +91,7 @@ class AIResponseService:
             )
 
             logger.info(
-                f"AI '{ai_entity.name}' generated response in conversation {conversation_id}: "
+                f"AI '{ai_entity.username}' generated response in conversation {conversation_id}: "
                 f"{len(response_content)} chars"
             )
 
@@ -156,7 +156,7 @@ class AIResponseService:
                 in_reply_to_message_id=in_reply_to_message_id,
             )
 
-            logger.info(f"AI '{ai_entity.name}' generated response in room {room_id}: {len(response_content)} chars")
+            logger.info(f"AI '{ai_entity.username}' generated response in room {room_id}: {len(response_content)} chars")
 
             return message
 
@@ -204,7 +204,7 @@ class AIResponseService:
                 logger.info(
                     "ai_response_skipped_cooldown",
                     ai_entity_id=ai_entity.id,
-                    ai_name=ai_entity.name,
+                    ai_name=ai_entity.username,
                     cooldown_seconds=ai_entity.cooldown_seconds,
                     room_id=room_id,
                     conversation_id=conversation_id,
@@ -256,12 +256,12 @@ class AIResponseService:
             return False
 
         content = message.content.lower()
-        ai_mentioned = ai_entity.name.lower() in content or ai_entity.display_name.lower() in content
+        ai_mentioned = ai_entity.username.lower() in content
 
         # ROOM_MENTION_ONLY: Only respond when mentioned
         if strategy == AIResponseStrategy.ROOM_MENTION_ONLY:
             if ai_mentioned:
-                logger.info(f"AI '{ai_entity.name}' mentioned in room {room_id} - will respond")
+                logger.info(f"AI '{ai_entity.username}' mentioned in room {room_id} - will respond")
                 return True
             return False
 
@@ -274,7 +274,7 @@ class AIResponseService:
             should_respond = random.random() < probability
             if should_respond:
                 logger.info(
-                    f"AI '{ai_entity.name}' probabilistic response triggered (p={probability}) in room {room_id}"
+                    f"AI '{ai_entity.username}' probabilistic response triggered (p={probability}) in room {room_id}"
                 )
             return should_respond
 
@@ -288,11 +288,11 @@ class AIResponseService:
             if len(message.content.strip()) < 3:
                 return False
 
-            logger.info(f"AI '{ai_entity.name}' active response in room {room_id}")
+            logger.info(f"AI '{ai_entity.username}' active response in room {room_id}")
             return True
 
         # Unknown strategy
-        logger.warning(f"Unknown room response strategy: {strategy} for AI '{ai_entity.name}'")
+        logger.warning(f"Unknown room response strategy: {strategy} for AI '{ai_entity.username}'")
         return False
 
     def _should_respond_in_conversation(self, ai_entity: AIEntity, message: Message, conversation_id: int) -> bool:
@@ -314,11 +314,11 @@ class AIResponseService:
             return False
 
         content = message.content.lower()
-        ai_mentioned = ai_entity.name.lower() in content or ai_entity.display_name.lower() in content
+        ai_mentioned = ai_entity.username.lower() in content
 
         # CONV_EVERY_MESSAGE: Respond to every message
         if strategy == AIResponseStrategy.CONV_EVERY_MESSAGE:
-            logger.info(f"AI '{ai_entity.name}' responding to every message in conversation {conversation_id}")
+            logger.info(f"AI '{ai_entity.username}' responding to every message in conversation {conversation_id}")
             return True
 
         # CONV_ON_QUESTIONS: Only respond to questions
@@ -327,7 +327,7 @@ class AIResponseService:
             is_question = any(indicator in content for indicator in question_indicators)
 
             if is_question:
-                logger.info(f"Question detected in conversation {conversation_id} - AI '{ai_entity.name}' will respond")
+                logger.info(f"Question detected in conversation {conversation_id} - AI '{ai_entity.username}' will respond")
                 return True
             return False
 
@@ -338,12 +338,12 @@ class AIResponseService:
 
             if ai_mentioned or is_question:
                 logger.info(
-                    f"AI '{ai_entity.name}' smart response in conversation {conversation_id} "
+                    f"AI '{ai_entity.username}' smart response in conversation {conversation_id} "
                     f"(mentioned={ai_mentioned}, question={is_question})"
                 )
                 return True
             return False
 
         # Unknown strategy
-        logger.warning(f"Unknown conversation response strategy: {strategy} for AI '{ai_entity.name}'")
+        logger.warning(f"Unknown conversation response strategy: {strategy} for AI '{ai_entity.username}'")
         return False

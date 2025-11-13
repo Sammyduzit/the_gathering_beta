@@ -18,8 +18,7 @@ def _basis_vector(dim_index: int) -> list[float]:
 
 async def _create_ai_entity(db_session) -> AIEntity:
     entity = AIEntity(
-        name="vector_test_ai",
-        display_name="Vector Test AI",
+        username="vector_test_ai",
         description="Used for pgvector tests",
         system_prompt="You help verify embeddings.",
         model_name="gpt-4o-mini",

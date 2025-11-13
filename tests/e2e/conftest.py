@@ -408,8 +408,7 @@ async def created_ai_entity(db_session):
     from app.models.ai_entity import AIEntity, AIEntityStatus
 
     ai_entity = AIEntity(
-        name="test_ai",
-        display_name="Test AI",
+        username="test_ai",
         system_prompt="You are a test AI assistant",
         model_name="gpt-4o-mini",
         status=AIEntityStatus.ONLINE,

@@ -99,7 +99,7 @@ async def send_conversation_message(
                 message_id=message_response.id,
                 conversation_id=conversation_id,
                 ai_entity_id=ai_entity.id,
-                ai_entity_name=ai_entity.name,
+                ai_entity_name=ai_entity.username,
             )
         except Exception as e:
             logger.error(

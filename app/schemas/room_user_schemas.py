@@ -12,8 +12,7 @@ class RoomParticipantResponse(BaseModel):
     """
 
     id: int
-    username: str = Field(description="Unique identifier: username for humans, name for AI entities")
-    display_name: str = Field(description="Display name for UI: same as username for humans, display_name for AI")
+    username: str = Field(description="Unique username for both humans and AI entities")
     avatar_url: str | None = Field(None, description="Avatar URL, null for AI entities")
     status: str = Field(description="Participant status: available/busy/away for humans, online for AI")
     is_ai: bool = Field(description="True if participant is an AI entity")

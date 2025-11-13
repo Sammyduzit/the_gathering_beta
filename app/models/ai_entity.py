@@ -56,8 +56,7 @@ class AIEntity(Base):
     __tablename__ = "ai_entities"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    display_name: Mapped[str] = mapped_column(String(200))
+    username: Mapped[str] = mapped_column(String(200), unique=True, index=True)
     description: Mapped[str | None] = mapped_column(Text, default=None)
 
     # LangChain/OpenAI Configuration
@@ -132,4 +131,4 @@ class AIEntity(Base):
         return self.current_room.name if self.current_room else None
 
     def __repr__(self):
-        return f"<AIEntity(id={self.id}, name='{self.name}')>"
+        return f"<AIEntity(id={self.id}, username='{self.username}')>"

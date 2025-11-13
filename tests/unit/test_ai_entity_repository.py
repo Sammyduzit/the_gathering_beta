@@ -18,8 +18,7 @@ class TestAIEntityRepository:
         """Test successful AI entity creation."""
         repo = AIEntityRepository(db_session)
         entity = AIEntity(
-            name="assistant",
-            display_name="AI Assistant",
+            username="assistant",
             system_prompt="You are a helpful assistant",
             model_name="gpt-4",
         )
@@ -27,21 +26,20 @@ class TestAIEntityRepository:
         created_entity = await repo.create(entity)
 
         assert created_entity.id is not None
-        assert created_entity.name == "assistant"
-        assert created_entity.display_name == "AI Assistant"
+        assert created_entity.username == "assistant"
         assert created_entity.status == AIEntityStatus.OFFLINE
 
     async def test_get_by_id_success(self, db_session):
         """Test successful entity retrieval by ID."""
         repo = AIEntityRepository(db_session)
-        entity = AIEntity(name="helper", display_name="Helper Bot", system_prompt="Help users", model_name="gpt-4")
+        entity = AIEntity(username="helper", system_prompt="Help users", model_name="gpt-4")
         created = await repo.create(entity)
 
         found_entity = await repo.get_by_id(created.id)
 
         assert found_entity is not None
         assert found_entity.id == created.id
-        assert found_entity.name == "helper"
+        assert found_entity.username == "helper"
 
     async def test_get_by_id_not_found(self, db_session):
         """Test entity retrieval when ID does not exist."""
@@ -51,24 +49,22 @@ class TestAIEntityRepository:
 
         assert found_entity is None
 
-    async def test_get_by_name_success(self, db_session):
-        """Test successful entity retrieval by name."""
+    async def test_get_by_username_success(self, db_session):
+        """Test successful entity retrieval by username."""
         repo = AIEntityRepository(db_session)
-        entity = AIEntity(
-            name="coder", display_name="Code Assistant", system_prompt="Help with code", model_name="gpt-4"
-        )
+        entity = AIEntity(username="coder", system_prompt="Help with code", model_name="gpt-4")
         await repo.create(entity)
 
-        found_entity = await repo.get_by_name("coder")
+        found_entity = await repo.get_by_username("coder")
 
         assert found_entity is not None
-        assert found_entity.name == "coder"
+        assert found_entity.username == "coder"
 
-    async def test_get_by_name_not_found(self, db_session):
-        """Test entity retrieval when name does not exist."""
+    async def test_get_by_username_not_found(self, db_session):
+        """Test entity retrieval when username does not exist."""
         repo = AIEntityRepository(db_session)
 
-        found_entity = await repo.get_by_name("nonexistent")
+        found_entity = await repo.get_by_username("nonexistent")
 
         assert found_entity is None
 
@@ -77,15 +73,13 @@ class TestAIEntityRepository:
         repo = AIEntityRepository(db_session)
 
         online_entity = AIEntity(
-            name="online",
-            display_name="Online Bot",
+            username="online",
             system_prompt="Online",
             model_name="gpt-4",
             status=AIEntityStatus.ONLINE,
         )
         offline_entity = AIEntity(
-            name="offline",
-            display_name="Offline Bot",
+            username="offline",
             system_prompt="Offline",
             model_name="gpt-4",
             status=AIEntityStatus.OFFLINE,
@@ -97,45 +91,45 @@ class TestAIEntityRepository:
         available_entities = await repo.get_available_entities()
 
         assert len(available_entities) == 1
-        assert available_entities[0].name == "online"
+        assert available_entities[0].username == "online"
 
-    async def test_name_exists(self, db_session):
-        """Test name existence check."""
+    async def test_username_exists(self, db_session):
+        """Test username existence check."""
         repo = AIEntityRepository(db_session)
-        entity = AIEntity(name="unique", display_name="Unique Bot", system_prompt="Unique", model_name="gpt-4")
+        entity = AIEntity(username="unique", system_prompt="Unique", model_name="gpt-4")
         await repo.create(entity)
 
-        exists = await repo.name_exists("unique")
-        not_exists = await repo.name_exists("other")
+        exists = await repo.username_exists("unique")
+        not_exists = await repo.username_exists("other")
 
         assert exists is True
         assert not_exists is False
 
-    async def test_name_exists_with_exclude(self, db_session):
-        """Test name existence check excluding specific ID."""
+    async def test_username_exists_with_exclude(self, db_session):
+        """Test username existence check excluding specific ID."""
         repo = AIEntityRepository(db_session)
-        entity = AIEntity(name="test", display_name="Test Bot", system_prompt="Test", model_name="gpt-4")
+        entity = AIEntity(username="test", system_prompt="Test", model_name="gpt-4")
         created = await repo.create(entity)
 
-        exists = await repo.name_exists("test", exclude_id=created.id)
+        exists = await repo.username_exists("test", exclude_id=created.id)
 
         assert exists is False
 
     async def test_update_entity(self, db_session):
         """Test entity update."""
         repo = AIEntityRepository(db_session)
-        entity = AIEntity(name="updatable", display_name="Original Name", system_prompt="Original", model_name="gpt-4")
+        entity = AIEntity(username="updatable", system_prompt="Original", model_name="gpt-4")
         created = await repo.create(entity)
 
-        created.display_name = "Updated Name"
+        created.username = "updated"
         updated = await repo.update(created)
 
-        assert updated.display_name == "Updated Name"
+        assert updated.username == "updated"
 
     async def test_soft_delete_entity(self, db_session):
         """Test soft delete sets entity is_active=False and status=OFFLINE."""
         repo = AIEntityRepository(db_session)
-        entity = AIEntity(name="deletable", display_name="Delete Me", system_prompt="Delete", model_name="gpt-4")
+        entity = AIEntity(username="deletable", system_prompt="Delete", model_name="gpt-4")
         created = await repo.create(entity)
 
         deleted = await repo.delete(created.id)
@@ -157,7 +151,7 @@ class TestAIEntityRepository:
     async def test_exists_check(self, db_session):
         """Test entity existence check."""
         repo = AIEntityRepository(db_session)
-        entity = AIEntity(name="exists", display_name="Exists Bot", system_prompt="Exists", model_name="gpt-4")
+        entity = AIEntity(username="exists", system_prompt="Exists", model_name="gpt-4")
         created = await repo.create(entity)
 
         exists = await repo.exists(created.id)
@@ -172,8 +166,7 @@ class TestAIEntityRepository:
 
         for i in range(5):
             entity = AIEntity(
-                name=f"entity{i}",
-                display_name=f"Entity {i}",
+                username=f"entity{i}",
                 system_prompt="Test",
                 model_name="gpt-4",
             )

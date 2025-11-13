@@ -182,13 +182,14 @@ class TestAIResponseService:
         # Assert
         assert result is True
 
-    async def test_should_ai_respond_mentioned_by_display_name(self, service, sample_ai_entity):
-        """Test AI responds when mentioned by display name."""
+    async def test_should_ai_respond_mentioned_case_insensitive(self, service, sample_ai_entity):
+        """Test AI responds when mentioned by username regardless of case."""
         from app.models.ai_entity import AIResponseStrategy
 
         # Arrange
         sample_ai_entity.conversation_response_strategy = AIResponseStrategy.CONV_SMART
-        message = Message(id=1, content="Test AI, can you help?", sender_user_id=2)
+        mentioned_name = sample_ai_entity.username.upper()
+        message = Message(id=1, content=f"{mentioned_name}, can you help?", sender_user_id=2)
 
         # Act
         result = await service.should_ai_respond(
@@ -294,7 +295,7 @@ class TestAIResponseService:
 
         # Arrange
         sample_ai_entity.room_response_strategy = AIResponseStrategy.ROOM_MENTION_ONLY
-        message_with_mention = Message(id=1, content="Hey Test AI, can you help?", sender_user_id=1)
+        message_with_mention = Message(id=1, content=f"Hey {sample_ai_entity.username}, can you help?", sender_user_id=1)
         message_without_mention = Message(id=2, content="This is a random message", sender_user_id=1)
 
         # Act & Assert

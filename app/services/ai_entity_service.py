@@ -63,8 +63,7 @@ class AIEntityService:
 
     async def create_entity(
         self,
-        name: str,
-        display_name: str,
+        username: str,
         system_prompt: str,
         model_name: str,
         description: str | None = None,
@@ -77,12 +76,11 @@ class AIEntityService:
         config: dict | None = None,
     ) -> AIEntity:
         """Create new AI entity with validation."""
-        if await self.ai_entity_repo.name_exists(name):
-            raise DuplicateResourceException("AI entity", name)
+        if await self.ai_entity_repo.username_exists(username):
+            raise DuplicateResourceException("AI entity", username)
 
         new_entity = AIEntity(
-            name=name,
-            display_name=display_name,
+            username=username,
             description=description,
             system_prompt=system_prompt,
             model_name=model_name,
@@ -101,7 +99,7 @@ class AIEntityService:
     async def update_entity(
         self,
         entity_id: int,
-        display_name: str | None = None,
+        username: str | None = None,
         description: str | None = None,
         system_prompt: str | None = None,
         model_name: str | None = None,
@@ -134,7 +132,7 @@ class AIEntityService:
         # Update other fields
         self._update_entity_fields(
             entity,
-            display_name=display_name,
+            username=username,
             description=description,
             system_prompt=system_prompt,
             model_name=model_name,
@@ -156,7 +154,7 @@ class AIEntityService:
         await self.ai_entity_repo.delete(entity_id)
 
         return {
-            "message": f"AI entity '{entity.display_name}' has been deleted",
+            "message": f"AI entity '{entity.username}' has been deleted",
             "entity_id": entity_id,
         }
 
@@ -169,7 +167,7 @@ class AIEntityService:
         # Validate AI entity exists and is active
         entity = await self.get_entity_by_id(ai_entity_id)
         if entity.status != AIEntityStatus.ONLINE:
-            raise AIEntityOfflineException(entity.display_name)
+            raise AIEntityOfflineException(entity.username)
 
         # Validate conversation exists
         conversation = await self.conversation_repo.get_by_id(conversation_id)
@@ -179,7 +177,7 @@ class AIEntityService:
         # Check if AI is already in this conversation
         existing_ai = await self.ai_entity_repo.get_ai_in_conversation(conversation_id)
         if existing_ai:
-            raise InvalidOperationException(f"AI entity '{existing_ai.display_name}' is already in this conversation")
+            raise InvalidOperationException(f"AI entity '{existing_ai.username}' is already in this conversation")
 
         # Add AI to conversation
         try:
@@ -188,7 +186,7 @@ class AIEntityService:
             raise InvalidOperationException(str(e))
 
         return {
-            "message": f"AI entity '{entity.display_name}' invited to conversation",
+            "message": f"AI entity '{entity.username}' invited to conversation",
             "conversation_id": conversation_id,
             "ai_entity_id": ai_entity_id,
         }
@@ -211,7 +209,7 @@ class AIEntityService:
         )
 
         return {
-            "message": f"AI entity '{entity.display_name}' removed from conversation",
+            "message": f"AI entity '{entity.username}' removed from conversation",
             "conversation_id": conversation_id,
             "ai_entity_id": ai_entity_id,
         }
@@ -251,7 +249,7 @@ class AIEntityService:
 
         # Check AI is ONLINE before joining
         if entity.status != AIEntityStatus.ONLINE:
-            raise InvalidOperationException(f"AI entity '{entity.display_name}' must be ONLINE to join a room")
+            raise InvalidOperationException(f"AI entity '{entity.username}' must be ONLINE to join a room")
 
         # Remove from old room if present
         if entity.current_room_id:
@@ -266,7 +264,7 @@ class AIEntityService:
         logger.info(
             "ai_assigned_to_room",
             ai_entity_id=entity.id,
-            ai_name=entity.display_name,
+            ai_name=entity.username,
             room_id=new_room_id,
             room_name=new_room.name,
         )
@@ -288,7 +286,7 @@ class AIEntityService:
         logger.info(
             "ai_removed_from_room",
             ai_entity_id=entity.id,
-            ai_name=entity.display_name,
+            ai_name=entity.username,
             room_id=entity.current_room_id,
             room_name=room.name if room else "unknown",
         )
@@ -333,7 +331,7 @@ class AIEntityService:
     def _update_entity_fields(
         self,
         entity: AIEntity,
-        display_name: str | None = None,
+        username: str | None = None,
         description: str | None = None,
         system_prompt: str | None = None,
         model_name: str | None = None,
@@ -350,7 +348,7 @@ class AIEntityService:
 
         Args:
             entity: AI entity to update
-            display_name: New display name (if provided)
+            username: New username (if provided)
             description: New description (if provided)
             system_prompt: New system prompt (if provided)
             model_name: New model name (if provided)
@@ -365,8 +363,8 @@ class AIEntityService:
         Side Effects:
             Updates entity fields in-place
         """
-        if display_name is not None:
-            entity.display_name = display_name
+        if username is not None:
+            entity.username = username
         if description is not None:
             entity.description = description
         if system_prompt is not None:
@@ -421,7 +419,7 @@ class AIEntityService:
             if msg.sender_user_id:
                 sender = msg.sender_user.username
             elif msg.sender_ai_id:
-                sender = msg.sender_ai.display_name
+                sender = msg.sender_ai.username
             else:
                 sender = "System"  # Fallback for system messages
             context_lines.append(f"{sender}: {msg.content}")
@@ -429,7 +427,7 @@ class AIEntityService:
         context = "\n".join(context_lines) if context_lines else "No previous messages"
 
         # Build farewell system prompt
-        farewell_prompt = f"""You are {ai_entity.display_name}, an AI assistant.
+        farewell_prompt = f"""You are {ai_entity.username}, an AI assistant.
 
 You are leaving this conversation. Generate a brief, natural farewell message (1-2 sentences max).
 
@@ -486,7 +484,7 @@ Generate ONLY the farewell message, nothing else."""
 
         summary = {
             "ai_entity_id": entity_id,
-            "ai_name": entity.display_name,
+            "ai_name": entity.username,
             "room_goodbye": None,
             "conversation_goodbyes": [],
             "strategies_updated": False,

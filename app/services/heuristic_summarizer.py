@@ -32,7 +32,7 @@ class HeuristicMemorySummarizer(IMemorySummarizer):
 
         Args:
             messages: List of messages to summarize (chronological order)
-            ai_entity: AI entity object (for contextualized summaries using display_name)
+            ai_entity: AI entity object (for contextualized summaries using username)
 
         Returns:
             Generated summary text (1-2 sentences)
@@ -53,13 +53,13 @@ class HeuristicMemorySummarizer(IMemorySummarizer):
 
             # Build summary
             if ai_entity:
-                # Filter out AI from participants list (using display_name for consistency)
-                human_participants = [p for p in participants if p != ai_entity.display_name]
+                # Filter out AI from participants list (using username for consistency)
+                human_participants = [p for p in participants if p != ai_entity.username]
                 if human_participants:
                     participants_str = ", ".join(human_participants)
-                    summary = f"{ai_entity.display_name} talked with {participants_str} about {topic}"
+                    summary = f"{ai_entity.username} talked with {participants_str} about {topic}"
                 else:
-                    summary = f"{ai_entity.display_name} discussed {topic}"
+                    summary = f"{ai_entity.username} discussed {topic}"
             else:
                 participants_str = ", ".join(participants)
                 summary = f"Conversation with {participants_str} about {topic}"
@@ -93,7 +93,7 @@ class HeuristicMemorySummarizer(IMemorySummarizer):
             if msg.sender_user_id and hasattr(msg, "sender_user") and msg.sender_user:
                 participants.add(msg.sender_user.username)
             elif msg.sender_ai_id and hasattr(msg, "sender_ai") and msg.sender_ai:
-                participants.add(msg.sender_ai.display_name)
+                participants.add(msg.sender_ai.username)
 
         return sorted(participants)
 

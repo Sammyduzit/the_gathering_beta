@@ -21,8 +21,7 @@ if TYPE_CHECKING:
 class AIEntityCreate(BaseModel):
     """Schema for creating a new AI entity."""
 
-    name: SanitizedString = Field(min_length=1, max_length=100, description="Unique AI identifier")
-    display_name: SanitizedString = Field(min_length=1, max_length=100, description="Display name for users")
+    username: SanitizedString = Field(min_length=1, max_length=200, description="Unique AI username")
     description: str | None = Field(None, max_length=1000, description="AI entity description")
     system_prompt: str = Field(min_length=1, max_length=5000, description="AI system prompt/instructions")
     model_name: SanitizedString = Field(min_length=1, max_length=100, description="LLM model name")
@@ -54,7 +53,7 @@ class AIEntityCreate(BaseModel):
 class AIEntityUpdate(BaseModel):
     """Schema for updating an AI entity."""
 
-    display_name: SanitizedString | None = Field(None, min_length=1, max_length=100)
+    username: SanitizedString | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=1000)
     system_prompt: str | None = Field(None, min_length=1, max_length=5000)
     model_name: SanitizedString | None = Field(None, min_length=1, max_length=100)
@@ -87,8 +86,7 @@ class AIEntityResponse(BaseModel):
     """Schema for AI entity responses."""
 
     id: int
-    name: str
-    display_name: str
+    username: str
     description: str | None
     system_prompt: str
     model_name: str
@@ -124,8 +122,7 @@ class AIAvailableResponse(BaseModel):
     """Schema for available AI entities in a room."""
 
     id: int
-    name: str
-    display_name: str
+    username: str
     model_name: str
     status: str
 

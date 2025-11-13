@@ -143,8 +143,7 @@ async def create_test_ai_entities():
         try:
             test_ai_entities = [
                 {
-                    "name": "assistant_alpha",
-                    "display_name": "Assistant Alpha",
+                    "username": "assistant_alpha",
                     "description": "Helpful AI assistant for general questions",
                     "system_prompt": "You are a helpful AI assistant in The Gathering chat. Be friendly, concise, and helpful. Respond naturally to questions and mentions.",
                     "model_name": "gpt-4o-mini",
@@ -157,8 +156,7 @@ async def create_test_ai_entities():
                     "cooldown_seconds": 30,  # (moderate rate limiting)
                 },
                 {
-                    "name": "bot_beta",
-                    "display_name": "Bot Beta",
+                    "username": "bot_beta",
                     "description": "Active AI that participates in conversations",
                     "system_prompt": "You are an active participant in The Gathering. Engage naturally in discussions, share insights, and contribute to conversations.",
                     "model_name": "gpt-4o-mini",
@@ -174,7 +172,7 @@ async def create_test_ai_entities():
 
             created_entities = []
             for ai_data in test_ai_entities:
-                ai_query = select(AIEntity).where(AIEntity.name == ai_data["name"])
+                ai_query = select(AIEntity).where(AIEntity.username == ai_data["username"])
                 result = await db.execute(ai_query)
                 existing_ai = result.scalar_one_or_none()
 
@@ -231,7 +229,7 @@ async def setup_complete_test_environment():
         print()
         for ai in created_ai:
             status = "ONLINE " if ai["status"] == AIEntityStatus.ONLINE else "OFFLINE"
-            name = ai["display_name"]
+            name = ai["username"]
             strategy = ai["room_response_strategy"].value
             cooldown = f"{ai['cooldown_seconds']}s" if ai.get("cooldown_seconds") else "None"
             line = f"  AI   : {name:<20} | Status: {status:<8} | Strategy: {strategy:<20} | Cooldown: {cooldown}"

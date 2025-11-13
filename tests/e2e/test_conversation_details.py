@@ -106,7 +106,7 @@ class TestConversationDetails:
         # Step 2: Admin invites AI participant
         invite_response = await authenticated_admin_client.post(
             f"/api/v1/conversations/{conversation_id}/participants",
-            json={"username": created_ai_entity.name},
+            json={"username": created_ai_entity.username},
         )
         assert invite_response.status_code == 200, invite_response.text
 
@@ -124,6 +124,4 @@ class TestConversationDetails:
 
         ai_entries = [p for p in detail["participants"] if p["is_ai"]]
         assert len(ai_entries) == 1
-        assert ai_entries[0]["username"] == created_ai_entity.name
-        if "display_name" in ai_entries[0]:
-            assert ai_entries[0]["display_name"]
+        assert ai_entries[0]["username"] == created_ai_entity.username

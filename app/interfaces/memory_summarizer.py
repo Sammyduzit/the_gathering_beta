@@ -25,7 +25,7 @@ class IMemorySummarizer(ABC):
 
         Args:
             messages: List of messages to summarize (chronological order)
-            ai_entity: AI entity object (for contextualized summaries using display_name)
+            ai_entity: AI entity object (for contextualized summaries using username)
 
         Returns:
             Generated summary text (1-2 sentences)

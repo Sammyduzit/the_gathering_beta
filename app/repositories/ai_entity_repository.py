@@ -13,8 +13,8 @@ class IAIEntityRepository(BaseRepository[AIEntity]):
     """Interface for AI Entity repository."""
 
     @abstractmethod
-    async def get_by_name(self, name: str) -> AIEntity | None:
-        """Get AI entity by unique name."""
+    async def get_by_username(self, username: str) -> AIEntity | None:
+        """Get AI entity by unique username."""
         pass
 
     @abstractmethod
@@ -23,8 +23,8 @@ class IAIEntityRepository(BaseRepository[AIEntity]):
         pass
 
     @abstractmethod
-    async def name_exists(self, name: str, exclude_id: int | None = None) -> bool:
-        """Check if name exists (for validation)."""
+    async def username_exists(self, username: str, exclude_id: int | None = None) -> bool:
+        """Check if username exists (for validation)."""
         pass
 
     @abstractmethod
@@ -56,8 +56,8 @@ class AIEntityRepository(IAIEntityRepository):
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_name(self, name: str) -> AIEntity | None:
-        query = select(AIEntity).where(AIEntity.name == name, AIEntity.is_active)
+    async def get_by_username(self, username: str) -> AIEntity | None:
+        query = select(AIEntity).where(AIEntity.username == username, AIEntity.is_active)
         result = await self.db.execute(query)
         return result.scalar_one_or_none()
 
@@ -119,8 +119,8 @@ class AIEntityRepository(IAIEntityRepository):
         entity = await self.get_by_id(id)
         return entity is not None
 
-    async def name_exists(self, name: str, exclude_id: int | None = None) -> bool:
-        query = select(AIEntity).where(AIEntity.name == name)
+    async def username_exists(self, username: str, exclude_id: int | None = None) -> bool:
+        query = select(AIEntity).where(AIEntity.username == username)
         if exclude_id:
             query = query.where(AIEntity.id != exclude_id)
         result = await self.db.execute(query)

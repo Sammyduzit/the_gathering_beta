@@ -60,11 +60,11 @@ class ConversationParticipant(Base):
 
     @property
     def participant_name(self) -> str:
-        """Get participant name regardless of User or AI."""
+        """Get participant username regardless of User or AI."""
         if self.user_id and self.user:
             return self.user.username
         if self.ai_entity:
-            return self.ai_entity.display_name
+            return self.ai_entity.username
         return ""
 
     @property

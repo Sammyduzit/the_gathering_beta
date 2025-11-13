@@ -27,8 +27,7 @@ async def test_create_conversation_memory_task(db_session):
     user = await UserFactory.create(db_session)
 
     ai_entity = AIEntity(
-        name="arq_tester",
-        display_name="ARQ Tester",
+        username="arq_tester",
         description="Integration AI",
         system_prompt="Summarize conversations for testing.",
         model_name="gpt-4o-mini",

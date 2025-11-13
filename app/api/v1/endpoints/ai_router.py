@@ -74,8 +74,7 @@ async def create_ai_entity(
     :return: Created AI entity
     """
     return await ai_service.create_entity(
-        name=entity_data.name,
-        display_name=entity_data.display_name,
+        username=entity_data.username,
         description=entity_data.description,
         system_prompt=entity_data.system_prompt,
         model_name=entity_data.model_name,
@@ -114,7 +113,7 @@ async def update_ai_entity(
     """
     return await ai_service.update_entity(
         entity_id=entity_id,
-        display_name=entity_data.display_name,
+        username=entity_data.username,
         description=entity_data.description,
         system_prompt=entity_data.system_prompt,
         model_name=entity_data.model_name,

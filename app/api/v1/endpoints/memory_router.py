@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.auth_dependencies import get_current_admin_user
 from app.core.csrf_dependencies import validate_csrf
-from app.interfaces.embedding_service import IEmbeddingService
 from app.models.ai_memory import AIMemory
 from app.models.user import User
 from app.repositories.ai_memory_repository import IAIMemoryRepository

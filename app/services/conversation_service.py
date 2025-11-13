@@ -273,8 +273,7 @@ class ConversationService:
         return [
             {
                 "id": participant.user_id if participant.user_id else participant.ai_entity_id,
-                "username": participant.participant_name if participant.user_id else participant.ai_entity.name,
-                "display_name": participant.participant_name,
+                "username": participant.participant_name if participant.user_id else participant.ai_entity.username,
                 "status": (
                     participant.user.status.value
                     if participant.user_id
@@ -317,7 +316,7 @@ class ConversationService:
                 continue
 
             # Try AI
-            ai_entity = await self.ai_entity_repo.get_by_name(username)
+            ai_entity = await self.ai_entity_repo.get_by_username(username)
             if ai_entity:
                 if ai_entity.current_room_id != room_id:
                     raise ConversationValidationException(f"AI '{username}' is not in the same room")
@@ -379,7 +378,7 @@ class ConversationService:
             }
 
         # Try AI
-        ai_entity = await self.ai_entity_repo.get_by_name(username)
+        ai_entity = await self.ai_entity_repo.get_by_username(username)
         if ai_entity:
             await self.conversation_repo.add_participant(conversation_id, ai_entity_id=ai_entity.id)
             return {
@@ -434,7 +433,7 @@ class ConversationService:
             }
 
         # Try AI (only admins can remove AI)
-        ai_entity = await self.ai_entity_repo.get_by_name(username)
+        ai_entity = await self.ai_entity_repo.get_by_username(username)
         if ai_entity:
             if not current_user.is_admin:
                 raise ForbiddenException("Only admins can remove AI participants")
@@ -544,8 +543,7 @@ class ConversationService:
         return [
             {
                 "id": p.user_id if p.user_id else p.ai_entity_id,
-                "username": p.participant_name if p.user_id else p.ai_entity.name,
-                "display_name": p.participant_name,
+                "username": p.participant_name if p.user_id else p.ai_entity.username,
                 "avatar_url": p.user.avatar_url if p.user_id else None,
                 "status": (
                     p.user.status.value if p.user_id else p.ai_entity.status.value if p.ai_entity else "offline"
@@ -571,11 +569,6 @@ class ConversationService:
                 "id": latest_message_obj.id,
                 "sender_id": latest_message_obj.sender_id,
                 "sender_username": latest_message_obj.sender_username,
-                "sender_display_name": (
-                    latest_message_obj.sender_user.username
-                    if latest_message_obj.sender_user_id
-                    else latest_message_obj.sender_ai.display_name
-                ),
                 "content": latest_message_obj.content,
                 "sent_at": latest_message_obj.sent_at,
                 "room_id": latest_message_obj.room_id,
