@@ -28,6 +28,7 @@ venv.bak/
 .coverage
 htmlcov/
 __test
+.env.test
 
 # Documentation & Development Notes
 docs/
