@@ -34,7 +34,6 @@ from app.services.heuristic_summarizer import HeuristicMemorySummarizer
 from app.services.keyword_retriever import KeywordMemoryRetriever
 from app.services.embedding_factory import create_embedding_service
 from app.services.long_term_memory_service import LongTermMemoryService
-from app.services.memory_builder_service import MemoryBuilderService
 from app.services.personality_memory_service import PersonalityMemoryService
 from app.services.room_service import RoomService
 from app.services.short_term_memory_service import ShortTermMemoryService
@@ -232,63 +231,41 @@ def get_text_chunking_service() -> TextChunkingService:
 def get_memory_retriever(
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
     embedding_service: IEmbeddingService = Depends(get_embedding_service),
+    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
 ) -> IMemoryRetriever:
     """
     Create memory retriever implementation based on feature flags.
 
     :param memory_repo: AI memory repository instance
     :param embedding_service: Embedding service instance
+    :param keyword_extractor: Keyword extractor instance
     :return: Memory retriever instance (Vector if enabled, else Keyword)
     """
     if settings.enable_vector_search:
         return VectorMemoryRetriever(
             memory_repo=memory_repo,
             embedding_service=embedding_service,
+            keyword_extractor=keyword_extractor,
         )
     else:
         return KeywordMemoryRetriever(memory_repo=memory_repo)
 
 
-def get_memory_builder_service(
-    message_repo: IMessageRepository = Depends(get_message_repository),
-    memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
-    entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
-    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
-    summarizer: IMemorySummarizer = Depends(get_memory_summarizer),
-) -> MemoryBuilderService:
-    """
-    Create MemoryBuilderService instance with dependency injection.
-
-    Dependencies are injected via factory functions that support feature flags:
-    - keyword_extractor: YAKE (default) or LLM-based
-    - summarizer: Heuristic (default) or LLM-based
-
-    :param message_repo: Message repository instance
-    :param memory_repo: AI memory repository instance
-    :param entity_repo: AI entity repository instance
-    :param keyword_extractor: Keyword extraction implementation
-    :param summarizer: Summary generation implementation
-    :return: MemoryBuilderService instance
-    """
-    return MemoryBuilderService(
-        message_repo=message_repo,
-        memory_repo=memory_repo,
-        entity_repo=entity_repo,
-        keyword_extractor=keyword_extractor,
-        summarizer=summarizer,
-    )
-
-
 def get_short_term_memory_service(
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
 ) -> ShortTermMemoryService:
     """
     Create ShortTermMemoryService instance.
 
     :param memory_repo: AI memory repository instance
+    :param keyword_extractor: Keyword extractor instance
     :return: ShortTermMemoryService instance
     """
-    return ShortTermMemoryService(memory_repo=memory_repo)
+    return ShortTermMemoryService(
+        memory_repo=memory_repo,
+        keyword_extractor=keyword_extractor,
+    )
 
 
 def get_long_term_memory_service(
@@ -321,6 +298,7 @@ def get_personality_memory_service(
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
     embedding_service: IEmbeddingService = Depends(get_embedding_service),
     chunking_service: TextChunkingService = Depends(get_text_chunking_service),
+    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
 ) -> PersonalityMemoryService:
     """
     Create PersonalityMemoryService instance.
@@ -328,10 +306,12 @@ def get_personality_memory_service(
     :param memory_repo: AI memory repository instance
     :param embedding_service: Embedding service instance
     :param chunking_service: Text chunking service instance
+    :param keyword_extractor: Keyword extractor instance
     :return: PersonalityMemoryService instance
     """
     return PersonalityMemoryService(
         memory_repo=memory_repo,
         embedding_service=embedding_service,
         chunking_service=chunking_service,
+        keyword_extractor=keyword_extractor,
     )

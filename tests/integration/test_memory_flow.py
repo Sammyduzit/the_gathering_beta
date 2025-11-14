@@ -65,7 +65,10 @@ async def test_short_to_long_term_memory_flow(db_session, message_repo):
         messages.append(msg)
 
     memory_repo = AIMemoryRepository(db_session)
-    short_term_service = ShortTermMemoryService(memory_repo=memory_repo)
+    short_term_service = ShortTermMemoryService(
+        memory_repo=memory_repo,
+        keyword_extractor=FakeKeywordExtractor(),
+    )
     long_term_service = LongTermMemoryService(
         memory_repo=memory_repo,
         message_repo=message_repo,

@@ -20,10 +20,9 @@ from app.repositories.message_repository import MessageRepository
 from app.services.ai_context_service import AIContextService
 from app.services.ai_response_service import AIResponseService
 from app.services.heuristic_summarizer import HeuristicMemorySummarizer
-from app.services.keyword_retriever import KeywordMemoryRetriever
 from app.services.long_term_memory_service import LongTermMemoryService
-from app.services.memory_builder_service import MemoryBuilderService
 from app.services.embedding_factory import create_embedding_service
+from app.services.service_dependencies import get_embedding_service, get_memory_retriever
 from app.services.short_term_memory_service import ShortTermMemoryService
 from app.services.text_chunking_service import TextChunkingService
 from app.services.yake_extractor import YakeKeywordExtractor
@@ -154,7 +153,11 @@ async def _create_inline_memory(
         return
 
     try:
-        short_term_service = ShortTermMemoryService(memory_repo=memory_repo)
+        keyword_extractor = YakeKeywordExtractor()
+        short_term_service = ShortTermMemoryService(
+            memory_repo=memory_repo,
+            keyword_extractor=keyword_extractor,
+        )
 
         # Fetch all human participant user IDs
         user_ids = await _get_conversation_user_ids(conversation_repo, conversation_id)
@@ -301,8 +304,14 @@ async def check_and_generate_ai_response(
                 model_name=ai_entity.model_name or "gpt-4o-mini",
             )
 
-            # Initialize memory retriever for context service
-            memory_retriever = KeywordMemoryRetriever(memory_repo=memory_repo)
+            # Initialize memory retriever for context service using factory
+            embedding_service = get_embedding_service()
+            keyword_extractor = YakeKeywordExtractor()  # Direct instantiation outside FastAPI context
+            memory_retriever = get_memory_retriever(
+                memory_repo=memory_repo,
+                embedding_service=embedding_service,
+                keyword_extractor=keyword_extractor,
+            )
             context_service = AIContextService(
                 message_repo=message_repo,
                 memory_repo=memory_repo,
@@ -409,93 +418,6 @@ async def check_and_generate_ai_response(
             conversation_id=conversation_id,
         )
         raise Retry(defer=ctx["job_try"] * 5)
-
-
-async def create_conversation_memory_task(
-    ctx: dict,
-    ai_entity_id: int,
-    conversation_id: int,
-    trigger_message_id: int,
-) -> dict:
-    """
-    ARQ task: Create conversation memory after AI response.
-
-    This is a **fire-and-forget** background task that doesn't block AI responses.
-    Non-critical: Logs warning on failure, no retry.
-
-    Args:
-        ctx: ARQ context with db_manager
-        ai_entity_id: AI entity ID that owns the memory
-        conversation_id: Conversation ID to create memory from
-        trigger_message_id: Message ID that triggered memory creation
-
-    Returns:
-        Dict with memory_id and keywords on success, or error on failure
-    """
-    job_id = str(uuid4())
-    db_session_context.set(job_id)
-
-    db_manager: ARQDatabaseManager = ctx["db_manager"]
-
-    try:
-        async for session in db_manager.get_session():
-            message_repo = MessageRepository(session)
-            memory_repo = AIMemoryRepository(session)
-            entity_repo = AIEntityRepository(session)
-
-            # Initialize memory builder service with default implementations
-            keyword_extractor = YakeKeywordExtractor()
-            summarizer = HeuristicMemorySummarizer()
-
-            memory_builder = MemoryBuilderService(
-                message_repo=message_repo,
-                memory_repo=memory_repo,
-                entity_repo=entity_repo,
-                keyword_extractor=keyword_extractor,
-                summarizer=summarizer,
-            )
-
-            # Create memory
-            memory = await memory_builder.create_conversation_memory(
-                ai_entity_id=ai_entity_id,
-                conversation_id=conversation_id,
-                trigger_message_id=trigger_message_id,
-            )
-
-            logger.info(
-                "conversation_memory_created",
-                memory_id=memory.id,
-                ai_entity_id=ai_entity_id,
-                conversation_id=conversation_id,
-                keywords=memory.keywords,
-            )
-
-            return {
-                "memory_id": memory.id,
-                "keywords": memory.keywords,
-                "importance_score": memory.importance_score,
-            }
-
-    except (KeywordExtractionError, MemorySummarizationError) as e:
-        # Non-critical errors: log warning, don't retry
-        logger.warning(
-            "memory_creation_failed",
-            error=str(e),
-            ai_entity_id=ai_entity_id,
-            conversation_id=conversation_id,
-            reason="Extraction or summarization error",
-        )
-        return {"error": str(e), "skipped": True}
-
-    except Exception as e:
-        # Unexpected errors: log error, don't retry (non-critical task)
-        logger.error(
-            "unexpected_error_creating_memory",
-            error=str(e),
-            ai_entity_id=ai_entity_id,
-            conversation_id=conversation_id,
-        )
-        return {"error": str(e), "skipped": True}
 
 
 async def create_long_term_memory_task(

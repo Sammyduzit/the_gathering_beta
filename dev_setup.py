@@ -1,3 +1,6 @@
+import asyncio
+import sys
+
 from sqlalchemy import select
 
 from app.core.auth_utils import hash_password
@@ -238,3 +241,19 @@ async def setup_complete_test_environment():
     print("═" * 68)
 
     print("TEST ENVIRONMENT READY!")
+
+
+async def main():
+    """Entrypoint used when running `python3 dev_setup.py`."""
+    try:
+        await setup_complete_test_environment()
+    except KeyboardInterrupt:
+        print("\nSetup cancelled by user!")
+        sys.exit(1)
+    except Exception:
+        print("\nSetup failed. See errors above for details.")
+        raise
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

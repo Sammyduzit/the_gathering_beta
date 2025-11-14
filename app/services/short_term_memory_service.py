@@ -1,5 +1,4 @@
-import yake
-
+from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.models.ai_memory import AIMemory
 from app.models.message import Message
 from app.repositories.ai_memory_repository import AIMemoryRepository
@@ -8,14 +7,13 @@ from app.repositories.ai_memory_repository import AIMemoryRepository
 class ShortTermMemoryService:
     """Service for creating short-term conversation memories."""
 
-    def __init__(self, memory_repo: AIMemoryRepository):
+    def __init__(
+        self,
+        memory_repo: AIMemoryRepository,
+        keyword_extractor: IKeywordExtractor,
+    ):
         self.memory_repo = memory_repo
-        self.keyword_extractor = yake.KeywordExtractor(
-            lan="en",
-            n=2,
-            dedupLim=0.9,
-            top=10,
-        )
+        self.keyword_extractor = keyword_extractor
 
     async def create_short_term_memory(
         self,
@@ -67,7 +65,7 @@ class ShortTermMemoryService:
         combined_text = " ".join([m.content for m in user_messages])
 
         # Extract keywords
-        keywords = self._extract_keywords(combined_text)
+        keywords = await self._extract_keywords(combined_text)
 
         # Create simple summary (first 200 chars of first user message)
         first_message = user_messages[0].content
@@ -94,13 +92,12 @@ class ShortTermMemoryService:
 
         return await self.memory_repo.create(memory)
 
-    def _extract_keywords(self, text: str) -> list[str]:
-        """Extract keywords from text using YAKE."""
+    async def _extract_keywords(self, text: str) -> list[str]:
+        """Extract keywords from text using keyword extractor."""
         if not text or not text.strip():
             return []
 
         try:
-            keywords = self.keyword_extractor.extract_keywords(text)
-            return [kw[0] for kw in keywords]
+            return await self.keyword_extractor.extract_keywords(text, max_keywords=10)
         except Exception:
             return []

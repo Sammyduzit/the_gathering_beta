@@ -27,10 +27,10 @@ from app.schemas.memory_schemas import (
     PersonalityUploadRequest,
     PersonalityUploadResponse,
 )
+from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.services.embedding_factory import create_embedding_service
 from app.services.personality_memory_service import PersonalityMemoryService
-from app.services.service_dependencies import get_personality_memory_service
-from app.services.yake_extractor import YakeKeywordExtractor
+from app.services.service_dependencies import get_keyword_extractor, get_personality_memory_service
 
 router = APIRouter(prefix="/memories", tags=["memories"])
 
@@ -136,6 +136,7 @@ async def create_memory(
     current_admin: User = Depends(get_current_admin_user),
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
     conversation_repo: IConversationRepository = Depends(get_conversation_repository),
+    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
     _csrf: None = Depends(validate_csrf),
 ) -> MemoryResponse:
     """
@@ -183,8 +184,7 @@ async def create_memory(
     # Auto-extract keywords if not provided
     keywords = memory_data.keywords
     if not keywords:
-        extractor = YakeKeywordExtractor()
-        keywords = await extractor.extract_keywords(memory_data.text, max_keywords=10)
+        keywords = await keyword_extractor.extract_keywords(memory_data.text, max_keywords=10)
 
     # Create embedding from text
     embedding_service = create_embedding_service()
@@ -225,6 +225,7 @@ async def update_memory(
     memory_data: MemoryUpdate,
     current_admin: User = Depends(get_current_admin_user),
     memory_repo: IAIMemoryRepository = Depends(get_ai_memory_repository),
+    keyword_extractor: IKeywordExtractor = Depends(get_keyword_extractor),
     _csrf: None = Depends(validate_csrf),
 ) -> MemoryResponse:
     """
@@ -270,8 +271,7 @@ async def update_memory(
         if memory.memory_metadata:
             memory.memory_metadata["extractor_used"] = "manual"
     elif summary_changed:
-        extractor = YakeKeywordExtractor()
-        memory.keywords = await extractor.extract_keywords(memory.summary, max_keywords=10)
+        memory.keywords = await keyword_extractor.extract_keywords(memory.summary, max_keywords=10)
         # Update metadata
         if memory.memory_metadata:
             memory.memory_metadata["extractor_used"] = "yake"

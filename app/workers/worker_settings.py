@@ -9,7 +9,6 @@ from app.core.config import settings
 from app.workers.tasks import (
     check_and_generate_ai_response,
     cleanup_old_short_term_memories_task,
-    create_conversation_memory_task,
     create_long_term_memory_task,
 )
 
@@ -37,7 +36,6 @@ class WorkerSettings:
 
     functions = [
         check_and_generate_ai_response,
-        create_conversation_memory_task,
         create_long_term_memory_task,
     ]
 

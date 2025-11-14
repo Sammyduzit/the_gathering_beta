@@ -1,7 +1,6 @@
-import yake
-
 from app.core.config import settings
 from app.interfaces.embedding_service import IEmbeddingService
+from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.interfaces.memory_retriever import IMemoryRetriever
 from app.models.ai_memory import AIMemory
 from app.repositories.ai_memory_repository import AIMemoryRepository
@@ -20,15 +19,11 @@ class VectorMemoryRetriever(IMemoryRetriever):
         self,
         memory_repo: AIMemoryRepository,
         embedding_service: IEmbeddingService,
+        keyword_extractor: IKeywordExtractor,
     ):
         self.memory_repo = memory_repo
         self.embedding_service = embedding_service
-        self.keyword_extractor = yake.KeywordExtractor(
-            lan="en",
-            n=2,
-            dedupLim=0.9,
-            top=10,
-        )
+        self.keyword_extractor = keyword_extractor
 
     async def retrieve_tiered(
         self,
@@ -97,7 +92,7 @@ class VectorMemoryRetriever(IMemoryRetriever):
         Returns RRF-fused results from vector and keyword search.
         """
         # Extract keywords from query
-        keywords = self._extract_keywords(query)
+        keywords = await self._extract_keywords(query)
 
         # Vector search
         embedding = await self.embedding_service.embed_text(query)
@@ -285,14 +280,13 @@ class VectorMemoryRetriever(IMemoryRetriever):
 
         return sorted_memories[:limit]
 
-    def _extract_keywords(self, text: str) -> list[str]:
-        """Extract keywords from text using YAKE."""
+    async def _extract_keywords(self, text: str) -> list[str]:
+        """Extract keywords from text using keyword extractor."""
         if not text or not text.strip():
             return []
 
         try:
-            keywords = self.keyword_extractor.extract_keywords(text)
-            return [kw[0] for kw in keywords]
+            return await self.keyword_extractor.extract_keywords(text, max_keywords=10)
         except Exception:
             return []
 

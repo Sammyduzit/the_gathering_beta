@@ -24,14 +24,15 @@ class TestVectorMemoryRetriever:
     def retriever(self, monkeypatch):
         memory_repo = AsyncMock()
         embedding_service = AsyncMock()
+        keyword_extractor = SimpleNamespace(
+            extract_keywords=AsyncMock(return_value=["kw"]),
+        )
 
         retriever = TestableVectorRetriever(
             memory_repo=memory_repo,
             embedding_service=embedding_service,
+            keyword_extractor=keyword_extractor,
         )
-
-        # Avoid YAKE noise: patch keyword extractor
-        retriever.keyword_extractor = MagicMock()
 
         # deterministic settings overrides for tests
         from app.core.config import settings
@@ -81,7 +82,7 @@ class TestVectorMemoryRetriever:
         memory_repo.vector_search.return_value = vector_results
         memory_repo.search_by_keywords.return_value = [self._memory(2, "short_term")]
 
-        r._extract_keywords = MagicMock(return_value=["topic"])
+        r._extract_keywords = AsyncMock(return_value=["topic"])
         r._filter_keyword_results = MagicMock(return_value=["filtered"])
         r._rrf_fusion = MagicMock(return_value=["final"])
 
@@ -121,7 +122,7 @@ class TestVectorMemoryRetriever:
         embedding_service.embed_text.return_value = [0.1]
         memory_repo.vector_search.return_value = [self._memory(1, "short_term")]
 
-        r._extract_keywords = MagicMock(return_value=[])
+        r._extract_keywords = AsyncMock(return_value=[])
         r._rrf_fusion = MagicMock(return_value=["final"])
 
         result = await r._hybrid_search_single_layer(

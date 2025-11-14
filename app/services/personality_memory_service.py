@@ -1,6 +1,5 @@
-import yake
-
 from app.interfaces.embedding_service import EmbeddingServiceError, IEmbeddingService
+from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.models.ai_memory import AIMemory
 from app.repositories.ai_memory_repository import AIMemoryRepository
 from app.services.text_chunking_service import TextChunkingService
@@ -14,16 +13,12 @@ class PersonalityMemoryService:
         memory_repo: AIMemoryRepository,
         embedding_service: IEmbeddingService,
         chunking_service: TextChunkingService,
+        keyword_extractor: IKeywordExtractor,
     ):
         self.memory_repo = memory_repo
         self.embedding_service = embedding_service
         self.chunking_service = chunking_service
-        self.keyword_extractor = yake.KeywordExtractor(
-            lan="en",
-            n=2,
-            dedupLim=0.9,
-            top=10,
-        )
+        self.keyword_extractor = keyword_extractor
 
     async def upload_personality(
         self,
@@ -62,8 +57,11 @@ class PersonalityMemoryService:
         if not chunks:
             return []
 
-        # Extract keywords per chunk
-        chunk_keywords = [self._extract_keywords(chunk) for chunk in chunks]
+        # Extract keywords per chunk (sequential for-loop like LongTermMemoryService)
+        chunk_keywords = []
+        for chunk in chunks:
+            keywords = await self._extract_keywords(chunk)
+            chunk_keywords.append(keywords)
 
         # Generate embeddings per chunk (batch)
         try:
@@ -100,13 +98,12 @@ class PersonalityMemoryService:
 
         return memories
 
-    def _extract_keywords(self, text: str) -> list[str]:
-        """Extract keywords from text using YAKE."""
+    async def _extract_keywords(self, text: str) -> list[str]:
+        """Extract keywords from text using keyword extractor."""
         if not text or not text.strip():
             return []
 
         try:
-            keywords = self.keyword_extractor.extract_keywords(text)
-            return [kw[0] for kw in keywords]
+            return await self.keyword_extractor.extract_keywords(text, max_keywords=10)
         except Exception:
             return []
