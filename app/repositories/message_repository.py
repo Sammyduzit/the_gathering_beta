@@ -1,7 +1,7 @@
 import logging
 from abc import abstractmethod
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, delete, desc, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -333,7 +333,8 @@ class MessageRepository(IMessageRepository):
             if not threshold_result:
                 return 0
 
-            old_messages_query = select(Message.id).where(
+            # Bulk delete old messages (more efficient than individual deletes)
+            delete_old_messages_stmt = delete(Message).where(
                 and_(
                     Message.room_id == room_id,
                     Message.conversation_id.is_(None),
@@ -341,15 +342,10 @@ class MessageRepository(IMessageRepository):
                 )
             )
 
-            result = await self.db.execute(old_messages_query)
-            old_messages = result.all()
-
-            deleted_count = 0
-            for message in old_messages:
-                self.db.delete(message)
-                deleted_count += 1
-
+            delete_result = await self.db.execute(delete_old_messages_stmt)
             await self.db.commit()
+
+            deleted_count = delete_result.rowcount or 0
 
             if deleted_count > 0:
                 logger.info(f"Cleaned up {deleted_count} old messages from room {room_id}")

@@ -54,16 +54,8 @@ async def lifespan(app: FastAPI):
     """
     logger.info("fastapi_starting")
 
-    if os.getenv("RESET_DB") == "true":
-        logger.warning("database_reset_requested")
-        await drop_tables()
-        logger.info("database_reset_complete")
-        await create_tables()
-        await setup_complete_test_environment()
-        logger.info("database_reset_and_dev_setup_complete")
-    else:
-        await create_tables()
-        logger.info("database_tables_created")
+    await create_tables()
+    logger.info("database_tables_created")
 
     await create_redis_client()
     logger.info("redis_client_initialized")
