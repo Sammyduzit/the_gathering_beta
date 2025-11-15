@@ -24,7 +24,9 @@ class AIMemory(Base):
 
     # Context linking
     room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), default=None)
-    conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), default=None)
+    conversation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"), default=None
+    )
 
     # Memory data (AI-readable summary + structured JSONB content)
     summary: Mapped[str] = mapped_column(Text)
@@ -49,7 +51,9 @@ class AIMemory(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    last_accessed: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_accessed: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
     entity: Mapped["AIEntity"] = relationship(back_populates="memories")

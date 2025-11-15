@@ -41,9 +41,7 @@ class Message(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # Polymorphic sender (User XOR AI)
-    sender_user_id: Mapped[int | None] = mapped_column(
-        ForeignKey("users.id", ondelete=ONDELETE_SET_NULL), default=None
-    )
+    sender_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete=ONDELETE_SET_NULL), default=None)
     sender_ai_id: Mapped[int | None] = mapped_column(
         ForeignKey("ai_entities.id", ondelete=ONDELETE_SET_NULL), default=None
     )

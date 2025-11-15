@@ -156,7 +156,9 @@ class AIResponseService:
                 in_reply_to_message_id=in_reply_to_message_id,
             )
 
-            logger.info(f"AI '{ai_entity.username}' generated response in room {room_id}: {len(response_content)} chars")
+            logger.info(
+                f"AI '{ai_entity.username}' generated response in room {room_id}: {len(response_content)} chars"
+            )
 
             return message
 
@@ -327,7 +329,9 @@ class AIResponseService:
             is_question = any(indicator in content for indicator in question_indicators)
 
             if is_question:
-                logger.info(f"Question detected in conversation {conversation_id} - AI '{ai_entity.username}' will respond")
+                logger.info(
+                    f"Question detected in conversation {conversation_id} - AI '{ai_entity.username}' will respond"
+                )
                 return True
             return False
 

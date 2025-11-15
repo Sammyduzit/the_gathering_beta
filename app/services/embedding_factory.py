@@ -38,6 +38,5 @@ def create_embedding_service() -> IEmbeddingService:
 
     else:
         raise ValueError(
-            f"Unsupported embedding provider: {settings.embedding_provider}. "
-            f"Supported providers: 'google', 'openai'"
+            f"Unsupported embedding provider: {settings.embedding_provider}. Supported providers: 'google', 'openai'"
         )

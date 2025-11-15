@@ -295,7 +295,9 @@ class TestAIResponseService:
 
         # Arrange
         sample_ai_entity.room_response_strategy = AIResponseStrategy.ROOM_MENTION_ONLY
-        message_with_mention = Message(id=1, content=f"Hey {sample_ai_entity.username}, can you help?", sender_user_id=1)
+        message_with_mention = Message(
+            id=1, content=f"Hey {sample_ai_entity.username}, can you help?", sender_user_id=1
+        )
         message_without_mention = Message(id=2, content="This is a random message", sender_user_id=1)
 
         # Act & Assert

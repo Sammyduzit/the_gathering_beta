@@ -147,9 +147,11 @@ class AIMemoryRepository(IAIMemoryRepository):
         if conversation_id is not None:
             query = query.where(AIMemory.conversation_id == conversation_id)
 
-        # Exclude conversation if provided
+        # Exclude conversation if provided (NULL-safe: include personality memories with conversation_id=NULL)
         if exclude_conversation_id is not None:
-            query = query.where(AIMemory.conversation_id != exclude_conversation_id)
+            query = query.where(
+                (AIMemory.conversation_id != exclude_conversation_id) | (AIMemory.conversation_id.is_(None))
+            )
 
         # Filter by memory type if provided
         if memory_type is not None:

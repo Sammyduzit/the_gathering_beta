@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -24,7 +24,7 @@ class AICooldown(Base):
 
     ai_entity_id: Mapped[int] = mapped_column(ForeignKey("ai_entities.id", ondelete="CASCADE"), index=True)
 
-    # Context: EITHER Room OR Conversation (XOR enforced by unique constraint)
+    # Context: EITHER Room OR Conversation (XOR enforced by check constraint)
     room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"), default=None, index=True)
     conversation_id: Mapped[int | None] = mapped_column(
         ForeignKey("conversations.id", ondelete="CASCADE"), default=None, index=True
@@ -38,6 +38,10 @@ class AICooldown(Base):
     conversation: Mapped["Conversation | None"] = relationship()
 
     __table_args__ = (
+        CheckConstraint(
+            "(room_id IS NULL) != (conversation_id IS NULL)",
+            name="ai_cooldown_xor_room_conversation",
+        ),
         UniqueConstraint(
             "ai_entity_id",
             "room_id",

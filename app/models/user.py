@@ -41,7 +41,7 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     current_room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete="SET NULL"), default=None)
-    current_room: Mapped["Room"] = relationship(back_populates="users", lazy="raise")
+    current_room: Mapped["Room | None"] = relationship(back_populates="users", lazy="raise")
     conversation_participations: Mapped[list["ConversationParticipant"]] = relationship(back_populates="user")
     sent_messages: Mapped[list["Message"]] = relationship(
         back_populates="sender_user",

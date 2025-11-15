@@ -97,9 +97,7 @@ class TestLongTermMemoryService:
         combined_text = "human: User says hi\n\nAI assistant: AI replies hello"
         deps["chunking_service"].chunk_text.return_value = ["chunk-one", "chunk-two"]
 
-        deps["keyword_extractor"].extract_keywords = AsyncMock(
-            side_effect=[["kw1"], ["kw2"]]
-        )
+        deps["keyword_extractor"].extract_keywords = AsyncMock(side_effect=[["kw1"], ["kw2"]])
         deps["embedding_service"].embed_batch.return_value = [[0.1], [0.2]]
 
         async def _create(memory):

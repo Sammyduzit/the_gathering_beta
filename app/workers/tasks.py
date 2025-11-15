@@ -8,8 +8,6 @@ from arq import Retry
 from app.core.arq_db_manager import ARQDatabaseManager, db_session_context
 from app.core.config import settings
 from app.interfaces.ai_provider import AIProviderError
-from app.interfaces.keyword_extractor import KeywordExtractionError
-from app.interfaces.memory_summarizer import MemorySummarizationError
 from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.providers.openai_provider import OpenAIProvider
 from app.repositories.ai_cooldown_repository import AICooldownRepository
@@ -19,9 +17,8 @@ from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.message_repository import MessageRepository
 from app.services.ai_context_service import AIContextService
 from app.services.ai_response_service import AIResponseService
-from app.services.heuristic_summarizer import HeuristicMemorySummarizer
-from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.embedding_factory import create_embedding_service
+from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.service_dependencies import get_embedding_service, get_memory_retriever
 from app.services.short_term_memory_service import ShortTermMemoryService
 from app.services.text_chunking_service import TextChunkingService
@@ -530,9 +527,7 @@ async def cleanup_old_short_term_memories_task(ctx: dict) -> dict:
             memory_repo = AIMemoryRepository(session)
 
             # Delete old short-term memories
-            deleted_count = await memory_repo.delete_old_short_term_memories(
-                ttl_days=settings.short_term_ttl_days
-            )
+            deleted_count = await memory_repo.delete_old_short_term_memories(ttl_days=settings.short_term_ttl_days)
 
             logger.info(
                 "short_term_memories_cleaned_up",

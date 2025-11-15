@@ -42,9 +42,7 @@ class YakeKeywordExtractor(IKeywordExtractor):
         self.language = language or settings.keyword_language
         self.max_ngram_size = max_ngram_size if max_ngram_size is not None else settings.keyword_max_ngrams
         self.deduplication_threshold = (
-            deduplication_threshold
-            if deduplication_threshold is not None
-            else settings.keyword_dedup_threshold
+            deduplication_threshold if deduplication_threshold is not None else settings.keyword_dedup_threshold
         )
         self.window_size = window_size if window_size is not None else settings.keyword_window_size
         self.top_n = top_n if top_n is not None else settings.keyword_top_n

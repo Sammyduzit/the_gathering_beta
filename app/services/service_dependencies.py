@@ -30,9 +30,9 @@ from app.repositories.user_repository import IUserRepository
 from app.services.ai_entity_service import AIEntityService
 from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService
+from app.services.embedding_factory import create_embedding_service
 from app.services.heuristic_summarizer import HeuristicMemorySummarizer
 from app.services.keyword_retriever import KeywordMemoryRetriever
-from app.services.embedding_factory import create_embedding_service
 from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.personality_memory_service import PersonalityMemoryService
 from app.services.room_service import RoomService

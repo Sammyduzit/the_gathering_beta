@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.auth_dependencies import get_current_admin_user
 from app.core.csrf_dependencies import validate_csrf
+from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.models.ai_memory import AIMemory
 from app.models.user import User
 from app.repositories.ai_memory_repository import IAIMemoryRepository
@@ -27,7 +28,6 @@ from app.schemas.memory_schemas import (
     PersonalityUploadRequest,
     PersonalityUploadResponse,
 )
-from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.services.embedding_factory import create_embedding_service
 from app.services.personality_memory_service import PersonalityMemoryService
 from app.services.service_dependencies import get_keyword_extractor, get_personality_memory_service
@@ -85,11 +85,7 @@ async def get_memories(
 
     # Filter out short-term memories unless explicitly requested
     if not include_short_term:
-        memories = [
-            m
-            for m in memories
-            if not (m.memory_metadata and m.memory_metadata.get("type") == "short_term")
-        ]
+        memories = [m for m in memories if not (m.memory_metadata and m.memory_metadata.get("type") == "short_term")]
         total = len(memories)  # Adjust total after filtering
 
     total_pages = math.ceil(total / page_size) if total > 0 else 1
@@ -170,9 +166,7 @@ async def create_memory(
         entity_id=memory_data.entity_id,
         limit=1000,  # Get all to find max chunk_index
     )
-    conversation_memories = [
-        m for m in existing_memories if m.conversation_id == memory_data.conversation_id
-    ]
+    conversation_memories = [m for m in existing_memories if m.conversation_id == memory_data.conversation_id]
 
     max_chunk_index = -1
     for mem in conversation_memories:

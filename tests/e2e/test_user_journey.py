@@ -51,7 +51,9 @@ class TestUserJourney:
         room_id = room_response.json()["id"]
 
         # Step 4: User joins the room
-        join_response = await async_client.post(f"/api/v1/rooms/{room_id}/join", headers={"X-CSRF-Token": async_client.cookies.get("tg_csrf")})
+        join_response = await async_client.post(
+            f"/api/v1/rooms/{room_id}/join", headers={"X-CSRF-Token": async_client.cookies.get("tg_csrf")}
+        )
         assert join_response.status_code in (200, 204)
 
         # Step 5: User sends a message (triggers AI job via ARQ)

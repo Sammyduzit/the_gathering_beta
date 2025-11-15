@@ -299,7 +299,9 @@ class RoomService:
             raise UserNotInRoomException(f"User must be in room '{room.name}' to send messages")
         return room
 
-    async def _trigger_room_translation_if_needed(self, room, message: Message, current_user: User, content: str) -> None:
+    async def _trigger_room_translation_if_needed(
+        self, room, message: Message, current_user: User, content: str
+    ) -> None:
         """Trigger translation for room message if translation is enabled."""
         if not room.is_translation_enabled:
             return

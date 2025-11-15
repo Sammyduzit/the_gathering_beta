@@ -12,7 +12,9 @@ from app.services.vector_memory_retriever import VectorMemoryRetriever
 class TestableVectorRetriever(VectorMemoryRetriever):
     """Concrete subclass for testing abstract base."""
 
-    async def retrieve_candidates(self, entity_id: int, query: str | None = None, keywords: list[str] | None = None, limit: int = 20):
+    async def retrieve_candidates(
+        self, entity_id: int, query: str | None = None, keywords: list[str] | None = None, limit: int = 20
+    ):
         return []
 
 

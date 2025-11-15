@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 import structlog
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.exceptions import (
@@ -145,7 +146,17 @@ class AIEntityService:
             config=config,
         )
 
-        return await self.ai_entity_repo.update(entity)
+        # Commit changes with optimistic locking for room assignment
+        try:
+            return await self.ai_entity_repo.update(entity)
+        except IntegrityError as e:
+            # Race condition: Another AI was assigned to the room concurrently
+            if "idx_unique_ai_per_room" in str(e.orig):
+                raise InvalidOperationException(
+                    "Room already has an AI entity assigned (concurrent assignment detected)"
+                )
+            # Re-raise if it's a different integrity constraint
+            raise
 
     async def delete_entity(self, entity_id: int) -> dict:
         """Soft delete AI entity (set to OFFLINE)."""

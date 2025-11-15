@@ -8,10 +8,10 @@ import enum
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 
 from app.core.constants import (
     DEFAULT_AI_COOLDOWN_SECONDS,
@@ -88,7 +88,9 @@ class AIEntity(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), onupdate=func.now(), default=None)
 
     # Room presence
-    current_room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id", ondelete="SET NULL"), default=None, index=True)
+    current_room_id: Mapped[int | None] = mapped_column(
+        ForeignKey("rooms.id", ondelete="SET NULL"), default=None, index=True
+    )
 
     # Relationships
     current_room: Mapped["Room | None"] = relationship(back_populates="ai_entities")
@@ -103,6 +105,17 @@ class AIEntity(Base):
     # Cooldown Tracking
     cooldowns: Mapped[list["AICooldown"]] = relationship(
         back_populates="ai_entity", lazy="raise", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        # Partial unique index: Only one AI can be assigned to a room at a time
+        # This prevents race conditions when multiple AIs try to join the same room
+        Index(
+            "idx_unique_ai_per_room",
+            "current_room_id",
+            unique=True,
+            postgresql_where=text("current_room_id IS NOT NULL"),
+        ),
     )
 
     @validates("response_probability")

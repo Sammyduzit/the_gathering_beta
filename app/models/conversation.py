@@ -27,8 +27,10 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id", ondelete="SET NULL"))
-    conversation_type: Mapped[ConversationType] = mapped_column(Enum(ConversationType), default=ConversationType.PRIVATE)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id", ondelete="CASCADE"))
+    conversation_type: Mapped[ConversationType] = mapped_column(
+        Enum(ConversationType), default=ConversationType.PRIVATE
+    )
     max_participants: Mapped[int | None] = mapped_column(default=None)  # 2 for private, NULL for group chat
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

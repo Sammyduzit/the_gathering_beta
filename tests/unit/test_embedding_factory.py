@@ -68,9 +68,7 @@ class TestGoogleEmbeddingService:
 
     @pytest.mark.asyncio
     async def test_embed_text_returns_values(self, fake_client):
-        fake_client.embed_content.return_value = SimpleNamespace(
-            embeddings=[SimpleNamespace(values=[0.1, 0.2])]
-        )
+        fake_client.embed_content.return_value = SimpleNamespace(embeddings=[SimpleNamespace(values=[0.1, 0.2])])
 
         service = GoogleEmbeddingService(api_key="abc", model="gemini", dimensions=3)
 
