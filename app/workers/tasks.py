@@ -18,11 +18,11 @@ from app.repositories.message_repository import MessageRepository
 from app.services.ai_context_service import AIContextService
 from app.services.ai_response_service import AIResponseService
 from app.services.embedding_factory import create_embedding_service
+from app.services.keyword_extractor_factory import create_keyword_extractor
 from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.service_dependencies import get_embedding_service, get_memory_retriever
 from app.services.short_term_memory_service import ShortTermMemoryService
 from app.services.text_chunking_service import TextChunkingService
-from app.services.yake_extractor import YakeKeywordExtractor
 
 logger = structlog.get_logger(__name__)
 
@@ -150,7 +150,7 @@ async def _create_inline_memory(
         return
 
     try:
-        keyword_extractor = YakeKeywordExtractor()
+        keyword_extractor = create_keyword_extractor()
         short_term_service = ShortTermMemoryService(
             memory_repo=memory_repo,
             keyword_extractor=keyword_extractor,
@@ -303,7 +303,7 @@ async def check_and_generate_ai_response(
 
             # Initialize memory retriever for context service using factory
             embedding_service = get_embedding_service()
-            keyword_extractor = YakeKeywordExtractor()  # Direct instantiation outside FastAPI context
+            keyword_extractor = create_keyword_extractor()
             memory_retriever = get_memory_retriever(
                 memory_repo=memory_repo,
                 embedding_service=embedding_service,
@@ -465,7 +465,7 @@ async def create_long_term_memory_task(
             # Initialize services (provider selected via settings.embedding_provider)
             embedding_service = create_embedding_service()
             chunking_service = TextChunkingService()
-            keyword_extractor = YakeKeywordExtractor()  # Uses config defaults
+            keyword_extractor = create_keyword_extractor()
             long_term_service = LongTermMemoryService(
                 memory_repo=memory_repo,
                 message_repo=message_repo,

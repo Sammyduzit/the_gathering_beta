@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete, desc, select
+from sqlalchemy import delete, desc, exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_memory import AIMemory
@@ -108,9 +108,20 @@ class AIMemoryRepository(IAIMemoryRepository):
             return True
         return False
 
+    async def _check_exists_where(self, *where_clauses) -> bool:
+        """
+        Helper: Check existence with given WHERE clauses using SELECT EXISTS.
+
+        :param where_clauses: SQLAlchemy WHERE clause expressions
+        :return: True if entity exists, False otherwise
+        """
+        exists_query = select(exists().where(*where_clauses))
+        exists_result = await self.db.scalar(exists_query)
+        return exists_result or False
+
     async def exists(self, id: int) -> bool:
-        memory = await self.get_by_id(id)
-        return memory is not None
+        """Check if memory exists by ID."""
+        return await self._check_exists_where(AIMemory.id == id)
 
     async def vector_search(
         self,

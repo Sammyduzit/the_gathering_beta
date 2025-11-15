@@ -239,7 +239,6 @@ async def remove_participant_from_conversation(
     username: str,
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
-    arq_pool: ArqRedis = Depends(get_arq_pool),
     _csrf: None = Depends(validate_csrf),
 ) -> dict:
     """
@@ -252,12 +251,8 @@ async def remove_participant_from_conversation(
     :param username: Username of human or AI to remove
     :param current_user: Current authenticated user
     :param conversation_service: Service instance handling conversation logic
-    :param arq_pool: ARQ Redis pool for background tasks
     :return: Success response with removal info
     """
-    # Inject arq_pool into service for memory task enqueueing
-    conversation_service.arq_pool = arq_pool
-
     return await conversation_service.remove_participant(
         conversation_id=conversation_id,
         username=username,

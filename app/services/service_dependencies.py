@@ -1,5 +1,6 @@
 from fastapi import Depends
 
+from app.core.arq_pool import get_arq_pool
 from app.core.config import settings
 from app.implementations.deepl_translator import DeepLTranslator
 from app.interfaces.embedding_service import IEmbeddingService
@@ -32,6 +33,7 @@ from app.services.background_service import BackgroundService
 from app.services.conversation_service import ConversationService
 from app.services.embedding_factory import create_embedding_service
 from app.services.heuristic_summarizer import HeuristicMemorySummarizer
+from app.services.keyword_extractor_factory import create_keyword_extractor
 from app.services.keyword_retriever import KeywordMemoryRetriever
 from app.services.long_term_memory_service import LongTermMemoryService
 from app.services.personality_memory_service import PersonalityMemoryService
@@ -40,7 +42,6 @@ from app.services.short_term_memory_service import ShortTermMemoryService
 from app.services.text_chunking_service import TextChunkingService
 from app.services.translation_service import TranslationService
 from app.services.vector_memory_retriever import VectorMemoryRetriever
-from app.services.yake_extractor import YakeKeywordExtractor
 
 
 def get_deepl_translator() -> TranslatorInterface:
@@ -77,12 +78,10 @@ def get_conversation_service(
     room_repo: IRoomRepository = Depends(get_room_repository),
     translation_service: TranslationService = Depends(get_translation_service),
     ai_entity_repo: IAIEntityRepository = Depends(get_ai_entity_repository),
+    arq_pool=Depends(lambda: get_arq_pool()),
 ) -> ConversationService:
     """
     Create ConversationService instance with repository dependencies.
-
-    Note: arq_pool is set to None here and will be injected by the endpoint if needed.
-    This avoids circular dependency issues.
 
     :param conversation_repo: Conversation repository instance
     :param message_repo: Message repository instance
@@ -90,6 +89,7 @@ def get_conversation_service(
     :param room_repo: Room repository instance
     :param translation_service: Translation service instance
     :param ai_entity_repo: AI entity repository instance
+    :param arq_pool: ARQ Redis pool for background tasks
     :return: ConversationService instance
     """
     return ConversationService(
@@ -99,7 +99,7 @@ def get_conversation_service(
         room_repo=room_repo,
         translation_service=translation_service,
         ai_entity_repo=ai_entity_repo,
-        arq_pool=None,  # Will be set by endpoint if needed
+        arq_pool=arq_pool,
     )
 
 
@@ -188,8 +188,7 @@ def get_keyword_extractor() -> IKeywordExtractor:
 
     :return: Keyword extractor instance (default: YAKE)
     """
-    # Future: Check settings.USE_LLM_KEYWORDS for LLM implementation
-    return YakeKeywordExtractor()
+    return create_keyword_extractor()
 
 
 def get_memory_summarizer() -> IMemorySummarizer:

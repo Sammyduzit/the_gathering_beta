@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.room import Room
@@ -133,7 +133,17 @@ class RoomRepository(IRoomRepository):
             return True
         return False
 
+    async def _check_exists_where(self, *where_clauses) -> bool:
+        """
+        Helper: Check existence with given WHERE clauses using SELECT EXISTS.
+
+        :param where_clauses: SQLAlchemy WHERE clause expressions
+        :return: True if entity exists, False otherwise
+        """
+        exists_query = select(exists().where(*where_clauses))
+        exists_result = await self.db.scalar(exists_query)
+        return exists_result or False
+
     async def exists(self, id: int) -> bool:
-        """Check if room exists by ID."""
-        room = await self.get_by_id(id)
-        return room is not None
+        """Check if room exists by ID (active rooms only)."""
+        return await self._check_exists_where(and_(Room.id == id, Room.is_active.is_(True)))

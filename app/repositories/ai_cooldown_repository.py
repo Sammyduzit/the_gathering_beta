@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai_cooldown import AICooldown
@@ -157,6 +157,17 @@ class AICooldownRepository(IAICooldownRepository):
             return True
         return False
 
+    async def _check_exists_where(self, *where_clauses) -> bool:
+        """
+        Helper: Check existence with given WHERE clauses using SELECT EXISTS.
+
+        :param where_clauses: SQLAlchemy WHERE clause expressions
+        :return: True if entity exists, False otherwise
+        """
+        exists_query = select(exists().where(*where_clauses))
+        exists_result = await self.db.scalar(exists_query)
+        return exists_result or False
+
     async def exists(self, id: int) -> bool:
-        cooldown = await self.get_by_id(id)
-        return cooldown is not None
+        """Check if cooldown record exists by ID."""
+        return await self._check_exists_where(AICooldown.id == id)

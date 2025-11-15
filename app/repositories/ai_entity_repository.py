@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -115,16 +115,27 @@ class AIEntityRepository(IAIEntityRepository):
             return True
         return False
 
+    async def _check_exists_where(self, *where_clauses) -> bool:
+        """
+        Helper: Check existence with given WHERE clauses using SELECT EXISTS.
+
+        :param where_clauses: SQLAlchemy WHERE clause expressions
+        :return: True if entity exists, False otherwise
+        """
+        exists_query = select(exists().where(*where_clauses))
+        exists_result = await self.db.scalar(exists_query)
+        return exists_result or False
+
     async def exists(self, id: int) -> bool:
-        entity = await self.get_by_id(id)
-        return entity is not None
+        """Check if AI entity exists by ID (active entities only)."""
+        return await self._check_exists_where(and_(AIEntity.id == id, AIEntity.is_active))
 
     async def username_exists(self, username: str, exclude_id: int | None = None) -> bool:
-        query = select(AIEntity).where(AIEntity.username == username)
+        """Check if username exists, optionally excluding specific entity."""
+        where_clauses = [AIEntity.username == username]
         if exclude_id:
-            query = query.where(AIEntity.id != exclude_id)
-        result = await self.db.execute(query)
-        return result.scalar_one_or_none() is not None
+            where_clauses.append(AIEntity.id != exclude_id)
+        return await self._check_exists_where(*where_clauses)
 
     async def get_available_in_room(self, room_id: int) -> list[AIEntity]:
         """

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -110,17 +110,25 @@ class UserRepository(IUserRepository):
             return True
         return False
 
+    async def _check_exists_where(self, *where_clauses) -> bool:
+        """
+        Helper: Check existence with given WHERE clauses using SELECT EXISTS.
+
+        :param where_clauses: SQLAlchemy WHERE clause expressions
+        :return: True if entity exists, False otherwise
+        """
+        exists_query = select(exists().where(*where_clauses))
+        exists_result = await self.db.scalar(exists_query)
+        return exists_result or False
+
     async def exists(self, id: int) -> bool:
         """Check if user exists by ID."""
-        user = await self.get_by_id(id)
-        return user is not None
+        return await self._check_exists_where(User.id == id)
 
     async def email_exists(self, email: str) -> bool:
         """Check if email already exists."""
-        user = await self.get_by_email(email)
-        return user is not None
+        return await self._check_exists_where(User.email == email)
 
     async def username_exists(self, username: str) -> bool:
         """Check if username already exists."""
-        user = await self.get_by_username(username)
-        return user is not None
+        return await self._check_exists_where(User.username == username)
