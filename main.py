@@ -1,5 +1,4 @@
 import logging
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -17,7 +16,7 @@ from app.api.v1.endpoints.room_router import router as rooms_router
 from app.core.arq_pool import close_arq_pool, create_arq_pool
 from app.core.config import settings
 from app.core.constants import CORS_ALLOWED_ORIGINS_DEV
-from app.core.database import create_tables, drop_tables
+from app.core.database import create_tables
 from app.core.exceptions import (
     DomainException,
     ForbiddenException,
@@ -26,7 +25,6 @@ from app.core.exceptions import (
     ValidationException,
 )
 from app.core.redis_client import close_redis_client, create_redis_client
-from dev_setup import setup_complete_test_environment
 
 # Configure structlog
 structlog.configure(
@@ -231,6 +229,5 @@ def endpoint_test():
 if __name__ == "__main__":
     print("API Documentation: http://localhost:8000/docs")
     print("Room Endpoint: http://localhost:8000/api/v1/rooms")
-    print("Admin: admin@test.com / admin123456 \nUser:  user@test.com / user123456")
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

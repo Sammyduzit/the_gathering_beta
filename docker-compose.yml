@@ -10,6 +10,8 @@ services:
     image: pgvector/pgvector:pg16
     container_name: the_gathering_db
     environment:
+      # DEVELOPMENT ONLY - DO NOT USE IN PRODUCTION
+      # For production, use strong passwords from .env file
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: thegathering
