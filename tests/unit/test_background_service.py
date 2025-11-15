@@ -7,7 +7,7 @@ import pytest
 
 from app.models.message import Message
 from app.models.message_translation import MessageTranslation
-from app.services.background_service import BackgroundService
+from app.services.domain.background_service import BackgroundService
 
 
 @pytest.mark.unit

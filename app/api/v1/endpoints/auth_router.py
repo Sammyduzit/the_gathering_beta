@@ -17,7 +17,7 @@ from app.models import User
 from app.repositories.repository_dependencies import get_user_repository
 from app.repositories.user_repository import IUserRepository
 from app.schemas.auth_schemas import Token, UserLogin, UserRegister, UserResponse, UserUpdate
-from app.services.avatar_service import generate_avatar_url
+from app.services.domain.avatar_service import generate_avatar_url
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 logger = structlog.get_logger(__name__)

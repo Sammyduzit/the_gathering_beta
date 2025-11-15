@@ -6,7 +6,7 @@ import pytest
 
 from app.interfaces.ai_provider import AIProviderError
 from app.models.message import Message
-from app.services.ai_response_service import AIResponseService
+from app.services.ai.ai_response_service import AIResponseService
 
 
 @pytest.mark.unit

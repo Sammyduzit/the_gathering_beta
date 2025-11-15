@@ -17,7 +17,7 @@ from app.repositories.conversation_repository import IConversationRepository
 from app.repositories.message_repository import IMessageRepository
 from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
-from app.services.translation_service import TranslationService
+from app.services.domain.translation_service import TranslationService
 
 logger = structlog.get_logger(__name__)
 

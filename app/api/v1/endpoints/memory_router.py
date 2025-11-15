@@ -28,8 +28,8 @@ from app.schemas.memory_schemas import (
     PersonalityUploadRequest,
     PersonalityUploadResponse,
 )
-from app.services.embedding_factory import create_embedding_service
-from app.services.personality_memory_service import PersonalityMemoryService
+from app.services.embedding.embedding_factory import create_embedding_service
+from app.services.memory.personality_memory_service import PersonalityMemoryService
 from app.services.service_dependencies import get_keyword_extractor, get_personality_memory_service
 
 router = APIRouter(prefix="/memories", tags=["memories"])

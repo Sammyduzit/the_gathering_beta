@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.services.text_chunking_service import TextChunkingService
-from app.services.yake_extractor import YakeKeywordExtractor
+from app.services.text_processing.text_chunking_service import TextChunkingService
+from app.services.text_processing.yake_extractor import YakeKeywordExtractor
 
 
 @pytest.mark.unit

@@ -18,7 +18,7 @@ from app.schemas.chat_schemas import (
     MessageResponse,
     PaginatedMessagesResponse,
 )
-from app.services.conversation_service import ConversationService
+from app.services.domain.conversation_service import ConversationService
 from app.services.service_dependencies import get_conversation_service
 
 logger = structlog.get_logger(__name__)

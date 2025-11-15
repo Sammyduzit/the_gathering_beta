@@ -34,10 +34,10 @@ from app.repositories.message_repository import MessageRepository
 from app.repositories.message_translation_repository import MessageTranslationRepository
 from app.repositories.room_repository import RoomRepository
 from app.repositories.user_repository import UserRepository
-from app.services.background_service import BackgroundService
-from app.services.conversation_service import ConversationService
-from app.services.room_service import RoomService
-from app.services.translation_service import TranslationService
+from app.services.domain.background_service import BackgroundService
+from app.services.domain.conversation_service import ConversationService
+from app.services.domain.room_service import RoomService
+from app.services.domain.translation_service import TranslationService
 from tests.fixtures import (
     ConversationFactory,
     MessageFactory,

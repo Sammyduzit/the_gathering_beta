@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from app.services.embedding_factory import create_embedding_service
-from app.services.google_embedding_service import GoogleEmbeddingService
+from app.services.embedding.embedding_factory import create_embedding_service
+from app.services.embedding.google_embedding_service import GoogleEmbeddingService
 
 
 @pytest.mark.unit

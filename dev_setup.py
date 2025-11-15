@@ -8,7 +8,7 @@ from app.core.database import AsyncSessionLocal
 from app.models.ai_entity import AIEntity, AIEntityStatus, AIResponseStrategy
 from app.models.room import Room
 from app.models.user import User
-from app.services.avatar_service import generate_avatar_url
+from app.services.domain.avatar_service import generate_avatar_url
 
 
 async def create_test_users():

@@ -4,8 +4,9 @@ AI Context Service for building conversation context.
 Retrieves message history and AI memory to provide context for LLM responses.
 """
 
-import logging
 from datetime import datetime, timezone
+
+import structlog
 
 from app.core.constants import MAX_CONTEXT_MESSAGES
 from app.interfaces.memory_retriever import IMemoryRetriever
@@ -14,7 +15,7 @@ from app.models.ai_memory import AIMemory
 from app.repositories.ai_memory_repository import IAIMemoryRepository
 from app.repositories.message_repository import IMessageRepository
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class AIContextService:
@@ -84,8 +85,10 @@ class AIContextService:
             context_messages.append({"role": "user", "content": content})
 
         logger.info(
-            f"Built conversation context for AI '{ai_entity.username}' in conversation {conversation_id}: "
-            f"{len(context_messages)} messages"
+            "conversation_context_built",
+            ai_username=ai_entity.username,
+            conversation_id=conversation_id,
+            message_count=len(context_messages),
         )
 
         return context_messages
@@ -133,7 +136,10 @@ class AIContextService:
             context_messages.append({"role": "user", "content": content})
 
         logger.info(
-            f"Built room context for AI '{ai_entity.username}' in room {room_id}: {len(context_messages)} messages"
+            "room_context_built",
+            ai_username=ai_entity.username,
+            room_id=room_id,
+            message_count=len(context_messages),
         )
 
         return context_messages
@@ -188,8 +194,11 @@ class AIContextService:
         memory_context = self._format_tiered_context(memories)
 
         logger.info(
-            f"Retrieved {len(memories)} tiered memories for AI entity {ai_entity_id} "
-            f"(user: {user_id}, conversation: {conversation_id})"
+            "tiered_memories_retrieved",
+            memory_count=len(memories),
+            ai_entity_id=ai_entity_id,
+            user_id=user_id,
+            conversation_id=conversation_id,
         )
 
         return memory_context
@@ -249,7 +258,7 @@ class AIContextService:
             # Update in database (repository expects full AIMemory object)
             await self.memory_repo.update(memory)
 
-        logger.debug(f"Updated access tracking for {len(memories)} memories")
+        logger.debug("access_tracking_updated", memory_count=len(memories))
 
     async def build_full_context(
         self,

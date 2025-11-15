@@ -2,7 +2,7 @@ from app.interfaces.embedding_service import EmbeddingServiceError, IEmbeddingSe
 from app.interfaces.keyword_extractor import IKeywordExtractor
 from app.models.ai_memory import AIMemory
 from app.repositories.ai_memory_repository import AIMemoryRepository
-from app.services.text_chunking_service import TextChunkingService
+from app.services.text_processing.text_chunking_service import TextChunkingService
 
 
 class PersonalityMemoryService:

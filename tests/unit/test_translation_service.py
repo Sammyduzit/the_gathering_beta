@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.models.message_translation import MessageTranslation
-from app.services.translation_service import TranslationService
+from app.services.domain.translation_service import TranslationService
 
 
 @pytest.mark.unit

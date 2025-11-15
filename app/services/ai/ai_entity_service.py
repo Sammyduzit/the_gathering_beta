@@ -23,7 +23,7 @@ from app.repositories.message_repository import IMessageRepository
 from app.repositories.room_repository import IRoomRepository
 
 if TYPE_CHECKING:
-    from app.services.conversation_service import ConversationService
+    from app.services.domain.conversation_service import ConversationService
 
 logger = structlog.get_logger(__name__)
 

@@ -10,7 +10,7 @@ import yake
 
 from app.core.config import settings
 from app.interfaces.keyword_extractor import IKeywordExtractor, KeywordExtractionError
-from app.services.stopwords_de import is_stopword
+from app.services.text_processing.stopwords_de import is_stopword
 
 logger = structlog.get_logger(__name__)
 

@@ -28,20 +28,20 @@ from app.repositories.repository_dependencies import (
 )
 from app.repositories.room_repository import IRoomRepository
 from app.repositories.user_repository import IUserRepository
-from app.services.ai_entity_service import AIEntityService
-from app.services.background_service import BackgroundService
-from app.services.conversation_service import ConversationService
-from app.services.embedding_factory import create_embedding_service
-from app.services.heuristic_summarizer import HeuristicMemorySummarizer
-from app.services.keyword_extractor_factory import create_keyword_extractor
-from app.services.keyword_retriever import KeywordMemoryRetriever
-from app.services.long_term_memory_service import LongTermMemoryService
-from app.services.personality_memory_service import PersonalityMemoryService
-from app.services.room_service import RoomService
-from app.services.short_term_memory_service import ShortTermMemoryService
-from app.services.text_chunking_service import TextChunkingService
-from app.services.translation_service import TranslationService
-from app.services.vector_memory_retriever import VectorMemoryRetriever
+from app.services.ai.ai_entity_service import AIEntityService
+from app.services.domain.background_service import BackgroundService
+from app.services.domain.conversation_service import ConversationService
+from app.services.domain.room_service import RoomService
+from app.services.domain.translation_service import TranslationService
+from app.services.embedding.embedding_factory import create_embedding_service
+from app.services.memory.keyword_retriever import KeywordMemoryRetriever
+from app.services.memory.long_term_memory_service import LongTermMemoryService
+from app.services.memory.personality_memory_service import PersonalityMemoryService
+from app.services.memory.short_term_memory_service import ShortTermMemoryService
+from app.services.memory.vector_memory_retriever import VectorMemoryRetriever
+from app.services.text_processing.heuristic_summarizer import HeuristicMemorySummarizer
+from app.services.text_processing.keyword_extractor_factory import create_keyword_extractor
+from app.services.text_processing.text_chunking_service import TextChunkingService
 
 
 def get_deepl_translator() -> TranslatorInterface:

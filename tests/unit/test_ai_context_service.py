@@ -6,7 +6,7 @@ import pytest
 
 from app.models.ai_memory import AIMemory
 from app.models.message import Message
-from app.services.ai_context_service import AIContextService
+from app.services.ai.ai_context_service import AIContextService
 
 
 @pytest.mark.unit

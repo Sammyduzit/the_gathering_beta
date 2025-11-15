@@ -13,7 +13,7 @@ from app.core.exceptions import (
 )
 from app.models.ai_entity import AIEntity, AIEntityStatus
 from app.models.conversation import Conversation, ConversationType
-from app.services.ai_entity_service import AIEntityService
+from app.services.ai.ai_entity_service import AIEntityService
 
 
 @pytest.mark.unit

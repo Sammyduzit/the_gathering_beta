@@ -16,7 +16,7 @@ from app.models.ai_entity import AIEntity, AIResponseStrategy
 from app.models.message import Message
 from app.repositories.ai_cooldown_repository import IAICooldownRepository
 from app.repositories.message_repository import IMessageRepository
-from app.services.ai_context_service import AIContextService
+from app.services.ai.ai_context_service import AIContextService
 
 logger = structlog.get_logger(__name__)
 

@@ -15,8 +15,8 @@ from app.schemas.room_user_schemas import (
     RoomParticipantsResponse,
     UserStatusUpdate,
 )
-from app.services.background_service import BackgroundService
-from app.services.room_service import RoomService
+from app.services.domain.background_service import BackgroundService
+from app.services.domain.room_service import RoomService
 from app.services.service_dependencies import get_background_service, get_room_service
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])

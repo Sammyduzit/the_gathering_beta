@@ -1,7 +1,7 @@
 """Factory for creating keyword extractor instances based on configuration."""
 
 from app.interfaces.keyword_extractor import IKeywordExtractor
-from app.services.yake_extractor import YakeKeywordExtractor
+from app.services.text_processing.yake_extractor import YakeKeywordExtractor
 
 
 def create_keyword_extractor() -> IKeywordExtractor:

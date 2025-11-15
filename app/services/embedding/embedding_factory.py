@@ -2,8 +2,8 @@
 
 from app.core.config import settings
 from app.interfaces.embedding_service import IEmbeddingService
-from app.services.google_embedding_service import GoogleEmbeddingService
-from app.services.openai_embedding_service import OpenAIEmbeddingService
+from app.services.embedding.google_embedding_service import GoogleEmbeddingService
+from app.services.embedding.openai_embedding_service import OpenAIEmbeddingService
 
 
 def create_embedding_service() -> IEmbeddingService:

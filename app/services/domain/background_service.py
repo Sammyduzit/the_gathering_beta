@@ -1,5 +1,4 @@
-import logging
-
+import structlog
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.background_tasks import background_task_retry
@@ -7,9 +6,9 @@ from app.interfaces.translator import TranslationError
 from app.models.message import Message
 from app.models.message_translation import MessageTranslation
 from app.repositories.message_translation_repository import IMessageTranslationRepository
-from app.services.translation_service import TranslationService
+from app.services.domain.translation_service import TranslationService
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class BackgroundService:
@@ -35,10 +34,14 @@ class BackgroundService:
         :return: Dictionary of language -> translated content
         """
         if not room_translation_enabled:
-            logger.info(f"Translation disabled for room, skipping message {message.id}")
+            logger.info("translation_disabled_for_room", message_id=message.id)
             return {}
 
-        logger.info(f"Starting background translation for message {message.id} to {len(target_languages)} languages")
+        logger.info(
+            "background_translation_started",
+            message_id=message.id,
+            target_language_count=len(target_languages),
+        )
 
         translations = {}
 
@@ -51,7 +54,11 @@ class BackgroundService:
 
                 if existing_translation:
                     translations[target_lang] = existing_translation.content
-                    logger.info(f"Using existing translation for message {message.id} -> {target_lang}")
+                    logger.info(
+                        "existing_translation_used",
+                        message_id=message.id,
+                        target_language=target_lang,
+                    )
                     continue
 
                 # Create new translation
@@ -69,13 +76,26 @@ class BackgroundService:
                     await self.message_translation_repo.create(new_translation)
 
                     translations[target_lang] = content
-                    logger.info(f"Successfully translated message {message.id} -> {target_lang}")
+                    logger.info(
+                        "message_translated",
+                        message_id=message.id,
+                        target_language=target_lang,
+                    )
 
             except (TranslationError, SQLAlchemyError, ValueError) as e:
-                logger.error(f"Failed to translate message {message.id} to {target_lang}: {e}")
+                logger.error(
+                    "translation_failed",
+                    message_id=message.id,
+                    target_language=target_lang,
+                    error=str(e),
+                )
                 continue
 
-        logger.info(f"Background translation completed for message {message.id}: {len(translations)} translations")
+        logger.info(
+            "background_translation_completed",
+            message_id=message.id,
+            translation_count=len(translations),
+        )
         return translations
 
     @background_task_retry(max_retries=1, delay=1.0)
@@ -85,14 +105,14 @@ class BackgroundService:
         :param days_old: Remove translations older than this many days
         :return: Number of cleaned up translations
         """
-        logger.info(f"Starting cleanup of translations older than {days_old} days")
+        logger.info("translation_cleanup_started", days_old=days_old)
 
         try:
             cleaned_count = await self.message_translation_repo.cleanup_old_translations(days_old)
-            logger.info(f"Translation cleanup completed: {cleaned_count} translations removed")
+            logger.info("translation_cleanup_completed", cleaned_count=cleaned_count)
             return cleaned_count
         except SQLAlchemyError as e:
-            logger.error(f"Translation cleanup failed: {e}")
+            logger.error("translation_cleanup_failed", error=str(e))
             raise
 
     @background_task_retry(max_retries=1, delay=0.5)
@@ -105,14 +125,19 @@ class BackgroundService:
         :param activity_type: Type of activity (message_sent, room_joined, etc.)
         :param details: Additional activity details
         """
-        logger.info(f"Logging activity for user {user_id}: {activity_type}")
+        logger.info("user_activity_logging", user_id=user_id, activity_type=activity_type)
 
         try:
             # TODO: Store activity in database or external analytics service
             activity_details = details or {}
-            logger.info(f"User {user_id} activity: {activity_type} - {activity_details}")
+            logger.info(
+                "user_activity_logged",
+                user_id=user_id,
+                activity_type=activity_type,
+                details=activity_details,
+            )
         except (OSError, ValueError) as e:
-            logger.error(f"Failed to log user activity: {e}")
+            logger.error("user_activity_logging_failed", error=str(e))
             raise
 
     @background_task_retry(max_retries=2, delay=3.0)
@@ -126,11 +151,15 @@ class BackgroundService:
         :param exclude_user_ids: User IDs to exclude from notification
         """
         exclude_user_ids = exclude_user_ids or []
-        logger.info(f"Sending notifications to room {room_id} users (excluding {len(exclude_user_ids)} users)")
+        logger.info(
+            "room_notification_sending",
+            room_id=room_id,
+            excluded_user_count=len(exclude_user_ids),
+        )
 
         try:
             # TODO: Integrate with notification service (WebSocket, Push, Email)
-            logger.info(f"Room {room_id} notification: {message}")
+            logger.info("room_notification_sent", room_id=room_id, message=message)
         except (OSError, ValueError) as e:
-            logger.error(f"Failed to send room notifications: {e}")
+            logger.error("room_notification_failed", error=str(e))
             raise

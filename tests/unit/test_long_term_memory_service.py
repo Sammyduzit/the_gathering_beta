@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.interfaces.embedding_service import EmbeddingServiceError
-from app.services.long_term_memory_service import LongTermMemoryService
+from app.services.memory.long_term_memory_service import LongTermMemoryService
 
 
 @pytest.mark.unit

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from app.models.ai_memory import AIMemory
-from app.services.vector_memory_retriever import VectorMemoryRetriever
+from app.services.memory.vector_memory_retriever import VectorMemoryRetriever
 
 
 class TestableVectorRetriever(VectorMemoryRetriever):

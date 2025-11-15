@@ -5,9 +5,9 @@ import pytest
 from app.core.config import settings
 from app.models.ai_entity import AIEntity, AIEntityStatus, AIResponseStrategy
 from app.repositories.ai_memory_repository import AIMemoryRepository
-from app.services.long_term_memory_service import LongTermMemoryService
-from app.services.short_term_memory_service import ShortTermMemoryService
-from app.services.text_chunking_service import TextChunkingService
+from app.services.memory.long_term_memory_service import LongTermMemoryService
+from app.services.memory.short_term_memory_service import ShortTermMemoryService
+from app.services.text_processing.text_chunking_service import TextChunkingService
 from tests.fixtures import ConversationFactory, MessageFactory, RoomFactory, UserFactory
 
 

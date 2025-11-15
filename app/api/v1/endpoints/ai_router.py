@@ -9,7 +9,7 @@ from app.schemas.ai_schemas import (
     AIEntityResponse,
     AIEntityUpdate,
 )
-from app.services.ai_entity_service import AIEntityService
+from app.services.ai.ai_entity_service import AIEntityService
 from app.services.service_dependencies import get_ai_entity_service
 
 router = APIRouter(prefix="/ai", tags=["ai"])
