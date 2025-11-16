@@ -58,9 +58,9 @@ class TestGoogleEmbeddingService:
                 self.api_key = api_key
                 self.models = fake_models
 
-        monkeypatch.setattr("app.services.google_embedding_service.genai.Client", FakeClient)
+        monkeypatch.setattr("app.services.embedding.google_embedding_service.genai.Client", FakeClient)
         monkeypatch.setattr(
-            "app.services.google_embedding_service.types.EmbedContentConfig",
+            "app.services.embedding.google_embedding_service.types.EmbedContentConfig",
             lambda output_dimensionality: SimpleNamespace(dim=output_dimensionality),
         )
 
