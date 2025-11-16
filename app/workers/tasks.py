@@ -18,10 +18,10 @@ from app.repositories.message_repository import MessageRepository
 from app.services.ai.ai_context_service import AIContextService
 from app.services.ai.ai_response_service import AIResponseService
 from app.services.embedding.embedding_factory import create_embedding_service
-from app.services.text_processing.keyword_extractor_factory import create_keyword_extractor
 from app.services.memory.long_term_memory_service import LongTermMemoryService
-from app.services.service_dependencies import get_embedding_service, get_memory_retriever
 from app.services.memory.short_term_memory_service import ShortTermMemoryService
+from app.services.service_dependencies import get_embedding_service, get_memory_retriever
+from app.services.text_processing.keyword_extractor_factory import create_keyword_extractor
 from app.services.text_processing.text_chunking_service import TextChunkingService
 
 logger = structlog.get_logger(__name__)

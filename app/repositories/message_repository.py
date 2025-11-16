@@ -377,9 +377,7 @@ class MessageRepository(IMessageRepository):
         """
         try:
             # Delete all messages where room_id matches and conversation_id is NULL
-            delete_stmt = delete(Message).where(
-                and_(Message.room_id == room_id, Message.conversation_id.is_(None))
-            )
+            delete_stmt = delete(Message).where(and_(Message.room_id == room_id, Message.conversation_id.is_(None)))
 
             delete_result = await self.db.execute(delete_stmt)
             await self.db.commit()
