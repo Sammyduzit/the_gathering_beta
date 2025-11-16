@@ -30,6 +30,7 @@ DEFAULT_TEST_ENV = {
     "ACCESS_TOKEN_EXPIRE_MINUTES": "30",
     "APP_NAME": "The Gathering Test",
     "RESET_DB": "false",
+    "COOKIE_SECURE": "false",  # Disable secure cookies for HTTP testing
 }
 
 for key, value in DEFAULT_TEST_ENV.items():

@@ -53,9 +53,9 @@ MAX_MEMORY_ENTRIES = 10  # Maximum memory entries to retrieve per AI entity
 DEFAULT_REFRESH_TOKEN_EXPIRE_DAYS = 7
 DEFAULT_CSRF_TOKEN_LENGTH = 32
 
-# Cookie Security Defaults (Secure by default, opt-out for local development)
+# Cookie Security Defaults (Disabled for local development, enable in production)
 DEFAULT_COOKIE_SAMESITE = "lax"
-DEFAULT_COOKIE_SECURE = True  # Set to False in .env for local HTTP development
+DEFAULT_COOKIE_SECURE = False  # Set to True in production .env for HTTPS
 
 # Time conversion constants
 SECONDS_PER_MINUTE = 60
