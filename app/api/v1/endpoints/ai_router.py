@@ -8,7 +8,9 @@ from app.schemas.ai_schemas import (
     AIEntityCreate,
     AIEntityResponse,
     AIEntityUpdate,
+    AIGoodbyeResponse,
 )
+from app.schemas.common_schemas import MessageResponse
 from app.services.ai.ai_entity_service import AIEntityService
 from app.services.service_dependencies import get_ai_entity_service
 
@@ -129,13 +131,13 @@ async def update_ai_entity(
     )
 
 
-@router.delete("/entities/{entity_id}")
+@router.delete("/entities/{entity_id}", response_model=MessageResponse)
 async def delete_ai_entity(
     entity_id: int,
     current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> MessageResponse:
     """
     Delete AI entity (Admin only).
     :param entity_id: AI entity ID
@@ -143,7 +145,8 @@ async def delete_ai_entity(
     :param ai_service: AI entity service instance
     :return: Deletion confirmation
     """
-    return await ai_service.delete_entity(entity_id)
+    result = await ai_service.delete_entity(entity_id)
+    return MessageResponse(message=result["message"])
 
 
 @router.get("/rooms/{room_id}/available", response_model=list[AIAvailableResponse])
@@ -162,13 +165,13 @@ async def get_available_ai_in_room(
     return await ai_service.get_available_in_room(room_id)
 
 
-@router.post("/entities/{entity_id}/goodbye")
+@router.post("/entities/{entity_id}/goodbye", response_model=AIGoodbyeResponse)
 async def initiate_ai_goodbye(
     entity_id: int,
     current_admin: User = Depends(get_current_admin_user),
     ai_service: AIEntityService = Depends(get_ai_entity_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> AIGoodbyeResponse:
     """
     Initiate graceful goodbye for AI entity (Admin only).
 
@@ -184,4 +187,10 @@ async def initiate_ai_goodbye(
     :param ai_service: AI entity service instance
     :return: Summary of goodbye actions (room/conversation farewells)
     """
-    return await ai_service.initiate_graceful_goodbye(entity_id)
+    result = await ai_service.initiate_graceful_goodbye(entity_id)
+    return AIGoodbyeResponse(
+        message=result.get("message", "AI goodbye initiated"),
+        ai_entity_id=entity_id,
+        conversation_id=result.get("conversation_id"),
+        room_id=result.get("room_id"),
+    )

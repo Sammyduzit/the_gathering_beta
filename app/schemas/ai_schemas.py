@@ -94,15 +94,15 @@ class AIEntityResponse(BaseModel):
     max_tokens: int | None
 
     # Response Strategies
-    room_response_strategy: str  # AIResponseStrategy enum value
-    conversation_response_strategy: str  # AIResponseStrategy enum value
+    room_response_strategy: AIResponseStrategy
+    conversation_response_strategy: AIResponseStrategy
     response_probability: float
 
     # Rate Limiting
     cooldown_seconds: int | None
 
     config: dict | None
-    status: str
+    status: AIEntityStatus
     is_active: bool
     current_room_id: int | None
     current_room_name: str | None  # Populated from AIEntity.current_room_name @property
@@ -124,6 +124,19 @@ class AIAvailableResponse(BaseModel):
     id: int
     username: str
     model_name: str
-    status: str
+    status: AIEntityStatus
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AIGoodbyeResponse(BaseModel):
+    """
+    Response for AI goodbye initiation.
+
+    Returned when an AI entity initiates a graceful goodbye sequence.
+    """
+
+    message: str = Field(description="Goodbye initiation confirmation")
+    ai_entity_id: int = Field(description="ID of AI entity saying goodbye")
+    conversation_id: int | None = Field(None, description="Conversation ID if leaving conversation")
+    room_id: int | None = Field(None, description="Room ID if leaving room")
