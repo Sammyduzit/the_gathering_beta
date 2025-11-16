@@ -11,12 +11,17 @@ from app.repositories.ai_entity_repository import AIEntityRepository
 from app.repositories.repository_dependencies import get_ai_entity_repository
 from app.schemas.chat_schemas import (
     ConversationCreate,
+    ConversationCreateResponse,
     ConversationDetailResponse,
     ConversationListItemResponse,
     ConversationUpdate,
+    ConversationUpdateResponse,
     MessageCreate,
     MessageResponse,
     PaginatedMessagesResponse,
+    ParticipantAddResponse,
+    ParticipantInfo,
+    ParticipantRemoveResponse,
 )
 from app.services.domain.conversation_service import ConversationService
 from app.services.service_dependencies import get_conversation_service
@@ -26,13 +31,13 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ConversationCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_conversation(
     conversation_data: ConversationCreate = Body(...),
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> ConversationCreateResponse:
     """
     Create private or group conversation.
     :param conversation_data: Conversation creation data
@@ -46,11 +51,11 @@ async def create_conversation(
         participant_usernames=conversation_data.participant_usernames,
         conversation_type=conversation_data.conversation_type,
     )
-    return {
-        "message": f"{conversation_data.conversation_type.title()} conversation created successfully",
-        "conversation_id": new_conversation.id,
-        "participants": len(conversation_data.participant_usernames) + 1,
-    }
+    return ConversationCreateResponse(
+        message=f"{conversation_data.conversation_type.value.title()} conversation created successfully",
+        conversation_id=new_conversation.id,
+        participants=len(conversation_data.participant_usernames) + 1,
+    )
 
 
 @router.post("/{conversation_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
@@ -187,30 +192,30 @@ async def get_conversation_detail(
     return await conversation_service.get_conversation_detail(current_user, conversation_id)
 
 
-@router.get("/{conversation_id}/participants", response_model=list[dict])
+@router.get("/{conversation_id}/participants", response_model=list[ParticipantInfo])
 async def get_conversation_participants(
     conversation_id: int,
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
-) -> list[dict]:
+) -> list[ParticipantInfo]:
     """
     Get participants of a conversation.
     :param conversation_id: ID of the conversation
     :param current_user: Current authenticated user
     :param conversation_service: Service instance handling conversation logic
-    :return: List of participant user dictionaries for the given conversation
+    :return: List of participant info for the given conversation
     """
     return await conversation_service.get_participants(current_user=current_user, conversation_id=conversation_id)
 
 
-@router.post("/{conversation_id}/participants")
+@router.post("/{conversation_id}/participants", response_model=ParticipantAddResponse)
 async def add_participant_to_conversation(
     conversation_id: int,
     username: str = Body(..., embed=True),
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> ParticipantAddResponse:
     """
     Add participant (human or AI) to conversation.
 
@@ -226,21 +231,22 @@ async def add_participant_to_conversation(
     :param conversation_service: Service instance handling conversation logic
     :return: Success response with participant info
     """
-    return await conversation_service.add_participant(
+    result = await conversation_service.add_participant(
         conversation_id=conversation_id,
         username=username,
         current_user=current_user,
     )
+    return ParticipantAddResponse(**result)
 
 
-@router.delete("/{conversation_id}/participants/{username}")
+@router.delete("/{conversation_id}/participants/{username}", response_model=ParticipantRemoveResponse)
 async def remove_participant_from_conversation(
     conversation_id: int,
     username: str,
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> ParticipantRemoveResponse:
     """
     Remove participant from conversation.
 
@@ -253,21 +259,22 @@ async def remove_participant_from_conversation(
     :param conversation_service: Service instance handling conversation logic
     :return: Success response with removal info
     """
-    return await conversation_service.remove_participant(
+    result = await conversation_service.remove_participant(
         conversation_id=conversation_id,
         username=username,
         current_user=current_user,
     )
+    return ParticipantRemoveResponse(**result)
 
 
-@router.patch("/{conversation_id}", response_model=dict)
+@router.patch("/{conversation_id}", response_model=ConversationUpdateResponse)
 async def update_conversation(
     conversation_id: int,
     conversation_data: ConversationUpdate = Body(...),
     current_user: User = Depends(get_current_active_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> ConversationUpdateResponse:
     """
     Update conversation metadata (archive/unarchive).
 
@@ -287,11 +294,11 @@ async def update_conversation(
     )
 
     action = "unarchived" if conversation_data.is_active else "archived"
-    return {
-        "message": f"Conversation {action} successfully",
-        "conversation_id": updated_conversation.id,
-        "is_active": updated_conversation.is_active,
-    }
+    return ConversationUpdateResponse(
+        message=f"Conversation {action} successfully",
+        conversation_id=updated_conversation.id,
+        is_active=updated_conversation.is_active,
+    )
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)

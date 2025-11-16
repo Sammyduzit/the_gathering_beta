@@ -9,7 +9,7 @@ from app.core.exceptions import (
     UserNotFoundException,
     UserNotInRoomException,
 )
-from app.models.conversation import Conversation
+from app.models.conversation import Conversation, ConversationType
 from app.models.message import Message
 from app.models.user import User
 from app.repositories.ai_entity_repository import IAIEntityRepository
@@ -67,23 +67,23 @@ class ConversationService:
         self,
         current_user: User,
         participant_usernames: list[str],
-        conversation_type: str,
+        conversation_type: ConversationType,
     ) -> Conversation:
         """
         Create private or group conversation with validation.
         Supports both human and AI participants.
         :param current_user: User creating the conversation
         :param participant_usernames: List of participant usernames (human or AI)
-        :param conversation_type: 'private' or 'group'
+        :param conversation_type: ConversationType enum (PRIVATE or GROUP)
         :return: Created conversation
         """
         if not current_user.current_room_id:
             raise UserNotInRoomException("User must be in a room to create conversations")
 
-        if conversation_type == "private" and len(participant_usernames) != 1:
+        if conversation_type == ConversationType.PRIVATE and len(participant_usernames) != 1:
             raise ConversationValidationException("Private conversations require exactly 1 other participant")
 
-        if conversation_type == "group" and len(participant_usernames) < 1:
+        if conversation_type == ConversationType.GROUP and len(participant_usernames) < 1:
             raise ConversationValidationException("Group conversations require at least 1 other participant")
 
         # Validate and separate human/AI participants
@@ -96,7 +96,7 @@ class ConversationService:
         ai_ids = [ai.id for ai in ai_participants]
 
         # Create conversation with all participants at once
-        if conversation_type == "private":
+        if conversation_type == ConversationType.PRIVATE:
             conversation = await self.conversation_repo.create_private_conversation(
                 room_id=current_user.current_room_id,
                 user_ids=user_ids,
@@ -371,20 +371,24 @@ class ConversationService:
         human_user = await self.user_repo.get_by_username(username)
         if human_user:
             await self.conversation_repo.add_participant(conversation_id, user_id=human_user.id)
+            participant_count = await self.conversation_repo.count_active_participants(conversation_id)
             return {
                 "message": f"User '{username}' added to conversation",
-                "participant_type": "user",
-                "participant_id": human_user.id,
+                "conversation_id": conversation_id,
+                "username": username,
+                "participant_count": participant_count,
             }
 
         # Try AI
         ai_entity = await self.ai_entity_repo.get_by_username(username)
         if ai_entity:
             await self.conversation_repo.add_participant(conversation_id, ai_entity_id=ai_entity.id)
+            participant_count = await self.conversation_repo.count_active_participants(conversation_id)
             return {
                 "message": f"Participant '{username}' added to conversation",
-                "participant_type": "ai",
-                "participant_id": ai_entity.id,
+                "conversation_id": conversation_id,
+                "username": username,
+                "participant_count": participant_count,
             }
 
         raise UserNotFoundException(f"Participant '{username}' not found")
@@ -426,10 +430,12 @@ class ConversationService:
             removed = await self.conversation_repo.remove_participant(conversation_id, user_id=human_user.id)
             if not removed:
                 raise UserNotFoundException(f"User '{username}' is not a participant in this conversation")
+            participant_count = await self.conversation_repo.count_active_participants(conversation_id)
             return {
                 "message": f"User '{username}' removed from conversation",
-                "participant_type": "user",
-                "participant_id": human_user.id,
+                "conversation_id": conversation_id,
+                "username": username,
+                "participant_count": participant_count,
             }
 
         # Try AI (only admins can remove AI)
@@ -448,10 +454,12 @@ class ConversationService:
                 ai_entity_id=ai_entity.id,
             )
 
+            participant_count = await self.conversation_repo.count_active_participants(conversation_id)
             return {
                 "message": f"Participant '{username}' removed from conversation",
-                "participant_type": "ai",
-                "participant_id": ai_entity.id,
+                "conversation_id": conversation_id,
+                "username": username,
+                "participant_count": participant_count,
             }
 
         raise UserNotFoundException(f"Participant '{username}' not found")

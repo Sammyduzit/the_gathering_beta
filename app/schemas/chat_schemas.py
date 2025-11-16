@@ -3,6 +3,9 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.validators import SanitizedString
+from app.models.ai_entity import AIEntityStatus
+from app.models.conversation import ConversationType
+from app.models.user import UserStatus
 
 
 class MessageCreate(BaseModel):
@@ -40,7 +43,7 @@ class ConversationCreate(BaseModel):
         max_length=20,
         description="List of usernames to include in conversation",
     )
-    conversation_type: str = Field(description="'private' (2 users) or 'group' (2+ users)")
+    conversation_type: ConversationType = Field(description="Conversation type: private or group")
 
 
 class ConversationUpdate(BaseModel):
@@ -58,12 +61,12 @@ class ConversationResponse(BaseModel):
     """
 
     id: int
-    conversation_type: str
+    conversation_type: ConversationType
     room_id: int
     is_active: bool
     created_at: datetime
 
-    model_config = ConfigDict()
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ParticipantInfo(BaseModel):
@@ -74,7 +77,7 @@ class ParticipantInfo(BaseModel):
     id: int
     username: str
     avatar_url: str | None = None
-    status: str
+    status: UserStatus | AIEntityStatus
     is_ai: bool
 
     model_config = ConfigDict(from_attributes=True)
@@ -97,7 +100,7 @@ class ConversationListItemResponse(BaseModel):
     """
 
     id: int
-    type: str = Field(description="Conversation type: private or group")
+    type: ConversationType = Field(description="Conversation type: private or group")
     room_id: int
     room_name: str | None = Field(None, description="Name of the room this conversation belongs to")
     participants: list[str] = Field(description="List of participant usernames (excluding current user)")
@@ -114,7 +117,7 @@ class ConversationDetailResponse(BaseModel):
     """
 
     id: int
-    type: str = Field(description="Conversation type: private or group")
+    type: ConversationType = Field(description="Conversation type: private or group")
     room_id: int
     room_name: str | None = Field(None, description="Name of the room this conversation belongs to")
     is_active: bool
@@ -143,3 +146,45 @@ class PaginatedMessagesResponse(BaseModel):
     page_size: int = Field(ge=1, le=100, description="Number of messages per page")
     total_pages: int = Field(description="Total number of pages")
     has_more: bool = Field(description="Whether more pages are available")
+
+
+class ConversationCreateResponse(BaseModel):
+    """
+    Response for successful conversation creation.
+    """
+
+    message: str = Field(description="Confirmation message")
+    conversation_id: int = Field(description="ID of created conversation")
+    participants: int = Field(ge=1, description="Total number of participants")
+
+
+class ConversationUpdateResponse(BaseModel):
+    """
+    Response for conversation update (archive/unarchive).
+    """
+
+    message: str = Field(description="Update confirmation message")
+    conversation_id: int = Field(description="ID of updated conversation")
+    is_active: bool = Field(description="Current active status")
+
+
+class ParticipantAddResponse(BaseModel):
+    """
+    Response for adding participant to conversation.
+    """
+
+    message: str = Field(description="Success message")
+    conversation_id: int = Field(description="Conversation ID")
+    username: str = Field(description="Added participant username")
+    participant_count: int = Field(ge=1, description="Total participants after addition")
+
+
+class ParticipantRemoveResponse(BaseModel):
+    """
+    Response for removing participant from conversation.
+    """
+
+    message: str = Field(description="Success message")
+    conversation_id: int = Field(description="Conversation ID")
+    username: str = Field(description="Removed participant username")
+    participant_count: int = Field(ge=0, description="Total participants after removal")
