@@ -93,6 +93,11 @@ class IMessageRepository(BaseRepository[Message]):
         """Delete old room messages, keeping only the most recent ones"""
         pass
 
+    @abstractmethod
+    async def delete_room_messages(self, room_id: int) -> int:
+        """Delete all messages from a room (hard delete for room cleanup)"""
+        pass
+
 
 class MessageRepository(IMessageRepository):
     """SQLAlchemy implementation of Message repository."""
@@ -354,6 +359,40 @@ class MessageRepository(IMessageRepository):
 
         except SQLAlchemyError as e:
             logger.error(f"Error cleaning up room messages: {e}")
+            await self.db.rollback()
+            return 0
+
+    async def delete_room_messages(self, room_id: int) -> int:
+        """
+        Delete all messages from a room (hard delete for room cleanup).
+
+        When a room is deleted, all room-specific messages are permanently removed.
+        Conversation messages (private/group chats) are preserved.
+
+        Args:
+            room_id: Room ID
+
+        Returns:
+            Number of deleted messages
+        """
+        try:
+            # Delete all messages where room_id matches and conversation_id is NULL
+            delete_stmt = delete(Message).where(
+                and_(Message.room_id == room_id, Message.conversation_id.is_(None))
+            )
+
+            delete_result = await self.db.execute(delete_stmt)
+            await self.db.commit()
+
+            deleted_count = delete_result.rowcount or 0
+
+            if deleted_count > 0:
+                logger.info(f"Deleted {deleted_count} room messages from room {room_id}")
+
+            return deleted_count
+
+        except SQLAlchemyError as e:
+            logger.error(f"Error deleting room messages: {e}")
             await self.db.rollback()
             return 0
 

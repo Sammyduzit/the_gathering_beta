@@ -103,35 +103,42 @@ class RoomService:
 
     async def delete_room(self, room_id: int) -> dict:
         """
-        Soft delete room, kick out all users and deactivate conversations.
+        Delete room with cleanup: soft delete room, kick users, archive conversations, hard delete room messages.
+
+        Room messages are permanently deleted (hard delete).
+        Conversation messages (private/group chats) are preserved - they remain accessible even when archived.
+
         :param room_id: Room ID to delete
-        :return: Deleted room
+        :return: Cleanup summary with statistics
         """
         room = await self._get_room_or_404(room_id)
 
+        # Kick all users from room
         users_in_room = await self.room_repo.get_users_in_room(room_id)
-        kicked_users = []
         for user in users_in_room:
             user.current_room_id = None
             user.status = UserStatus.AWAY
             await self.user_repo.update(user)
-            kicked_users.append(user.username)
 
+        # Archive all conversations in room
         conversations = await self.conversation_repo.get_room_conversations(room_id)
-        deactivated_conversations = len(conversations)
         for conversation in conversations:
             conversation.is_active = False
             await self.conversation_repo.update(conversation)
 
+        # Hard delete all room messages (conversation messages are preserved)
+        deleted_messages = await self.message_repo.delete_room_messages(room_id)
+
+        # Soft delete room
         await self.room_repo.soft_delete(room_id)
         room.is_active = False
 
         return {
-            "message": f"Room '{room.name}' has been closed",
+            "message": f"Room '{room.name}' has been deleted",
             "room_id": room_id,
-            "users_kicked": len(kicked_users),
-            "conversations_archived": deactivated_conversations,
-            "note": "Chat history remains accessible",
+            "users_removed": len(users_in_room),
+            "conversations_archived": len(conversations),
+            "messages_deleted": deleted_messages,
         }
 
     async def get_room_by_id(self, room_id: int) -> Room:

@@ -32,3 +32,17 @@ class RoomCreate(BaseModel):
     description: SanitizedString | None = Field(None, max_length=500)
     max_users: int | None = Field(None, ge=1, le=1000)
     is_translation_enabled: bool = Field(False, description="Enable automatic translation in this room")
+
+
+class RoomDeleteResponse(BaseModel):
+    """
+    Room deletion cleanup summary.
+
+    Returns detailed statistics about the cleanup operation when a room is deleted.
+    """
+
+    message: str = Field(description="Deletion confirmation message")
+    room_id: int = Field(description="ID of deleted room")
+    users_removed: int = Field(ge=0, description="Number of users removed from room")
+    conversations_archived: int = Field(ge=0, description="Number of conversations archived")
+    messages_deleted: int = Field(ge=0, description="Number of messages deleted")

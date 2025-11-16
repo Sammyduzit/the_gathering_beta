@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.ai_entity import AIEntityStatus
 from app.models.user import UserStatus
 
 
@@ -14,7 +15,9 @@ class RoomParticipantResponse(BaseModel):
     id: int
     username: str = Field(description="Unique username for both humans and AI entities")
     avatar_url: str | None = Field(None, description="Avatar URL, null for AI entities")
-    status: str = Field(description="Participant status: available/busy/away for humans, online for AI")
+    status: UserStatus | AIEntityStatus = Field(
+        description="Participant status: available/busy/away for humans, online/offline for AI"
+    )
     is_ai: bool = Field(description="True if participant is an AI entity")
     last_active: datetime | None = Field(None, description="Last activity timestamp, null for AI entities")
 

@@ -8,7 +8,8 @@ from app.core.config import settings
 from app.core.csrf_dependencies import validate_csrf
 from app.models.user import User
 from app.schemas.chat_schemas import MessageCreate, MessageResponse, PaginatedMessagesResponse
-from app.schemas.room_schemas import RoomCreate, RoomResponse
+from app.schemas.common_schemas import CountResponse, HealthResponse, StatusUpdateResponse
+from app.schemas.room_schemas import RoomCreate, RoomDeleteResponse, RoomResponse
 from app.schemas.room_user_schemas import (
     RoomJoinResponse,
     RoomLeaveResponse,
@@ -83,13 +84,13 @@ async def update_room(
     )
 
 
-@router.delete("/{room_id}")
+@router.delete("/{room_id}", response_model=RoomDeleteResponse)
 async def delete_room(
     room_id: int,
     current_admin: User = Depends(get_current_admin_user),
     room_service: RoomService = Depends(get_room_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> RoomDeleteResponse:
     """
     Close room with cleanup, kick users and archive conversations.
     :param room_id: ID of room to delete
@@ -97,27 +98,29 @@ async def delete_room(
     :param room_service: Service instance handling room logic
     :return: Cleanup summary with statistics
     """
-    return await room_service.delete_room(room_id)
+    result = await room_service.delete_room(room_id)
+    return RoomDeleteResponse(**result)
 
 
-@router.get("/count")
+@router.get("/count", response_model=CountResponse)
 async def get_room_count(
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
-) -> dict:
+) -> CountResponse:
     """
     Get count of active rooms.
     :param current_user: Current authenticated user
     :param room_service: Service instance handling room logic
-    :return: Dictionary with room count
+    :return: Room count response
     """
-    return await room_service.get_room_count()
+    result = await room_service.get_room_count()
+    return CountResponse(count=result["count"])
 
 
-@router.get("/health")
-async def rooms_health():
+@router.get("/health", response_model=HealthResponse)
+async def rooms_health() -> HealthResponse:
     """Health check"""
-    return {"status": "rooms endpoint working"}
+    return HealthResponse(status="rooms endpoint working")
 
 
 @router.get("/{room_id}", response_model=RoomResponse)
@@ -233,13 +236,13 @@ async def get_room_participants(
     return await room_service.get_room_participants(room_id)
 
 
-@router.patch("/users/status")
+@router.patch("/users/status", response_model=StatusUpdateResponse)
 async def update_user_status(
     status_update: UserStatusUpdate,
     current_user: User = Depends(get_current_active_user),
     room_service: RoomService = Depends(get_room_service),
     _csrf: None = Depends(validate_csrf),
-) -> dict:
+) -> StatusUpdateResponse:
     """
     Update current user status.
     :param status_update: New status data
@@ -247,7 +250,8 @@ async def update_user_status(
     :param room_service: Service instance handling room logic
     :return: Status update confirmation
     """
-    return await room_service.update_user_status(current_user, status_update.status)
+    result = await room_service.update_user_status(current_user, status_update.status)
+    return StatusUpdateResponse(message=result["message"], status=result["status"])
 
 
 @router.post(
