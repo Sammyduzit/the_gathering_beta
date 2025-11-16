@@ -17,6 +17,7 @@ from app.models import User
 from app.repositories.repository_dependencies import get_user_repository
 from app.repositories.user_repository import IUserRepository
 from app.schemas.auth_schemas import Token, UserLogin, UserRegister, UserResponse, UserUpdate
+from app.schemas.common_schemas import MessageResponse
 from app.services.domain.avatar_service import generate_avatar_url
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -295,14 +296,14 @@ async def refresh_access_token(
     }
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=MessageResponse)
 async def logout_user(
     request: Request,
     response: Response,
     _csrf: None = Depends(validate_csrf),
     redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_active_user),
-):
+) -> MessageResponse:
     """
     Logout user by invalidating cookies and revoking entire token family.
 
@@ -347,7 +348,7 @@ async def logout_user(
     # Clear all auth cookies
     clear_auth_cookies(response)
 
-    return {"message": "Logged out successfully"}
+    return MessageResponse(message="Logged out successfully")
 
 
 @router.get("/me", response_model=UserResponse)
