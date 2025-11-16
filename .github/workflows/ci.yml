@@ -183,9 +183,47 @@ jobs:
     - name: "✅ Quality Gate Check"
       run: |
         echo "🎯 The Gathering Quality Gate"
-        echo "✅ Linting: Passed"
-        echo "✅ Formatting: Passed"
-        echo "✅ Tests: Passed"
-        echo "✅ Security: Scanned"
-        echo "✅ Code Quality: Analyzed"
-        echo "🚀 Ready for deployment!"
+        echo ""
+
+        # Check test job result
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✅ Linting: Passed"
+          echo "✅ Formatting: Passed"
+          echo "✅ Tests: Passed"
+        else
+          echo "❌ Tests: Failed"
+          TEST_FAILED=true
+        fi
+
+        # Check security job result
+        if [ "${{ needs.security.result }}" == "success" ]; then
+          echo "✅ Security: Scanned"
+        elif [ "${{ needs.security.result }}" == "skipped" ]; then
+          echo "⏭️  Security: Skipped"
+        else
+          echo "❌ Security: Failed"
+          SECURITY_FAILED=true
+        fi
+
+        # Check sonarcloud job result (may be skipped on non-main branches)
+        if [ "${{ needs.sonarcloud.result }}" == "success" ]; then
+          echo "✅ Code Quality: Analyzed"
+        elif [ "${{ needs.sonarcloud.result }}" == "skipped" ]; then
+          echo "⏭️  Code Quality: Skipped (only runs on main branch)"
+        else
+          echo "❌ Code Quality: Failed"
+          SONAR_FAILED=true
+        fi
+
+        echo ""
+
+        # Determine overall status
+        if [ "$TEST_FAILED" == "true" ] || [ "$SECURITY_FAILED" == "true" ] || [ "$SONAR_FAILED" == "true" ]; then
+          echo "❌ Quality Gate: FAILED"
+          echo "🚫 NOT ready for deployment!"
+          exit 1
+        else
+          echo "✅ Quality Gate: PASSED"
+          echo "🚀 Ready for deployment!"
+          exit 0
+        fi
